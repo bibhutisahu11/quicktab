@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MenuItemData, CartItem } from "@/types";
 import MenuCard from "./MenuCard";
 import CartDrawer from "./CartDrawer";
 import CheckoutModal from "./CheckoutModal";
+import UpsellToast from "./UpsellToast";
+import { getUpsellSuggestion, FOOD_TIPS } from "@/lib/upsellEngine";
 
 interface MenuPageProps {
   menuItems: MenuItemData[];
@@ -44,6 +46,17 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [showReorderBanner, setShowReorderBanner] = useState(false);
   const [isDiningCustomer, setIsDiningCustomer] = useState(false);
+
+  // ── Upsell toast ──────────────────────────────────────────────────────────
+  const [upsellToast, setUpsellToast] = useState<{
+    itemName: string; emoji: string; message: string;
+    suggestedItem: { id: string; name: string; price: number } | null;
+  } | null>(null);
+  const upsellTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Rotating tip banner ───────────────────────────────────────────────────
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * FOOD_TIPS.length));
+  const [tipVisible, setTipVisible] = useState(true);
 
   // Load previous order from localStorage, then confirm dining status via API using phone
   useEffect(() => {
@@ -91,6 +104,18 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     setCartOpen(true);
   }, [lastOrder, menuItems]);
 
+  // Rotate food tips every 6 seconds
+  useEffect(() => {
+    const t = setInterval(() => {
+      setTipVisible(false);
+      setTimeout(() => {
+        setTipIndex((i) => (i + 1) % FOOD_TIPS.length);
+        setTipVisible(true);
+      }, 400);
+    }, 6000);
+    return () => clearInterval(t);
+  }, []);
+
   const timeCtx = useMemo(() => getTimeContext(), []);
 
   const categories = useMemo(() => {
@@ -130,12 +155,25 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   function addToCart(item: MenuItemData) {
     setCart((prev) => {
       const existing = prev.find((c) => c.menuItemId === item.id);
-      if (existing) {
-        return prev.map((c) =>
-          c.menuItemId === item.id ? { ...c, quantity: c.quantity + 1 } : c
-        );
+      const newCart = existing
+        ? prev.map((c) => c.menuItemId === item.id ? { ...c, quantity: c.quantity + 1 } : c)
+        : [...prev, { menuItemId: item.id, name: item.name, price: item.price, quantity: 1 }];
+
+      // Only show upsell on first add (not repeat increments)
+      if (!existing) {
+        if (upsellTimeoutRef.current) clearTimeout(upsellTimeoutRef.current);
+        const cartIds = new Set(newCart.map((c) => c.menuItemId));
+        const result = getUpsellSuggestion(item.category, menuItems, cartIds);
+        if (result) {
+          setUpsellToast({
+            itemName: item.name,
+            emoji: result.suggestion.emoji,
+            message: result.suggestion.message,
+            suggestedItem: result.item,
+          });
+        }
       }
-      return [...prev, { menuItemId: item.id, name: item.name, price: item.price, quantity: 1 }];
+      return newCart;
     });
   }
 
@@ -313,6 +351,26 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         </div>
       )}
 
+      {/* Rotating food tip / upsell banner */}
+      <div className="max-w-2xl mx-auto px-4 pt-3">
+        <div
+          className={`bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 rounded-2xl px-4 py-3 transition-all duration-400 ${tipVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
+        >
+          <p className="text-slate-700 text-sm leading-snug">{FOOD_TIPS[tipIndex].text}</p>
+          {FOOD_TIPS[tipIndex].cta && (() => {
+            const ctaItem = menuItems.find((m) => m.available && m.name === FOOD_TIPS[tipIndex].cta);
+            return ctaItem ? (
+              <button
+                onClick={() => addToCart(ctaItem)}
+                className="mt-2 text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full transition-colors"
+              >
+                + Add {ctaItem.name} · ₹{ctaItem.price}
+              </button>
+            ) : null;
+          })()}
+        </div>
+      </div>
+
       {/* Menu grid */}
       <div className="max-w-2xl mx-auto px-4 py-5">
         {filtered.length === 0 ? (
@@ -399,6 +457,21 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         orgSlug={orgSlug}
         isDiningCustomer={isDiningCustomer}
       />
+
+      {/* Upsell / cross-sell toast */}
+      {upsellToast && !checkoutOpen && !cartOpen && (
+        <UpsellToast
+          itemName={upsellToast.itemName}
+          emoji={upsellToast.emoji}
+          message={upsellToast.message}
+          suggestedItem={upsellToast.suggestedItem}
+          onAddSuggested={(itemId) => {
+            const item = menuItems.find((m) => m.id === itemId);
+            if (item) addToCart(item);
+          }}
+          onDismiss={() => setUpsellToast(null)}
+        />
+      )}
     </div>
   );
 }
