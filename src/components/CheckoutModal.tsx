@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import QRCode from "qrcode";
 import { CartItem, DiscountData, AppliedDiscount } from "@/types";
 import { validatePhone, validateEmail } from "@/lib/validators";
 import { applyDiscounts, totalDiscount, DAY_NAMES } from "@/lib/discountEngine";
@@ -61,6 +62,7 @@ export default function CheckoutModal({
   const [screenshot, setScreenshot]       = useState<string | null>(null);
   const [screenshotName, setScreenshotName] = useState("");
   const [screenshotError, setScreenshotError] = useState("");
+  const [upiQrDataUrl, setUpiQrDataUrl]   = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── discounts ── */
@@ -84,12 +86,23 @@ export default function CheckoutModal({
   const total = Math.max(0, subtotal - discountAmount);
   const requirePayment = !!orgUpiId;
 
+  /* ── UPI QR generation (runs when payment step is shown) ── */
+  useEffect(() => {
+    if (step !== 2 || !orgUpiId) return;
+    const upiUri = `upi://pay?pa=${encodeURIComponent(orgUpiId)}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent("Food order")}`;
+    QRCode.toDataURL(upiUri, { width: 260, margin: 1, color: { dark: "#1e293b", light: "#ffffff" } })
+      .then(setUpiQrDataUrl)
+      .catch(() => setUpiQrDataUrl(null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, orgUpiId, total]);
+
   if (!open) return null;
 
   /* ── helpers ── */
   function resetAndClose() {
     setName(""); setPhone(""); setEmail(""); setBirthday(""); setAddress(""); setNotes("");
     setUpiUtr(""); setUtrError(""); setScreenshot(null); setScreenshotName(""); setScreenshotError("");
+    setUpiQrDataUrl(null);
     setStep(1); setLoading(false); setError("");
     setPhoneError(""); setEmailError("");
     onClose();
@@ -341,22 +354,47 @@ export default function CheckoutModal({
         {/* ── STEP 2: UPI Payment ── */}
         {step === 2 && orgUpiId && (
           <form onSubmit={handleStep2Submit} className="px-5 py-5 space-y-5">
-            {/* UPI instructions */}
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5 text-center space-y-3">
-              <p className="text-sm font-semibold text-indigo-700 uppercase tracking-wide">Pay via UPI</p>
-              <div className="bg-white rounded-xl py-4 px-6 inline-block shadow-sm border border-indigo-100 mx-auto">
-                <p className="text-2xl font-black text-slate-800 tracking-tight">{orgUpiId}</p>
-              </div>
+            {/* UPI QR + instructions */}
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5 text-center space-y-4">
+              <p className="text-sm font-semibold text-indigo-700 uppercase tracking-wide">Scan &amp; Pay via UPI</p>
+
+              {/* Scannable QR code */}
+              {upiQrDataUrl ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="bg-white p-3 rounded-2xl shadow-md border border-indigo-100 inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={upiQrDataUrl} alt="UPI QR Code" width={220} height={220} className="rounded-lg" />
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    {/* UPI app logos */}
+                    {["PhonePe", "GPay", "Paytm", "BHIM"].map((app) => (
+                      <span key={app} className="text-xs font-semibold text-indigo-600 bg-indigo-100 rounded-full px-2 py-0.5">{app}</span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">Scan with any UPI app camera</p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-32 text-slate-400 text-sm">Generating QR…</div>
+              )}
+
+              {/* Amount pill */}
               <div className="bg-amber-500 text-white rounded-xl py-3 px-5 inline-block mx-auto">
                 <p className="font-black text-xl">₹{total.toFixed(2)}</p>
                 <p className="text-amber-100 text-xs">Amount to pay</p>
               </div>
-              <div className="text-left bg-white rounded-xl p-4 border border-indigo-100 space-y-2 text-sm text-slate-600">
-                <p className="font-semibold text-slate-700 flex items-center gap-2">📋 Steps:</p>
-                <p>1. Open any UPI app (PhonePe, GPay, Paytm, BHIM…)</p>
-                <p>2. Pay <strong>₹{total.toFixed(2)}</strong> to <strong>{orgUpiId}</strong></p>
+
+              {/* Manual UPI ID fallback */}
+              <div className="bg-white rounded-xl py-3 px-5 border border-indigo-100 text-center">
+                <p className="text-xs text-slate-400 mb-1">Or pay manually to UPI ID</p>
+                <p className="text-lg font-black text-slate-800 tracking-tight">{orgUpiId}</p>
+              </div>
+
+              <div className="text-left bg-white rounded-xl p-4 border border-indigo-100 space-y-1.5 text-sm text-slate-600">
+                <p className="font-semibold text-slate-700">📋 Steps:</p>
+                <p>1. Scan the QR above <em>or</em> open PhonePe / GPay / Paytm</p>
+                <p>2. Pay <strong>₹{total.toFixed(2)}</strong> — amount auto-filled when scanned</p>
                 <p>3. Take a screenshot of the success screen</p>
-                <p>4. Upload the screenshot and enter the UTR below</p>
+                <p>4. Upload the screenshot &amp; enter the UTR below</p>
               </div>
             </div>
 
