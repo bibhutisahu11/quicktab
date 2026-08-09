@@ -66,14 +66,22 @@ export default function TableManager() {
     setQrLoading(table.id);
     try {
       const res = await fetch(`/api/tables/${table.id}/qr`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        alert(`Failed to generate QR code. ${errText || res.statusText}`);
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${table.name.replace(/\s+/g, "-")}-qr.png`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Error downloading QR: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setQrLoading(null);
     }

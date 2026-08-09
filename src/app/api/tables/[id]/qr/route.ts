@@ -22,13 +22,18 @@ export async function GET(
     const orgSlug = table.org?.slug ?? "my-hotel";
     const url = `${baseUrl}/${orgSlug}/menu/${table.qrToken}`;
 
-    const qrBuffer = await QRCode.toBuffer(url, {
+    const dataUrl = await QRCode.toDataURL(url, {
       width: 400,
       margin: 2,
       color: { dark: "#1e293b", light: "#ffffff" },
+      type: "image/png",
     });
 
-    return new NextResponse(qrBuffer as unknown as BodyInit, {
+    // Strip the "data:image/png;base64," prefix and decode to binary
+    const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+    const buffer = Buffer.from(base64, "base64");
+
+    return new NextResponse(buffer as unknown as BodyInit, {
       headers: {
         "Content-Type": "image/png",
         "Content-Disposition": `attachment; filename="${table.name.replace(/\s+/g, "-")}-qr.png"`,
