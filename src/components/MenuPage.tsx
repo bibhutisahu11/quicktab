@@ -47,6 +47,20 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [showReorderBanner, setShowReorderBanner] = useState(false);
   const [isDiningCustomer, setIsDiningCustomer] = useState(false);
 
+  // ── Popular items (social proof) ──────────────────────────────────────────
+  const [popularMap, setPopularMap] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!orgSlug) return;
+    fetch(`/api/public/popular-items?orgSlug=${orgSlug}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: { menuItemId: string; totalOrdered: number }[]) => {
+        const map: Record<string, number> = {};
+        data.forEach((d) => { if (d.menuItemId) map[d.menuItemId] = d.totalOrdered; });
+        setPopularMap(map);
+      })
+      .catch(() => {});
+  }, [orgSlug]);
+
   // ── Upsell toast ──────────────────────────────────────────────────────────
   const [upsellToast, setUpsellToast] = useState<{
     itemName: string; emoji: string; message: string;
@@ -351,6 +365,20 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         </div>
       )}
 
+      {/* Launch offer banner */}
+      <div className="max-w-2xl mx-auto px-4 pt-3">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-md">
+          <span className="text-2xl">🚀</span>
+          <div className="flex-1">
+            <p className="text-white font-black text-sm">Grand Launch Offer — Flat 20% OFF!</p>
+            <p className="text-green-100 text-xs mt-0.5">On all Biryani, Chinese, Noodles, Fried Rice, Momos &amp; Soups · Limited time 🎉</p>
+          </div>
+          <div className="bg-white text-green-600 font-black text-sm px-2.5 py-1 rounded-xl shadow">
+            20% OFF
+          </div>
+        </div>
+      </div>
+
       {/* Rotating food tip / upsell banner */}
       <div className="max-w-2xl mx-auto px-4 pt-3">
         <div
@@ -388,6 +416,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
                   cart={cart}
                   onAdd={addToCart}
                   onRemove={removeFromCart}
+                  orderCount={popularMap[item.id] ?? 0}
                 />
               ))}
             </div>
