@@ -19,7 +19,7 @@ export default function TableManager() {
   }, []);
 
   async function fetchTables() {
-    const res = await fetch("/api/tables");
+    const res = await fetch("/api/admin/tables");
     if (res.ok) setTables(await res.json());
     setLoading(false);
   }

@@ -13,10 +13,15 @@ export async function GET(
   try {
     const { id } = await params;
     const table = await prisma.table.findUnique({
-      where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
+      where: { id },
       include: { org: true },
     });
     if (!table) return NextResponse.json({ error: "Table not found" }, { status: 404 });
+
+    // Basic org check: non-super-admins can only download QR for their own org's tables
+    if (!ctx.isSuperAdmin && ctx.orgId && table.orgId !== ctx.orgId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const orgSlug = table.org?.slug ?? "my-hotel";
