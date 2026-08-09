@@ -371,7 +371,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           <span className="text-2xl">🚀</span>
           <div className="flex-1">
             <p className="text-white font-black text-sm">Grand Launch Offer — Flat 20% OFF!</p>
-            <p className="text-green-100 text-xs mt-0.5">On all Biryani, Chinese, Noodles, Fried Rice, Momos &amp; Soups · Limited time 🎉</p>
+            <p className="text-green-100 text-xs mt-0.5">On all Biryani, Chinese, Noodles, Fried Rice &amp; Soups · Limited time 🎉</p>
           </div>
           <div className="bg-white text-green-600 font-black text-sm px-2.5 py-1 rounded-xl shadow">
             20% OFF

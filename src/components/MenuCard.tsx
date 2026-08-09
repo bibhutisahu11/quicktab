@@ -7,7 +7,6 @@ const LAUNCH_OFFER_CATEGORIES = new Set([
   "Biryani Zone",
   "Dum Zone",
   "Fried Rice & Noodles",
-  "Rolls & Momos",
   "Soups",
 ]);
 

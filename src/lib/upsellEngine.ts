@@ -133,7 +133,6 @@ export const FOOD_TIPS = [
   { text: "🚀 LAUNCH OFFER! Our Biryani & Chinese items are NOW 20% OFF — newly launched! Try today!", cta: "Chicken Dum Biryani" },
   { text: "🍛 We just launched Biryani! Slow-cooked Mutton Dum Biryani is flying off tables — grab yours at 20% OFF!", cta: "Mutton Biryani" },
   { text: "🍜 Craving Chinese? Chicken Hakka Noodles, Fried Rice, Manchurian — all 20% OFF right now! 🔥", cta: "Chicken Hakka Noodles" },
-  { text: "🥟 Momos just landed! Steamed, Fried, Paneer, Chicken — 20% OFF on every variety. Don't miss it!", cta: "Chicken Momos (Steamed, 6 pcs)" },
   { text: "🍲 Warm your soul — Chicken Manchow Soup with a side of Biryani? Both at 20% OFF today!", cta: "Chicken Manchow" },
   { text: "🏆 Chef's pick: Chicken Satay — lightly spiced, perfectly grilled! Most ordered starter!", cta: "Chicken Satay (6 pcs)" },
   { text: "🍮 Odisha's pride — Chhenapoda baked fresh every morning. The perfect sweet ending 🍯", cta: "Chhenapoda Sugar (per Kg)" },
