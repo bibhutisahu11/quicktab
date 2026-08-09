@@ -9,11 +9,16 @@ export async function GET(req: NextRequest) {
   if (ctx.error) return ctx.error;
 
   try {
-    const tables = await prisma.table.findMany({
-      where: { ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
-      orderBy: { name: "asc" },
-    });
-    return NextResponse.json(tables);
+    const [tables, org] = await Promise.all([
+      prisma.table.findMany({
+        where: { ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
+        orderBy: { name: "asc" },
+      }),
+      ctx.orgId
+        ? prisma.organization.findUnique({ where: { id: ctx.orgId }, select: { slug: true } })
+        : null,
+    ]);
+    return NextResponse.json({ tables, orgSlug: org?.slug ?? null });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

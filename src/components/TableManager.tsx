@@ -5,6 +5,7 @@ import { TableData } from "@/types";
 
 export default function TableManager() {
   const [tables, setTables] = useState<TableData[]>([]);
+  const [orgSlug, setOrgSlug] = useState("");
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newCapacity, setNewCapacity] = useState("4");
@@ -20,7 +21,11 @@ export default function TableManager() {
 
   async function fetchTables() {
     const res = await fetch("/api/admin/tables");
-    if (res.ok) setTables(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      setTables(data.tables ?? data);
+      if (data.orgSlug) setOrgSlug(data.orgSlug);
+    }
     setLoading(false);
   }
 
@@ -105,11 +110,11 @@ export default function TableManager() {
               Share this URL for walk-in parcel orders (no QR needed)
             </p>
             <code className="block mt-2 text-sm bg-white border border-orange-200 rounded-lg px-3 py-2 text-slate-700 break-all">
-              {baseUrl}/menu/parcel
+              {baseUrl}/{orgSlug}/menu/parcel
             </code>
           </div>
           <button
-            onClick={() => navigator.clipboard.writeText(`${baseUrl}/menu/parcel`)}
+            onClick={() => navigator.clipboard.writeText(`${baseUrl}/${orgSlug}/menu/parcel`)}
             className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Copy Link
@@ -196,7 +201,7 @@ export default function TableManager() {
               <div className="bg-slate-50 rounded-xl p-3 mb-4">
                 <p className="text-xs text-slate-500 mb-1">Order URL:</p>
                 <code className="text-xs text-slate-700 break-all">
-                  {baseUrl}/menu/{table.qrToken}
+                  {baseUrl}/{orgSlug}/menu/{table.qrToken}
                 </code>
               </div>
 
@@ -215,7 +220,7 @@ export default function TableManager() {
                   )}
                 </button>
                 <button
-                  onClick={() => navigator.clipboard.writeText(`${baseUrl}/menu/${table.qrToken}`)}
+                  onClick={() => navigator.clipboard.writeText(`${baseUrl}/${orgSlug}/menu/${table.qrToken}`)}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-3 rounded-xl text-sm transition-colors"
                   title="Copy link"
                 >
