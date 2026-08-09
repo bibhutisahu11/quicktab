@@ -43,6 +43,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [showGreeting, setShowGreeting] = useState(true);
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null);
   const [showReorderBanner, setShowReorderBanner] = useState(false);
+  const [isDiningCustomer, setIsDiningCustomer] = useState(false);
 
   // Load previous order from localStorage
   useEffect(() => {
@@ -51,9 +52,13 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       const raw = localStorage.getItem(`lastOrder_${orgSlug}`);
       if (!raw) return;
       const parsed: LastOrder = JSON.parse(raw);
-      // Only show if saved within last 30 days and has items still available
       const ageMs = Date.now() - new Date(parsed.savedAt).getTime();
-      if (ageMs < 30 * 24 * 60 * 60 * 1000 && parsed.items.length > 0) {
+      const NINETY_MIN = 90 * 60 * 1000;
+      const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+      // Within 90 min = still dining (priority customer)
+      if (ageMs < NINETY_MIN) setIsDiningCustomer(true);
+      // Within 30 days = show reorder banner
+      if (ageMs < THIRTY_DAYS && parsed.items.length > 0) {
         setLastOrder(parsed);
         setShowReorderBanner(true);
       }
@@ -250,6 +255,22 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         </div>
       )}
 
+      {/* Priority dining banner */}
+      {isDiningCustomer && (
+        <div className="max-w-2xl mx-auto px-4 pt-3">
+          <div className="bg-gradient-to-r from-amber-400 to-orange-400 rounded-2xl px-5 py-3.5 shadow-md flex items-center gap-3">
+            <span className="text-3xl">🍽️</span>
+            <div className="flex-1">
+              <p className="font-black text-white text-sm">You&apos;re already dining with us!</p>
+              <p className="text-amber-100 text-xs mt-0.5">
+                We have <strong>prioritized your order</strong> as you are already dining. Eat slowly &amp; enjoy 😊🌟
+              </p>
+            </div>
+            <span className="text-2xl">⭐</span>
+          </div>
+        </div>
+      )}
+
       {/* Reorder banner */}
       {showReorderBanner && lastOrder && (
         <div className="max-w-2xl mx-auto px-4 pt-3">
@@ -360,6 +381,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         isParcel={!tableToken}
         orgUpiId={orgUpiId ?? null}
         orgSlug={orgSlug}
+        isDiningCustomer={isDiningCustomer}
       />
     </div>
   );

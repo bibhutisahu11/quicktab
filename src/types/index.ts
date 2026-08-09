@@ -81,6 +81,7 @@ export interface OrderData {
   paymentVerified: boolean;
   nudgeCount: number;
   nudgedAt: string | null;
+  isRepeatDiner: boolean;
   items: OrderItemData[];
   createdAt: string;
   updatedAt: string;

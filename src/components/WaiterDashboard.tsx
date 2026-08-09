@@ -33,6 +33,8 @@ export default function WaiterDashboard() {
   const [tick, setTick] = useState(0);
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [diningPopup, setDiningPopup] = useState<OrderData | null>(null);
+  const seenRepeatDinerIds = useState(() => new Set<string>())[0];
 
   useEffect(() => {
     fetch("/api/admin/org-settings")
@@ -53,7 +55,20 @@ export default function WaiterDashboard() {
 
   async function fetchOrders() {
     const res = await fetch("/api/orders");
-    if (res.ok) setOrders(await res.json());
+    if (res.ok) {
+      const data: OrderData[] = await res.json();
+      setOrders(data);
+      // Show popup for new repeat-diner orders not yet acknowledged
+      const newRepeat = data.find(
+        (o) => o.isRepeatDiner && !seenRepeatDinerIds.has(o.id) &&
+          ["PENDING", "PAYMENT_PENDING", "PREPARING"].includes(o.status)
+      );
+      if (newRepeat) {
+        seenRepeatDinerIds.add(newRepeat.id);
+        setDiningPopup(newRepeat);
+        setTimeout(() => setDiningPopup(null), 8000);
+      }
+    }
     setLoading(false);
   }
 
@@ -275,7 +290,15 @@ export default function WaiterDashboard() {
             const isUpdating = updatingId === order.id;
 
             return (
-              <div key={order.id} className={`rounded-xl border p-4 shadow-sm ${colors.bg} ${colors.border}`}>
+              <div key={order.id} className={`rounded-xl border p-4 shadow-sm ${colors.bg} ${colors.border} ${order.isRepeatDiner ? "ring-2 ring-amber-400" : ""}`}>
+                {/* Repeat diner priority banner inside card */}
+                {order.isRepeatDiner && (
+                  <div className="bg-gradient-to-r from-amber-400 to-orange-400 rounded-lg px-3 py-1.5 flex items-center gap-2 mb-3">
+                    <span className="text-base">🍽️⭐</span>
+                    <p className="text-white text-xs font-bold">Priority — Customer is already dining</p>
+                    <span className="ml-auto text-amber-100 text-xs">Eat slowly 😊</span>
+                  </div>
+                )}
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="font-bold text-slate-800">
@@ -416,6 +439,27 @@ export default function WaiterDashboard() {
             >
               ✕
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Dining customer popup toast */}
+      {diningPopup && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90vw] max-w-sm animate-bounce-once">
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl shadow-2xl px-5 py-4 flex items-start gap-4">
+            <span className="text-3xl mt-0.5">🍽️</span>
+            <div className="flex-1">
+              <p className="text-white font-black text-sm">Already Dining — Priority Order!</p>
+              <p className="text-amber-100 text-xs mt-1">
+                <strong>{diningPopup.customerName}</strong>
+                {diningPopup.table ? ` · ${diningPopup.table.name}` : ""} placed another order while dining.
+              </p>
+              <p className="text-amber-200 text-xs mt-0.5">Eat slowly &amp; enjoy 😊🌟 — Prioritizing this order.</p>
+            </div>
+            <button
+              onClick={() => setDiningPopup(null)}
+              className="text-amber-200 hover:text-white text-lg leading-none mt-0.5"
+            >✕</button>
           </div>
         </div>
       )}

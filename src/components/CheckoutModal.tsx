@@ -24,6 +24,7 @@ interface CheckoutModalProps {
   isParcel: boolean;
   orgUpiId: string | null;
   orgSlug?: string;
+  isDiningCustomer?: boolean;
 }
 
 // UTR validation: 6–22 alphanumeric characters (covers NEFT/IMPS/UPI formats)
@@ -45,6 +46,7 @@ export default function CheckoutModal({
   isParcel,
   orgUpiId,
   orgSlug,
+  isDiningCustomer = false,
 }: CheckoutModalProps) {
   /* ── step 1 fields ── */
   const [name, setName]       = useState("");
@@ -214,6 +216,19 @@ export default function CheckoutModal({
         {/* ── STEP 1: Customer details ── */}
         {step === 1 && (
           <form onSubmit={handleStep1Submit} className="px-5 py-5 space-y-5">
+
+            {/* Priority dining customer banner */}
+            {isDiningCustomer && (
+              <div className="bg-gradient-to-r from-amber-400 to-orange-400 rounded-2xl px-4 py-3 flex items-center gap-3 shadow">
+                <span className="text-2xl">🍽️</span>
+                <div className="flex-1">
+                  <p className="font-black text-white text-sm">You&apos;re already dining with us!</p>
+                  <p className="text-amber-100 text-xs">Your order will be prioritized. Eat slowly &amp; enjoy 😊🌟🍛</p>
+                </div>
+                <span className="text-xl">⭐</span>
+              </div>
+            )}
+
             {/* Order summary */}
             <div className="bg-slate-50 rounded-xl p-4 space-y-2">
               <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Order Summary</h3>

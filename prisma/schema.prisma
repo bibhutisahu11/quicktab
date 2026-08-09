@@ -140,6 +140,7 @@ model Order {
   paymentVerified   Boolean       @default(false)
   nudgeCount        Int           @default(0)
   nudgedAt          DateTime?
+  isRepeatDiner     Boolean       @default(false)
   orgId             String?
   org               Organization? @relation(fields: [orgId], references: [id])
   items             OrderItem[]

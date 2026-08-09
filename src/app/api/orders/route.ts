@@ -102,6 +102,25 @@ export async function POST(req: NextRequest) {
     const appliedDiscount = Math.min(Number(discountAmount) || 0, subtotal);
     const total = Math.max(0, subtotal - appliedDiscount);
 
+    // Detect repeat diner: same phone/table with an active order in the last 90 minutes
+    let isRepeatDiner = false;
+    if (orgId) {
+      const since = new Date(Date.now() - 90 * 60 * 1000);
+      const activeStatuses = ["PENDING", "PAYMENT_PENDING", "PREPARING", "READY"];
+      const existingOrder = await prisma.order.findFirst({
+        where: {
+          orgId,
+          createdAt: { gte: since },
+          status: { in: activeStatuses as never[] },
+          OR: [
+            ...(phone ? [{ phone }] : []),
+            ...(tableId ? [{ tableId }] : []),
+          ],
+        },
+      });
+      if (existingOrder) isRepeatDiner = true;
+    }
+
     const order = await prisma.order.create({
       data: {
         type,
@@ -115,6 +134,7 @@ export async function POST(req: NextRequest) {
         notes: notes ?? null,
         discountAmount: appliedDiscount,
         total,
+        isRepeatDiner,
         // If org has UPI, order waits for admin verification before entering the kitchen queue
         status: orgUpiId ? "PAYMENT_PENDING" : "PENDING",
         upiUtr: upiUtr ?? null,
