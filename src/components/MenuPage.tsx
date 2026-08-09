@@ -45,7 +45,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [showReorderBanner, setShowReorderBanner] = useState(false);
   const [isDiningCustomer, setIsDiningCustomer] = useState(false);
 
-  // Load previous order from localStorage
+  // Load previous order from localStorage, then confirm dining status via API using phone
   useEffect(() => {
     if (!orgSlug) return;
     try {
@@ -53,14 +53,30 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       if (!raw) return;
       const parsed: LastOrder = JSON.parse(raw);
       const ageMs = Date.now() - new Date(parsed.savedAt).getTime();
-      const NINETY_MIN = 90 * 60 * 1000;
       const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-      // Within 90 min = still dining (priority customer)
-      if (ageMs < NINETY_MIN) setIsDiningCustomer(true);
-      // Within 30 days = show reorder banner
+
+      // Show reorder banner if within 30 days
       if (ageMs < THIRTY_DAYS && parsed.items.length > 0) {
         setLastOrder(parsed);
         setShowReorderBanner(true);
+      }
+
+      // Confirm dining status via server using stored phone number (most reliable)
+      if (parsed.phone) {
+        fetch(`/api/public/check-dining?phone=${encodeURIComponent(parsed.phone)}&orgSlug=${encodeURIComponent(orgSlug)}`)
+          .then((r) => r.ok ? r.json() : { isDining: false })
+          .then((data) => {
+            if (data.isDining) setIsDiningCustomer(true);
+          })
+          .catch(() => {
+            // Fallback: use 90-min localStorage window if API fails
+            const NINETY_MIN = 90 * 60 * 1000;
+            if (ageMs < NINETY_MIN) setIsDiningCustomer(true);
+          });
+      } else {
+        // No phone stored — fall back to time window
+        const NINETY_MIN = 90 * 60 * 1000;
+        if (ageMs < NINETY_MIN) setIsDiningCustomer(true);
       }
     } catch { /* ignore */ }
   }, [orgSlug]);
