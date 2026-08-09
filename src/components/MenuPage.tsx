@@ -365,20 +365,6 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         </div>
       )}
 
-      {/* Launch offer banner */}
-      <div className="max-w-2xl mx-auto px-4 pt-3">
-        <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-md">
-          <span className="text-2xl">🚀</span>
-          <div className="flex-1">
-            <p className="text-white font-black text-sm">Grand Launch Offer — Flat 20% OFF!</p>
-            <p className="text-green-100 text-xs mt-0.5">On all Biryani, Chinese, Noodles, Fried Rice &amp; Soups · Limited time 🎉</p>
-          </div>
-          <div className="bg-white text-green-600 font-black text-sm px-2.5 py-1 rounded-xl shadow">
-            20% OFF
-          </div>
-        </div>
-      </div>
-
       {/* Rotating food tip / upsell banner */}
       <div className="max-w-2xl mx-auto px-4 pt-3">
         <div

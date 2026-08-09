@@ -77,6 +77,20 @@ export default function CheckoutModal({
       .catch(() => {});
   }, [open, orgSlug]);
 
+  /* ── Offer reveal: show after phone is entered ── */
+  const [offerRevealed, setOfferRevealed] = useState(false);
+  const [showOfferBanner, setShowOfferBanner] = useState(false);
+
+  function handlePhoneChange(val: string) {
+    setPhone(val);
+    setPhoneError("");
+    // Reveal offer once phone has 10 digits
+    if (!offerRevealed && val.replace(/\D/g, "").length >= 10) {
+      setOfferRevealed(true);
+      setShowOfferBanner(true);
+    }
+  }
+
   /* ── shared ── */
   const [step, setStep]     = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -105,6 +119,7 @@ export default function CheckoutModal({
     setName(""); setPhone(""); setEmail(""); setBirthday(""); setAddress(""); setNotes("");
     setUpiUtr(""); setUtrError(""); setScreenshot(null); setScreenshotName(""); setScreenshotError("");
     setUpiQrDataUrl(null);
+    setOfferRevealed(false); setShowOfferBanner(false);
     setStep(1); setLoading(false); setError("");
     setPhoneError(""); setEmailError("");
     onClose();
@@ -284,7 +299,7 @@ export default function CheckoutModal({
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => { setPhone(e.target.value); setPhoneError(""); }}
+                onChange={(e) => handlePhoneChange(e.target.value)}
                 onBlur={() => setPhoneError(validatePhone(phone) ?? "")}
                 required={isParcel}
                 className={inputCls(phoneError)}
@@ -292,6 +307,35 @@ export default function CheckoutModal({
               />
               {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
             </div>
+
+            {/* 🎉 Surprise offer reveal after phone entry */}
+            {showOfferBanner && (
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl px-4 py-4 shadow-lg animate-pulse-once">
+                <div className="flex items-start gap-3">
+                  <span className="text-3xl">🎉</span>
+                  <div className="flex-1">
+                    <p className="text-white font-black text-base">You unlocked a special offer!</p>
+                    <p className="text-green-100 text-sm mt-1 font-medium">
+                      Flat <strong className="text-white text-lg">20% OFF</strong> on all Biryani, Chinese, Noodles, Fried Rice &amp; Soups in your cart!
+                    </p>
+                    {discountAmount > 0 ? (
+                      <div className="mt-2 bg-white/20 rounded-xl px-3 py-2 flex items-center gap-2">
+                        <span className="text-white text-sm font-bold">💰 You save ₹{discountAmount.toFixed(0)} on this order!</span>
+                      </div>
+                    ) : (
+                      <p className="text-green-200 text-xs mt-2">
+                        Add any Biryani, Chinese or Soup item to avail this offer 👆
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowOfferBanner(false)}
+                    className="text-green-200 hover:text-white text-lg leading-none"
+                  >✕</button>
+                </div>
+              </div>
+            )}
 
             {/* Optional extras */}
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 space-y-4">
