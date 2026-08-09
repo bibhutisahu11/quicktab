@@ -6,11 +6,15 @@ export { DAY_NAMES };
 /**
  * Given a list of active discounts and the current cart, returns which
  * discounts apply and how much they save.
+ *
+ * @param categoryMap  Optional map of menuItemId → category name.
+ *                     Required for CATEGORY-scoped discounts to work correctly.
  */
 export function applyDiscounts(
   discounts: DiscountData[],
   cart: CartItem[],
   cartTotal: number,
+  categoryMap?: Record<string, string>,
 ): AppliedDiscount[] {
   const todayDow = new Date().getDay(); // 0=Sun ... 6=Sat
   const applied: AppliedDiscount[] = [];
@@ -35,11 +39,12 @@ export function applyDiscounts(
         }
       }
     } else if (d.scope === "CATEGORIES") {
-      // We don't have category per cart item here, but MenuPage passes menuItemId
-      // Categories matching is done on menuItemId prefix not available here,
-      // so we pass matched item IDs from outside — fallback: if categories set,
-      // caller should pre-filter cart. For now apply to all (handled in modal).
-      eligibleSubtotal = cartTotal;
+      for (const item of cart) {
+        const cat = categoryMap?.[item.menuItemId];
+        if (cat && d.categories.includes(cat)) {
+          eligibleSubtotal += item.price * item.quantity;
+        }
+      }
     }
 
     if (eligibleSubtotal <= 0) continue;
@@ -52,7 +57,6 @@ export function applyDiscounts(
     if (saving > 0) applied.push({ discount: d, saving });
   }
 
-  // Return sorted by saving desc; pick only the best one per scope to avoid stacking on same items
   return applied.sort((a, b) => b.saving - a.saving);
 }
 

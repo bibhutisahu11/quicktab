@@ -466,6 +466,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
         cart={cart}
+        menuItems={menuItems}
         onPlaceOrder={handlePlaceOrder}
         isParcel={!tableToken}
         orgUpiId={orgUpiId ?? null}

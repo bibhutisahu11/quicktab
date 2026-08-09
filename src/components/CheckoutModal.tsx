@@ -10,6 +10,7 @@ interface CheckoutModalProps {
   open: boolean;
   onClose: () => void;
   cart: CartItem[];
+  menuItems?: { id: string; category: string }[];   // needed for category-scoped discounts
   onPlaceOrder: (
     name: string,
     phone: string,
@@ -42,6 +43,7 @@ export default function CheckoutModal({
   open,
   onClose,
   cart,
+  menuItems = [],
   onPlaceOrder,
   isParcel,
   orgUpiId,
@@ -97,7 +99,9 @@ export default function CheckoutModal({
   const [error, setError]   = useState("");
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const appliedDiscounts: AppliedDiscount[] = applyDiscounts(discounts, cart, subtotal);
+  // Build category map so CATEGORY-scoped discounts only apply to eligible items
+  const categoryMap = Object.fromEntries(menuItems.map((m) => [m.id, m.category]));
+  const appliedDiscounts: AppliedDiscount[] = applyDiscounts(discounts, cart, subtotal, categoryMap);
   const discountAmount = totalDiscount(appliedDiscounts);
   const total = Math.max(0, subtotal - discountAmount);
   const requirePayment = !!orgUpiId;
