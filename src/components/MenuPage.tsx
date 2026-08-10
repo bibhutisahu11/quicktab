@@ -233,8 +233,18 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       : (activeCategory === "All"
           ? menuItems
           : menuItems.filter((i) => i.category === activeCategory));
-    const avail   = pool.filter((i) =>  isItemAvailableNow(i));
-    const unavail = pool.filter((i) => !isItemAvailableNow(i));
+    // When searching, rank Thali items first (they are the most-ordered combos)
+    const thaliFirst = (a: MenuItemData, b: MenuItemData) => {
+      if (!q) return 0;
+      const aThali = a.name.toLowerCase().includes("thali");
+      const bThali = b.name.toLowerCase().includes("thali");
+      if (aThali && !bThali) return -1;
+      if (!aThali && bThali) return  1;
+      return 0;
+    };
+
+    const avail   = pool.filter((i) =>  isItemAvailableNow(i)).sort(thaliFirst);
+    const unavail = pool.filter((i) => !isItemAvailableNow(i)).sort(thaliFirst);
     return [...avail, ...unavail];
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuItems, activeCategory, customerSearch]);
