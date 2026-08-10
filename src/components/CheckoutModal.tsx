@@ -309,7 +309,7 @@ export default function CheckoutModal({
 
   /* ── shared form section helpers ── */
   const inputCls = (err?: string) =>
-    `w-full border rounded-lg px-4 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${err ? "border-red-400 bg-red-50" : "border-slate-300"}`;
+    `w-full border rounded-lg px-4 py-2.5 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${err ? "border-red-400 bg-red-50" : "border-slate-300"}`;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -678,7 +678,7 @@ export default function CheckoutModal({
                   value={paidAmount}
                   onChange={(e) => { setPaidAmount(e.target.value); setPaidAmountError(""); }}
                   onBlur={() => setPaidAmountError(validatePaidAmount(paidAmount, total) ?? "")}
-                  className={`w-full border rounded-lg pl-8 pr-4 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg font-bold ${paidAmountError ? "border-red-400 bg-red-50" : "border-slate-300"}`}
+                  className={`w-full border rounded-lg pl-8 pr-4 py-2.5 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg font-bold ${paidAmountError ? "border-red-400 bg-red-50" : "border-slate-300"}`}
                   placeholder={total.toFixed(2)}
                   step="0.01"
                   min="0"
