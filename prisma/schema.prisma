@@ -136,7 +136,8 @@ model Order {
   total             Float
   paymentId         String?
   upiUtr            String?
-  paymentScreenshot String?       @db.Text
+  paymentScreenshot  String?      @db.Text
+  screenshotExpiry   DateTime?
   paymentVerified   Boolean       @default(false)
   nudgeCount        Int           @default(0)
   nudgedAt          DateTime?

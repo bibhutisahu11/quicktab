@@ -176,6 +176,9 @@ export async function POST(req: NextRequest) {
         status: orgUpiId ? "PAYMENT_PENDING" : "PENDING",
         upiUtr: upiUtr ?? null,
         paymentScreenshot: paymentScreenshot ?? null,
+        screenshotExpiry: paymentScreenshot
+          ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2 days from now
+          : null,
         items: { create: orderItemsData },
       },
       include: { items: true, table: true },

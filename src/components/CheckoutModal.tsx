@@ -99,7 +99,7 @@ function validatePaidAmount(paid: string, expected: number): string | null {
   return null;
 }
 
-const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024; // 2 MB
+const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export default function CheckoutModal({
   open,
@@ -133,6 +133,7 @@ export default function CheckoutModal({
   const [screenshotName, setScreenshotName] = useState("");
   const [screenshotError, setScreenshotError] = useState("");
   const [upiQrDataUrl, setUpiQrDataUrl]   = useState<string | null>(null);
+  const [upiDeepLink, setUpiDeepLink]     = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ── discounts ── */
@@ -177,6 +178,7 @@ export default function CheckoutModal({
     if (step !== 2) return;
     if (!orgUpiId) return;
     const upiUri = `upi://pay?pa=${encodeURIComponent(orgUpiId)}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent("Food order")}`;
+    setUpiDeepLink(upiUri);
     QRCode.toDataURL(upiUri, { width: 260, margin: 1, color: { dark: "#1e293b", light: "#ffffff" } })
       .then(setUpiQrDataUrl)
       .catch(() => setUpiQrDataUrl(null));
@@ -207,7 +209,7 @@ export default function CheckoutModal({
       return;
     }
     if (file.size > MAX_SCREENSHOT_BYTES) {
-      setScreenshotError("Image too large — max 2 MB");
+      setScreenshotError("Image too large — max 5 MB");
       return;
     }
     const reader = new FileReader();
@@ -526,13 +528,26 @@ export default function CheckoutModal({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={upiQrDataUrl} alt="UPI QR Code" width={220} height={220} className="rounded-lg" />
                   </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    {/* UPI app logos */}
-                    {["PhonePe", "GPay", "Paytm", "BHIM"].map((app) => (
-                      <span key={app} className="text-xs font-semibold text-indigo-600 bg-indigo-100 rounded-full px-2 py-0.5">{app}</span>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-500">Scan with any UPI app camera</p>
+                  {/* One-tap UPI app deep links */}
+                  {upiDeepLink && (
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                      {[
+                        { label: "PhonePe", emoji: "💜", href: upiDeepLink.replace("upi://", "phonepe://") },
+                        { label: "GPay",    emoji: "🟢", href: upiDeepLink.replace("upi://pay?", "tez://upi/pay?") },
+                        { label: "Paytm",   emoji: "💙", href: upiDeepLink.replace("upi://", "paytmmp://") },
+                        { label: "Any UPI", emoji: "⚡", href: upiDeepLink },
+                      ].map(({ label, emoji, href }) => (
+                        <a
+                          key={label}
+                          href={href}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 rounded-full px-3 py-1.5 shadow-sm active:scale-95 transition-transform"
+                        >
+                          <span>{emoji}</span> {label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500">Tap a button to open your UPI app, or scan the QR code</p>
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-32 text-slate-400 text-sm">Generating QR…</div>
@@ -601,7 +616,6 @@ export default function CheckoutModal({
                 ref={fileRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -628,7 +642,7 @@ export default function CheckoutModal({
                 >
                   <span className="text-3xl">📸</span>
                   <span className="text-sm font-medium text-slate-600">Tap to upload screenshot</span>
-                  <span className="text-xs text-slate-400">PNG, JPG — max 2 MB</span>
+                  <span className="text-xs text-slate-400">Gallery or camera — max 5 MB</span>
                 </button>
               )}
               {screenshotError && <p className="text-red-500 text-xs mt-1">{screenshotError}</p>}
