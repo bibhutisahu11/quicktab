@@ -492,6 +492,40 @@ export default function WaiterDashboard() {
                   </div>
                 )}
 
+                {/* Cash order pending approval — collect & confirm */}
+                {order.status === "PENDING" && (order as { paymentMethod?: string }).paymentMethod === "CASH" && (
+                  <div className="mb-3 space-y-2">
+                    <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                      <span className="text-xl">💵</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-green-800">Cash Payment</p>
+                        <p className="text-xs text-green-600">Collect <span className="font-black">₹{order.total.toFixed(0)}</span> from customer before confirming</p>
+                      </div>
+                      {order.nudgeCount > 0 && (
+                        <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full animate-pulse">
+                          🔔 {order.nudgeCount}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => verifyPayment(order.id, "ACCEPT")}
+                        disabled={isUpdating}
+                        className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-bold py-2.5 rounded-lg text-sm transition-colors"
+                      >
+                        {isUpdating ? "..." : "✅ Collected — Confirm Order"}
+                      </button>
+                      <button
+                        onClick={() => verifyPayment(order.id, "REJECT")}
+                        disabled={isUpdating}
+                        className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white font-bold py-2.5 rounded-lg text-sm transition-colors"
+                      >
+                        {isUpdating ? "..." : "❌ Reject"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-800">₹{order.total.toFixed(0)}</span>
                   <div className="flex gap-2 items-center">
@@ -511,7 +545,8 @@ export default function WaiterDashboard() {
                         {isUpdating ? "..." : "Mark Served"}
                       </button>
                     )}
-                    {["PENDING", "PREPARING"].includes(order.status) && (
+                    {/* Show Cancel for PENDING (non-cash) and PREPARING */}
+                    {(order.status === "PREPARING" || (order.status === "PENDING" && (order as { paymentMethod?: string }).paymentMethod !== "CASH")) && (
                       <button
                         onClick={() => updateStatus(order.id, "CANCELLED")}
                         disabled={isUpdating}

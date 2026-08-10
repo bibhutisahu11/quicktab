@@ -35,21 +35,33 @@ export async function PATCH(
     const { status, paymentAction } = body;
 
     // ── Payment verification (admin only) ──────────────────────────
-    // paymentAction: "ACCEPT" → move to PENDING + mark verified
-    //                "REJECT" → move to CANCELLED
+    // paymentAction: "ACCEPT" → PAYMENT_PENDING → PENDING  |  PENDING(cash) → PREPARING
+    //                "REJECT" → CANCELLED
     if (paymentAction) {
       if (!["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN", "BILLER"].includes(role)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       const order = await prisma.order.findUnique({ where: { id } });
       if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-      if (order.status !== "PAYMENT_PENDING") {
-        return NextResponse.json({ error: "Order is not awaiting payment verification" }, { status: 400 });
+
+      const isCash = (order as { paymentMethod?: string }).paymentMethod === "CASH";
+      const awaitingCashApproval = isCash && order.status === "PENDING";
+      const awaitingUpiVerification = order.status === "PAYMENT_PENDING";
+
+      if (!awaitingCashApproval && !awaitingUpiVerification) {
+        return NextResponse.json({ error: "Order is not awaiting verification" }, { status: 400 });
       }
+
+      // Cash accepted → jump straight to PREPARING (cash is collected in person)
+      // UPI accepted → move to PENDING (kitchen queue)
+      const nextStatus = paymentAction === "ACCEPT"
+        ? (awaitingCashApproval ? "PREPARING" : "PENDING")
+        : "CANCELLED";
+
       const updated = await prisma.order.update({
         where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
         data: {
-          status: paymentAction === "ACCEPT" ? "PENDING" : "CANCELLED",
+          status: nextStatus,
           paymentVerified: paymentAction === "ACCEPT",
         },
         include: { items: true, table: true },

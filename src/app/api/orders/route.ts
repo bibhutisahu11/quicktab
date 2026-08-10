@@ -170,8 +170,9 @@ export async function POST(req: NextRequest) {
         discountAmount: appliedDiscount,
         total,
         isRepeatDiner,
-        // If org has UPI, order waits for admin verification before entering the kitchen queue
-        status: orgUpiId ? "PAYMENT_PENDING" : "PENDING",
+        // Cash orders go straight to PENDING (admin collects cash in person).
+        // UPI orders wait in PAYMENT_PENDING until admin verifies the screenshot.
+        status: (!isCash && orgUpiId) ? "PAYMENT_PENDING" : "PENDING",
         upiUtr: upiUtr ?? null,
         paymentScreenshot: paymentScreenshot ?? null,
         screenshotExpiry: paymentScreenshot
