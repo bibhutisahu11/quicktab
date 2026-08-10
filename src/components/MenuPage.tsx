@@ -399,6 +399,9 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         </div>
       </div>
 
+      {/* Main scroll area — extra bottom padding when floating cart bar is visible so it never covers the last item's Add button */}
+      <div style={cartCount > 0 ? { paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" } : undefined}>
+
       {/* Time-of-day greeting banner */}
       {showGreeting && (
         <div className="max-w-2xl mx-auto px-4 pt-4">
@@ -608,6 +611,8 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           </>
         )}
       </div>
+
+      </div>{/* end padding wrapper */}
 
       {/* Floating cart button */}
       {cartCount > 0 && (
