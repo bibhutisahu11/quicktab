@@ -9,7 +9,7 @@ function esc(s: string | null | undefined) {
 function logoHtml(url: string | null | undefined) {
   if (!url) return "";
   return `<img src="${esc(url)}" alt="logo"
-    style="max-height:72px;max-width:200px;object-fit:contain;display:block;margin:0 auto 8px;filter:contrast(1.3) brightness(0.9);" />`;
+    style="max-height:130px;max-width:260px;width:100%;object-fit:contain;display:block;margin:0 auto 10px;filter:contrast(1.4) brightness(0.85);" />`;
 }
 
 /** Receipt number: DDMM-SERIAL  e.g. 2807-A3F9 */
@@ -32,19 +32,16 @@ function receiptNo(orderId: string, createdAt: string) {
 
 const thermalCss = `
   * { margin:0; padding:0; box-sizing:border-box; }
-  html {
-    margin: 0;
-    padding: 0;
-  }
+  html { margin:0; padding:0; }
   body {
     font-family: 'Courier New', Courier, monospace;
-    width: 76mm;
-    max-width: 76mm;
-    margin: 0 auto;
-    padding: 4px 4px;
+    width: 78mm;
+    max-width: 78mm;
+    margin: 0;
+    padding: 4px 1mm 4px 2mm;
     color: #000;
-    font-size: 17px;
-    line-height: 1.55;
+    font-size: 24px;
+    line-height: 1.5;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -52,75 +49,74 @@ const thermalCss = `
   .right  { text-align: right; }
   .bold   { font-weight: 700; }
   .hotel-name {
-    font-size: 22px;
+    font-size: 32px;
     font-weight: 900;
     letter-spacing: 2px;
     text-transform: uppercase;
   }
   .tagline {
-    font-size: 15px;
+    font-size: 22px;
     font-weight: 600;
-    margin-top: 2px;
+    margin-top: 3px;
   }
   .meta {
-    font-size: 15px;
+    font-size: 20px;
     font-weight: 600;
     line-height: 1.6;
     text-align: center;
   }
   hr.divider {
     border: none;
-    border-top: 2px dashed #000;
-    margin: 7px 0;
+    border-top: 3px dashed #000;
+    margin: 8px 0;
   }
   hr.solid {
     border: none;
-    border-top: 2px solid #000;
-    margin: 7px 0;
+    border-top: 3px solid #000;
+    margin: 8px 0;
   }
   .row {
     display: flex;
     justify-content: space-between;
-    font-size: 17px;
-    line-height: 1.55;
+    font-size: 24px;
+    line-height: 1.5;
   }
   table { width: 100%; border-collapse: collapse; }
   th {
-    font-size: 15px;
+    font-size: 22px;
     font-weight: 700;
-    border-bottom: 2px solid #000;
-    padding-bottom: 4px;
+    border-bottom: 3px solid #000;
+    padding-bottom: 5px;
   }
   th.left  { text-align: left; }
   th.right { text-align: right; }
   th.center{ text-align: center; }
-  td { font-size: 17px; padding: 4px 0; vertical-align: top; }
-  td.qty   { text-align: center; width: 30px; }
-  td.amt   { text-align: right;  width: 58px; white-space: nowrap; }
+  td { font-size: 24px; padding: 5px 0; vertical-align: top; }
+  td.qty   { text-align: center; width: 36px; }
+  td.amt   { text-align: right;  width: 70px; white-space: nowrap; }
   .total-row td {
     font-weight: 900;
-    font-size: 20px;
-    padding-top: 6px;
+    font-size: 28px;
+    padding-top: 8px;
     border-top: 3px solid #000;
   }
   .discount-row td {
-    font-size: 16px;
-    padding-top: 3px;
+    font-size: 22px;
+    padding-top: 4px;
   }
   .footer-text {
-    font-size: 16px;
-    margin-top: 8px;
+    font-size: 22px;
+    margin-top: 10px;
     text-align: center;
     font-weight: 700;
   }
   @media print {
     html, body {
-      width: 76mm;
+      width: 78mm;
       margin: 0 !important;
-      padding: 0 !important;
     }
     body {
-      padding: 0 2mm !important;
+      padding: 2px 1mm 2px 2mm !important;
     }
     @page {
       margin: 0;
