@@ -106,8 +106,8 @@ const thermalCss = `
   td.amt   { text-align: right;  width: 62px; white-space: nowrap; }
   .total-row td {
     font-weight: 900;
-    font-size: 28px;
-    padding-top: 8px;
+    font-size: 22px;
+    padding-top: 6px;
     border-top: 3px solid #000;
   }
   .discount-row td {
