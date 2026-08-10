@@ -613,16 +613,27 @@ export default function WaiterDashboard() {
                     >
                       🖨️
                     </button>
+                    {/* PREPARING → READY */}
+                    {order.status === "PREPARING" && (
+                      <button
+                        onClick={() => updateStatus(order.id, "READY")}
+                        disabled={isUpdating}
+                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors"
+                      >
+                        {isUpdating ? "..." : "✅ Mark Ready"}
+                      </button>
+                    )}
+                    {/* READY → DONE */}
                     {order.status === "READY" && (
                       <button
                         onClick={() => updateStatus(order.id, "DONE")}
                         disabled={isUpdating}
                         className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors"
                       >
-                        {isUpdating ? "..." : "Mark Served"}
+                        {isUpdating ? "..." : "🍽️ Mark Served"}
                       </button>
                     )}
-                    {/* Show Cancel for PENDING (non-cash) and PREPARING */}
+                    {/* Cancel — for PREPARING and non-cash PENDING */}
                     {(order.status === "PREPARING" || (order.status === "PENDING" && (order as { paymentMethod?: string }).paymentMethod !== "CASH")) && (
                       <button
                         onClick={() => updateStatus(order.id, "CANCELLED")}
