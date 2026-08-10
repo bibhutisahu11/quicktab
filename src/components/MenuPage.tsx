@@ -201,19 +201,18 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const allCategories = useMemo(() => ["All", ...categories], [categories]);
 
   // Show available items first, unavailable at bottom with a "Sold Out" indicator
+  // When a search query is active, search across ALL items (ignore category filter)
   const filtered = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
-    const pool = (() => {
-      const catPool = activeCategory === "All"
-        ? menuItems
-        : menuItems.filter((i) => i.category === activeCategory);
-      if (!q) return catPool;
-      return catPool.filter((i) =>
-        i.name.toLowerCase().includes(q) ||
-        i.category.toLowerCase().includes(q) ||
-        (i.description ?? "").toLowerCase().includes(q)
-      );
-    })();
+    const pool = q
+      ? menuItems.filter((i) =>
+          i.name.toLowerCase().includes(q) ||
+          i.category.toLowerCase().includes(q) ||
+          (i.description ?? "").toLowerCase().includes(q)
+        )
+      : (activeCategory === "All"
+          ? menuItems
+          : menuItems.filter((i) => i.category === activeCategory));
     const avail   = pool.filter((i) =>  i.available);
     const unavail = pool.filter((i) => !i.available);
     return [...avail, ...unavail];
