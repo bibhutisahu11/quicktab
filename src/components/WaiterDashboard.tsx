@@ -166,6 +166,21 @@ export default function WaiterDashboard() {
 
   const pendingPaymentOrders = orders.filter((o) => o.status === "PAYMENT_PENDING");
 
+  // ── Today's Cash / UPI breakdown ──────────────────────────────────────────
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const confirmedToday = orders.filter((o) => {
+    const notCancelled = !["CANCELLED", "PAYMENT_PENDING"].includes(o.status);
+    const isToday = new Date(o.createdAt) >= todayStart;
+    return notCancelled && isToday;
+  });
+  const cashTotal = confirmedToday
+    .filter((o) => (o as unknown as { paymentMethod?: string }).paymentMethod === "CASH")
+    .reduce((s, o) => s + o.total, 0);
+  const upiTotal = confirmedToday
+    .filter((o) => (o as unknown as { paymentMethod?: string }).paymentMethod !== "CASH")
+    .reduce((s, o) => s + o.total, 0);
+  const dayTotal = cashTotal + upiTotal;
+
   const q = search.trim().toLowerCase();
   const displayed = orders.filter((o) => {
     // Status filter
@@ -213,6 +228,24 @@ export default function WaiterDashboard() {
           </span>
         )}
       </div>
+
+      {/* ── Today's Payment Summary ──────────────────────────────────────── */}
+      {dayTotal > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">💵 Cash Today</p>
+            <p className="text-xl font-black text-green-700">₹{cashTotal.toFixed(0)}</p>
+          </div>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">📲 UPI Today</p>
+            <p className="text-xl font-black text-indigo-700">₹{upiTotal.toFixed(0)}</p>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">🧾 Total Today</p>
+            <p className="text-xl font-black text-amber-700">₹{dayTotal.toFixed(0)}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Attention alerts ─────────────────────────────────────────────── */}
       {(() => {

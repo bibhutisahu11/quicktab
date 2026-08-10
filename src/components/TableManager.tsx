@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { TableData } from "@/types";
 
 export default function TableManager() {
@@ -12,6 +13,8 @@ export default function TableManager() {
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState<string | null>(null);
+  const [parcelQrUrl, setParcelQrUrl] = useState<string | null>(null);
+  const [parcelQrLoading, setParcelQrLoading] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
 
   useEffect(() => {
@@ -92,6 +95,29 @@ export default function TableManager() {
     }
   }
 
+  async function downloadParcelQR() {
+    setParcelQrLoading(true);
+    try {
+      const url = `${baseUrl}/${orgSlug}/menu/parcel`;
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 512, margin: 2,
+        color: { dark: "#1e293b", light: "#ffffff" },
+      });
+      setParcelQrUrl(dataUrl);
+      // Also trigger download
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `parcel-qr-${orgSlug || "order"}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      alert(`Error generating QR: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setParcelQrLoading(false);
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <div className="mb-6">
@@ -99,26 +125,47 @@ export default function TableManager() {
         <p className="text-slate-500 text-sm">Generate QR codes for each table and download as PNG</p>
       </div>
 
-      {/* Parcel link */}
+      {/* Parcel QR + link */}
       <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 mb-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex items-start gap-4">
+          {/* QR preview */}
+          <div className="flex-shrink-0">
+            {parcelQrUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={parcelQrUrl} alt="Parcel QR" className="w-28 h-28 rounded-xl border border-orange-200 bg-white p-1" />
+            ) : (
+              <div className="w-28 h-28 rounded-xl border-2 border-dashed border-orange-300 bg-white flex items-center justify-center text-3xl">
+                📦
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
             <h2 className="font-bold text-orange-800 flex items-center gap-2">
-              <span>📦</span> Parcel / Takeaway Order Link
+              📦 Parcel / Takeaway QR Code
             </h2>
             <p className="text-orange-600 text-sm mt-1">
-              Share this URL for walk-in parcel orders (no QR needed)
+              Print &amp; place this QR at your counter — customers scan to order takeaway
             </p>
-            <code className="block mt-2 text-sm bg-white border border-orange-200 rounded-lg px-3 py-2 text-slate-700 break-all">
+            <code className="block mt-2 text-xs bg-white border border-orange-200 rounded-lg px-3 py-1.5 text-slate-600 break-all">
               {baseUrl}/{orgSlug}/menu/parcel
             </code>
+            <div className="flex gap-2 mt-3 flex-wrap">
+              <button
+                onClick={downloadParcelQR}
+                disabled={parcelQrLoading || !orgSlug}
+                className="bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                {parcelQrLoading ? "Generating…" : "⬇️ Download QR"}
+              </button>
+              <button
+                onClick={() => navigator.clipboard.writeText(`${baseUrl}/${orgSlug}/menu/parcel`)}
+                className="bg-white border border-orange-300 hover:bg-orange-100 text-orange-700 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              >
+                Copy Link
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => navigator.clipboard.writeText(`${baseUrl}/${orgSlug}/menu/parcel`)}
-            className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            Copy Link
-          </button>
         </div>
       </div>
 
