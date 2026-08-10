@@ -179,8 +179,12 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
     ? `<tr class="discount-row"><td colspan="2">Parcel Charge</td><td class="amt">+&#8377;${(order as { parcelCharge?: number }).parcelCharge!.toFixed(0)}</td></tr>`
     : "";
 
+  const payMethod = (order as { paymentMethod?: string }).paymentMethod ?? "UPI";
+  const paymentLine = `<div class="row" style="font-size:16px;font-weight:600;margin-top:4px;">
+    <span>Payment:</span><span>${payMethod === "CASH" ? "💵 Cash" : "📲 UPI"}</span>
+  </div>`;
   const utrLine = order.upiUtr
-    ? `<div class="row" style="font-size:13px;margin-top:2px;"><span>UTR:</span><span>${esc(order.upiUtr)}</span></div>`
+    ? `<div class="row" style="font-size:14px;margin-top:2px;"><span>UTR:</span><span>${esc(order.upiUtr)}</span></div>`
     : "";
 
   const html = `<!DOCTYPE html>
@@ -235,6 +239,7 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
   </table>
 
   <hr class="divider"/>
+  ${paymentLine}
   ${utrLine}
   <div class="footer-text">${esc(footer)}</div>
   <div style="text-align:center;font-size:12px;margin-top:4px;">*** Thank You — Visit Again ***</div>

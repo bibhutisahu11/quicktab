@@ -23,6 +23,7 @@ interface CheckoutModalProps {
     discountAmount?: number,
     paidAmount?: number,
     parcelCharge?: number,
+    paymentMethod?: "UPI" | "CASH",
   ) => Promise<void>;
   isParcel: boolean;
   orgUpiId: string | null;
@@ -137,6 +138,9 @@ export default function CheckoutModal({
   const [phoneError, setPhoneError] = useState("");
   const [emailError, setEmailError] = useState("");
 
+  /* ── payment method ── */
+  const [paymentMethod, setPaymentMethod] = useState<"UPI" | "CASH">("UPI");
+
   /* ── step 2 (payment) fields ── */
   const [upiUtr, setUpiUtr]               = useState("");
   const [utrError, setUtrError]           = useState("");
@@ -207,6 +211,7 @@ export default function CheckoutModal({
   /* ── helpers ── */
   function resetAndClose() {
     setName(""); setPhone(""); setEmail(""); setBirthday(""); setAddress(""); setNotes("");
+    setPaymentMethod("UPI");
     setUpiUtr(""); setUtrError(""); setUtrFraud(false); setUtrChecking(false);
     setPaidAmount(""); setPaidAmountError("");
     setScreenshot(null); setScreenshotName(""); setScreenshotError("");
@@ -245,10 +250,11 @@ export default function CheckoutModal({
     const eErr = email ? validateEmail(email) : null;
     if (pErr) { setPhoneError(pErr); return; }
     if (eErr) { setEmailError(eErr); return; }
-    if (requirePayment) {
-      setStep(2);
-    } else {
+    // Cash: skip payment step, go straight to order submission
+    if (paymentMethod === "CASH") {
       submitOrder();
+    } else {
+      setStep(2);
     }
   }
 
@@ -288,11 +294,12 @@ export default function CheckoutModal({
     try {
       await onPlaceOrder(
         name, phone, notes, address, email, birthday,
-        requirePayment ? upiUtr.trim() : undefined,
-        requirePayment ? screenshot ?? undefined : undefined,
+        paymentMethod === "UPI" ? upiUtr.trim() : undefined,
+        paymentMethod === "UPI" ? screenshot ?? undefined : undefined,
         discountAmount > 0 ? discountAmount : undefined,
-        requirePayment ? parseFloat(paidAmount) : undefined,
+        paymentMethod === "UPI" ? parseFloat(paidAmount) : undefined,
         parcelCharge > 0 ? parcelCharge : undefined,
+        paymentMethod,
       );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -312,15 +319,21 @@ export default function CheckoutModal({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 text-xs">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 1 ? "bg-amber-500 text-white" : "bg-green-500 text-white"}`}>
-                {step === 1 ? "1" : "✓"}
-              </span>
-              <span className={`text-xs font-medium ${step === 1 ? "text-amber-600" : "text-green-600"}`}>Details</span>
-              <span className="text-slate-300 mx-1">→</span>
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 2 ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-500"}`}>2</span>
-              <span className={`text-xs font-medium ${step === 2 ? "text-amber-600" : "text-slate-400"}`}>Payment</span>
-            </div>
+            {paymentMethod === "UPI" ? (
+              <div className="flex items-center gap-1 text-xs">
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 1 ? "bg-amber-500 text-white" : "bg-green-500 text-white"}`}>
+                  {step === 1 ? "1" : "✓"}
+                </span>
+                <span className={`text-xs font-medium ${step === 1 ? "text-amber-600" : "text-green-600"}`}>Details</span>
+                <span className="text-slate-300 mx-1">→</span>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 2 ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-500"}`}>2</span>
+                <span className={`text-xs font-medium ${step === 2 ? "text-amber-600" : "text-slate-400"}`}>UPI Payment</span>
+              </div>
+            ) : (
+              <h2 className="text-base font-bold text-slate-800">
+                {isParcel ? "📦 Parcel Order" : "🍽️ Table Order"} · 💵 Cash
+              </h2>
+            )}
           </div>
           <button
             onClick={resetAndClose}
@@ -531,11 +544,42 @@ export default function CheckoutModal({
               />
             </div>
 
+            {/* Payment method chooser */}
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">Payment Method</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["UPI", "CASH"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPaymentMethod(m)}
+                    className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-semibold transition-all ${
+                      paymentMethod === m
+                        ? m === "UPI"
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                          : "border-green-500 bg-green-50 text-green-700"
+                        : "border-slate-200 text-slate-500 hover:border-slate-300"
+                    }`}
+                  >
+                    <span className="text-2xl">{m === "UPI" ? "📲" : "💵"}</span>
+                    <span className="text-sm">{m === "UPI" ? "UPI / QR" : "Cash"}</span>
+                    {m === "CASH" && <span className="text-xs text-slate-400 font-normal">Admin will collect</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               type="submit"
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl text-lg transition-colors"
+              className={`w-full text-white font-bold py-4 rounded-xl text-lg transition-colors ${
+                paymentMethod === "CASH"
+                  ? "bg-green-500 hover:bg-green-600"
+                  : "bg-amber-500 hover:bg-amber-600"
+              }`}
             >
-              {`Proceed to Pay · ₹${total.toFixed(2)} →`}
+              {paymentMethod === "CASH"
+                ? `Place Order · ₹${total.toFixed(2)} (Cash)`
+                : `Proceed to Pay · ₹${total.toFixed(2)} →`}
             </button>
           </form>
         )}

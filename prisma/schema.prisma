@@ -135,6 +135,7 @@ model Order {
   discountAmount    Float         @default(0)
   total             Float
   paymentId         String?
+  paymentMethod     String        @default("UPI")  // "UPI" | "CASH"
   upiUtr            String?
   paymentScreenshot  String?      @db.Text
   screenshotExpiry   DateTime?

@@ -30,7 +30,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount, parcelCharge } = body;
+    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount, parcelCharge, paymentMethod } = body;
+    const isCash = paymentMethod === "CASH";
 
     if (!type || !customerName || !items?.length) {
       return NextResponse.json(
@@ -62,18 +63,14 @@ export async function POST(req: NextRequest) {
       if (org) { orgId = org.id; orgUpiId = org.upiId ?? null; }
     }
 
-    // If org requires UPI payment, validate UTR + screenshot
-    if (orgUpiId) {
+    // UPI-specific validations (skip for cash)
+    if (!isCash && orgUpiId) {
       if (!upiUtr || upiUtr.trim().length < 6) {
         return NextResponse.json({ error: "Valid UTR / Transaction ID is required for payment" }, { status: 400 });
       }
       if (!paymentScreenshot) {
         return NextResponse.json({ error: "Payment screenshot is required" }, { status: 400 });
       }
-
-      // ── Amount validation ────────────────────────────────────────────────
-      // We don't know the final total yet (calculated below), so we store
-      // paidAmount and re-validate after total is computed (see below).
 
       // ── Fraud detection: duplicate UTR ──────────────────────────────────
       const normalizedUtr = upiUtr.trim().toUpperCase();
@@ -129,8 +126,8 @@ export async function POST(req: NextRequest) {
     const appliedParcelCharge = Math.max(0, Number(parcelCharge) || 0);
     const total = Math.max(0, subtotal - appliedDiscount + appliedParcelCharge);
 
-    // ── Server-side paid-amount check ────────────────────────────────────────
-    if (orgUpiId && paidAmount !== undefined) {
+    // ── Server-side paid-amount check (UPI only) ─────────────────────────────
+    if (!isCash && orgUpiId && paidAmount !== undefined) {
       const paid = parseFloat(String(paidAmount));
       if (isNaN(paid) || Math.abs(paid - total) > 1) {
         return NextResponse.json(
@@ -181,6 +178,7 @@ export async function POST(req: NextRequest) {
           ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
           : null,
         parcelCharge: appliedParcelCharge,
+        paymentMethod: isCash ? "CASH" : "UPI",
         items: { create: orderItemsData },
       },
       include: { items: true, table: true },

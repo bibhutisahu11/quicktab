@@ -220,6 +220,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     discountAmount?: number,
     paidAmount?: number,
     parcelCharge?: number,
+    paymentMethod?: "UPI" | "CASH",
   ) {
     // Save cart to localStorage for reorder (keyed by phone or anonymous)
     if (typeof window !== "undefined") {
@@ -246,6 +247,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       paymentScreenshot: paymentScreenshot || undefined,
       discountAmount: discountAmount ?? 0,
       parcelCharge: parcelCharge ?? 0,
+      paymentMethod: paymentMethod ?? "UPI",
       paidAmount: paidAmount ?? undefined,
       items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity })),
     };

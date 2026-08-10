@@ -387,43 +387,57 @@ export default function WaiterDashboard() {
                 {/* Payment verification section */}
                 {order.status === "PAYMENT_PENDING" && (
                   <div className="mb-3 space-y-2">
-                    {/* UTR */}
-                    {order.upiUtr && (
-                      <div className="bg-white border border-purple-200 rounded-lg px-3 py-2 flex items-center gap-2">
-                        <span className="text-xs text-slate-500 font-medium">UTR:</span>
-                        <span className="font-mono font-bold text-slate-800 text-sm flex-1">{order.upiUtr}</span>
+                    {/* Cash order — simple approval banner */}
+                    {(order as { paymentMethod?: string }).paymentMethod === "CASH" ? (
+                      <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <span className="text-xl">💵</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-green-800">Cash Payment</p>
+                          <p className="text-xs text-green-600">Collect ₹{order.total.toFixed(0)} from customer</p>
+                        </div>
                         {order.nudgeCount > 0 && (
                           <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">
                             🔔 {order.nudgeCount}
                           </span>
                         )}
                       </div>
+                    ) : (
+                      <>
+                        {/* UPI — UTR */}
+                        {order.upiUtr && (
+                          <div className="bg-white border border-purple-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                            <span className="text-xs text-slate-500 font-medium">UTR:</span>
+                            <span className="font-mono font-bold text-slate-800 text-sm flex-1">{order.upiUtr}</span>
+                            {order.nudgeCount > 0 && (
+                              <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">
+                                🔔 {order.nudgeCount}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {/* UPI — Screenshot thumbnail */}
+                        {order.paymentScreenshot && (
+                          <button
+                            onClick={() => setExpandedScreenshot(order.paymentScreenshot)}
+                            className="w-full rounded-lg overflow-hidden border border-purple-200 hover:border-purple-400 transition-colors relative"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={order.paymentScreenshot} alt="Payment screenshot" className="w-full max-h-32 object-cover" />
+                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <span className="bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full">Tap to enlarge</span>
+                            </div>
+                          </button>
+                        )}
+                      </>
                     )}
-                    {/* Screenshot thumbnail */}
-                    {order.paymentScreenshot && (
-                      <button
-                        onClick={() => setExpandedScreenshot(order.paymentScreenshot)}
-                        className="w-full rounded-lg overflow-hidden border border-purple-200 hover:border-purple-400 transition-colors relative"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={order.paymentScreenshot}
-                          alt="Payment screenshot"
-                          className="w-full max-h-32 object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                          <span className="bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full">Tap to enlarge</span>
-                        </div>
-                      </button>
-                    )}
-                    {/* Accept / Reject */}
+                    {/* Accept / Reject — same for both cash and UPI */}
                     <div className="flex gap-2">
                       <button
                         onClick={() => verifyPayment(order.id, "ACCEPT")}
                         disabled={isUpdating}
                         className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-bold py-2.5 rounded-lg text-sm transition-colors"
                       >
-                        {isUpdating ? "..." : "✅ Accept & Confirm Order"}
+                        {isUpdating ? "..." : (order as { paymentMethod?: string }).paymentMethod === "CASH" ? "✅ Collected — Confirm Order" : "✅ Accept & Confirm Order"}
                       </button>
                       <button
                         onClick={() => verifyPayment(order.id, "REJECT")}
