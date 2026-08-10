@@ -70,6 +70,28 @@ export async function POST(req: NextRequest) {
       if (!paymentScreenshot) {
         return NextResponse.json({ error: "Payment screenshot is required" }, { status: 400 });
       }
+
+      // ── Fraud detection: duplicate UTR ──────────────────────────────────
+      const normalizedUtr = upiUtr.trim().toUpperCase();
+      const existingUtr = await prisma.order.findFirst({
+        where: {
+          upiUtr: { equals: normalizedUtr, mode: "insensitive" },
+          ...(orgId ? { orgId } : {}),
+          status: { notIn: ["CANCELLED"] },
+        },
+        select: { id: true, customerName: true, createdAt: true },
+      });
+
+      if (existingUtr) {
+        return NextResponse.json(
+          {
+            error: "⚠️ Fraud Detected: This UTR / Transaction ID has already been used for a previous order. Each payment must have a unique UTR. Please check your UPI app and use a new transaction.",
+            fraudType: "DUPLICATE_UTR",
+            existingOrderId: existingUtr.id,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Validate menu items scoped to org

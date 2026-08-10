@@ -63,6 +63,8 @@ export default function CheckoutModal({
   /* ── step 2 (payment) fields ── */
   const [upiUtr, setUpiUtr]               = useState("");
   const [utrError, setUtrError]           = useState("");
+  const [utrFraud, setUtrFraud]           = useState(false);
+  const [utrChecking, setUtrChecking]     = useState(false);
   const [screenshot, setScreenshot]       = useState<string | null>(null);
   const [screenshotName, setScreenshotName] = useState("");
   const [screenshotError, setScreenshotError] = useState("");
@@ -121,7 +123,7 @@ export default function CheckoutModal({
   /* ── helpers ── */
   function resetAndClose() {
     setName(""); setPhone(""); setEmail(""); setBirthday(""); setAddress(""); setNotes("");
-    setUpiUtr(""); setUtrError(""); setScreenshot(null); setScreenshotName(""); setScreenshotError("");
+    setUpiUtr(""); setUtrError(""); setUtrFraud(false); setUtrChecking(false); setScreenshot(null); setScreenshotName(""); setScreenshotError("");
     setUpiQrDataUrl(null);
     setOfferRevealed(false); setShowOfferBanner(false);
     setStep(1); setLoading(false); setError("");
@@ -164,10 +166,27 @@ export default function CheckoutModal({
     }
   }
 
+  /* ── real-time UTR duplicate check ── */
+  async function checkUtrFraud(utr: string) {
+    const trimmed = utr.trim();
+    if (!trimmed || trimmed.length < 6) return;
+    setUtrChecking(true);
+    try {
+      const res = await fetch(`/api/public/check-utr?utr=${encodeURIComponent(trimmed)}&orgSlug=${encodeURIComponent(orgSlug ?? "")}`);
+      const data = res.ok ? await res.json() : { isDuplicate: false };
+      setUtrFraud(data.isDuplicate);
+      if (data.isDuplicate) {
+        setUtrError("⚠️ This UTR has already been used. Please use a new transaction.");
+      }
+    } catch { /* ignore */ }
+    finally { setUtrChecking(false); }
+  }
+
   /* ── step 2 → submit ── */
   function handleStep2Submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (utrFraud) { setUtrError("⚠️ This UTR has already been used. Please make a new payment."); return; }
     const utrErr = validateUtr(upiUtr);
     if (utrErr) { setUtrError(utrErr); return; }
     if (!screenshot) { setScreenshotError("Please upload your payment screenshot"); return; }
@@ -508,20 +527,53 @@ export default function CheckoutModal({
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 UTR / Transaction ID <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={upiUtr}
-                onChange={(e) => { setUpiUtr(e.target.value.toUpperCase()); setUtrError(""); }}
-                onBlur={() => setUtrError(validateUtr(upiUtr) ?? "")}
-                className={inputCls(utrError)}
-                placeholder="e.g. 407812345678 or T2506041234"
-                maxLength={22}
-                autoCapitalize="characters"
-              />
-              {utrError && <p className="text-red-500 text-xs mt-1">{utrError}</p>}
-              <p className="text-xs text-slate-400 mt-1">
-                Find the UTR/Transaction ID on your UPI app&apos;s payment success screen
-              </p>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={upiUtr}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    setUpiUtr(val);
+                    setUtrError("");
+                    setUtrFraud(false);
+                  }}
+                  onBlur={() => {
+                    const fmt = validateUtr(upiUtr);
+                    if (fmt) { setUtrError(fmt); return; }
+                    checkUtrFraud(upiUtr);
+                  }}
+                  className={inputCls(utrError || utrFraud ? "err" : "")}
+                  placeholder="e.g. 407812345678 or T2506041234"
+                  maxLength={22}
+                  autoCapitalize="characters"
+                />
+                {utrChecking && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs animate-pulse">
+                    Checking…
+                  </span>
+                )}
+              </div>
+
+              {/* Fraud alert */}
+              {utrFraud && (
+                <div className="mt-2 bg-red-50 border border-red-300 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <span className="text-2xl mt-0.5">🚨</span>
+                  <div>
+                    <p className="text-red-700 font-bold text-sm">Fraud Detected!</p>
+                    <p className="text-red-600 text-xs mt-0.5">
+                      This UTR / Transaction ID has <strong>already been used</strong> for a previous order.
+                      Please make a <strong>new payment</strong> from your UPI app and enter the new UTR.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {utrError && !utrFraud && <p className="text-red-500 text-xs mt-1">{utrError}</p>}
+              {!utrError && !utrFraud && (
+                <p className="text-xs text-slate-400 mt-1">
+                  Find the UTR/Transaction ID on your UPI app&apos;s payment success screen
+                </p>
+              )}
             </div>
 
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex gap-3 items-start">
@@ -542,10 +594,10 @@ export default function CheckoutModal({
               </button>
               <button
                 type="submit"
-                disabled={loading}
-                className="flex-[2] bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-3.5 rounded-xl transition-colors"
+                disabled={loading || utrFraud || utrChecking}
+                className="flex-[2] bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl transition-colors"
               >
-                {loading ? "Submitting..." : "Submit Payment & Place Order"}
+                {utrChecking ? "Verifying UTR…" : utrFraud ? "🚨 Invalid UTR" : loading ? "Submitting..." : "Submit Payment & Place Order"}
               </button>
             </div>
           </form>

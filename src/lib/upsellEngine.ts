@@ -132,35 +132,47 @@ export function getUpsellSuggestion(
 // Shown randomly on the menu as floating speech bubbles
 
 export const QUIRKY_DIALOGUES = [
-  // 🟠 Odia
-  { lang: "Odia 🏛️",   text: "\"Khia piba karo, bhai!\"",              subtext: "Come eat and drink, brother! 😄" },
-  { lang: "Odia 🏛️",   text: "\"Peta bhara ta mana khusiya!\"",         subtext: "Full stomach = happy soul! 🤩" },
-  { lang: "Odia 🏛️",   text: "\"Aau khaa, aau khaa!\"",                 subtext: "Come eat, come eat! (We insist 😆)" },
-  { lang: "Odia 🏛️",   text: "\"Dahibara khai nai? Kalinga Bites achi!\"", subtext: "Haven't had Dahibara yet? We're right here! 🥣" },
-  { lang: "Odia 🏛️",   text: "\"Mo maa ra haata ra ranna pari!\"",       subtext: "Tastes just like mom's cooking 🤌❤️" },
-  { lang: "Odia 🏛️",   text: "\"Rasagola khaile mana ta thanda hoi!\"", subtext: "One Rasagola and all stress is gone 🍡😌" },
-  { lang: "Odia 🏛️",   text: "\"Odisha ra swad, apana ghar re!\"",       subtext: "The taste of Odisha, right at your table 🌿" },
-  { lang: "Odia 🏛️",   text: "\"Biryani dekhi peta ta naache!\"",        subtext: "The stomach dances at the sight of Biryani 🍛💃" },
+  // 🟠 ODIA — FUNNY & LOCAL
+  { lang: "Odia 🏛️",       text: "\"Dahibara dekhile diet bhuli jiba! 😂\"",          subtext: "One look at Dahibara and the diet is forgotten!" },
+  { lang: "Odia 🏛️",       text: "\"Aloo Dum ra jadu alaga! 😋\"",                    subtext: "Aloo Dum has a magic of its own!" },
+  { lang: "Odia 🏛️",       text: "\"Dahibara + Aloo Dum = Full Khusi! ❤️\"",          subtext: "The ultimate happiness combo!" },
+  { lang: "Odia 🏛️",       text: "\"Bara kha, mana khusi kara! 😎\"",                 subtext: "Eat Bara, make your heart happy!" },
+  { lang: "Odia 🏛️",       text: "\"Singada gotie re mana bhariba nahi! 😂\"",         subtext: "One Singada is never enough!" },
+  { lang: "Odia 🏛️",       text: "\"Rasagola dekhi kie na kahiba? 🤤\"",              subtext: "Who can say no after seeing Rasagola?" },
+  { lang: "Odia 🏛️",       text: "\"Khaja achhi... ebe kana darkar? 😌\"",            subtext: "There's Khaja... what more do you need?" },
+  { lang: "Odia 🏛️",       text: "\"Peta kahuchi aau tike! 😂\"",                     subtext: "The tummy says: just a little more!" },
+  { lang: "Odia 🏛️",       text: "\"Aji diet nuhe, aji Odia food! 😎\"",              subtext: "No diet today, today is Odia food day!" },
+  { lang: "Odia 🏛️",       text: "\"Khaa bhai, eita ghara ra swad! ❤️\"",            subtext: "Eat, brother — this tastes like home!" },
+  { lang: "Odia 🏛️",       text: "\"Odia khaiba hele mana kahiba—Aau de! 😂\"",       subtext: "With Odia food, your heart will say—give me more!" },
+  { lang: "Odia 🏛️",       text: "\"Peta bhari gala, mana kahuchi aau! 🤣\"",         subtext: "The tummy is full, but the heart wants more!" },
 
-  // 🟢 Hindi
-  { lang: "Hindi 🇮🇳",  text: "\"Bhookhe pet na bhajan hoy...\"",         subtext: "Can't do great things on an empty stomach 😅 Order karo!" },
-  { lang: "Hindi 🇮🇳",  text: "\"Pehle khao, phir socho!\"",              subtext: "Eat first, think later 😂🍽️" },
-  { lang: "Hindi 🇮🇳",  text: "\"Dil aur pet dono kush karo!\"",          subtext: "Make both your heart AND stomach happy 🥰" },
-  { lang: "Hindi 🇮🇳",  text: "\"Yaar, khaana toh banta hai!\"",          subtext: "Bro, food is a must! 😎🍛" },
-  { lang: "Hindi 🇮🇳",  text: "\"Biryani dekhke aankhein bhi khush ho jaati hain!\"", subtext: "Even your eyes smile seeing Biryani 👀🍛" },
-  { lang: "Hindi 🇮🇳",  text: "\"Meetha khaoge toh zindagi meethi hogi!\"", subtext: "Eat sweets, life gets sweeter 🍮😊" },
-  { lang: "Hindi 🇮🇳",  text: "\"Ek aur order toh banta hai, boss!\"",    subtext: "One more order is totally justified, boss 😆" },
-  { lang: "Hindi 🇮🇳",  text: "\"Jo khata hai woh muskurata hai!\"",      subtext: "Those who eat well, smile more 😄🍜" },
+  // 🟢 HINDI — FOOD HUMOUR
+  { lang: "Hindi 🇮🇳",     text: "\"Dahibara dekha aur diet bhool jao! 😂\"",          subtext: "See the Dahibara, forget the diet!" },
+  { lang: "Hindi 🇮🇳",     text: "\"Aloo Dum ho toh mood bhi dumdaar! 😎\"",           subtext: "With Aloo Dum, the mood gets dumdaar too!" },
+  { lang: "Hindi 🇮🇳",     text: "\"Ek plate? Bhai, mazaak mat karo! 😂\"",            subtext: "One plate? Come on, be serious!" },
+  { lang: "Hindi 🇮🇳",     text: "\"Pet bhar gaya... dil abhi bhi ready hai! 🤣\"",    subtext: "The tummy is full, but the heart is still ready!" },
+  { lang: "Hindi 🇮🇳",     text: "\"Rasagola ke liye jagah hamesha hoti hai! ❤️\"",    subtext: "There's always room for Rasagola!" },
+  { lang: "Hindi 🇮🇳",     text: "\"Aaj calories nahi, sirf khushiyan ginni hain! 😋\"", subtext: "Today we're counting happiness, not calories!" },
+  { lang: "Hindi 🇮🇳",     text: "\"Bhookh ka jawab—Odia swaad! 🔥\"",                subtext: "The answer to hunger—Odia flavour!" },
+  { lang: "Hindi 🇮🇳",     text: "\"Kha lo... regret sirf tab hoga jab nahi khaoge! 😂\"", subtext: "Eat... you'll only regret not eating!" },
 
-  // 🔵 English
-  { lang: "English 🌍",  text: "\"You can't buy happiness, but you can buy food!\"", subtext: "And that's basically the same thing 😂🍽️" },
-  { lang: "English 🌍",  text: "\"Diet starts tomorrow. Today — Biryani!\"", subtext: "We fully support this decision 🍛😄" },
-  { lang: "English 🌍",  text: "\"Life is too short for bad food.\"",      subtext: "Fortunately, you're at the right place 🌟" },
-  { lang: "English 🌍",  text: "\"In a world full of choices, always choose Mutton Biryani.\"", subtext: "Words of wisdom 🍛🙏" },
-  { lang: "English 🌍",  text: "\"Rasagola is proof that the universe loves us.\"", subtext: "Pure philosophy, pure sweetness 🍡✨" },
-  { lang: "English 🌍",  text: "\"I follow a strict diet: I eat everything! 😂\"", subtext: "Respect. Absolute respect." },
-  { lang: "English 🌍",  text: "\"Soup + Biryani = the combo your soul deserves!\"", subtext: "Order both. Live your best life 🍲🍛" },
-  { lang: "English 🌍",  text: "\"Come hungry. Leave with a piece of Odisha. ❤️\"", subtext: "— Kalinga Bites Promise 🌿" },
+  // 🔵 ENGLISH — SHORT & QUIRKY
+  { lang: "English 🌎",    text: "\"Dahibara first. Questions later. 😎\"",             subtext: "Priorities!" },
+  { lang: "English 🌎",    text: "\"Aloo Dum made me do it. 😂\"",                     subtext: "Zero regrets!" },
+  { lang: "English 🌎",    text: "\"One plate? That's adorable. 🤣\"",                 subtext: "You definitely need another!" },
+  { lang: "English 🌎",    text: "\"Rasagola has its own stomach. 🤤\"",               subtext: "There is ALWAYS room for dessert!" },
+  { lang: "English 🌎",    text: "\"Odia food. Full heart. Happy tummy. ❤️\"",         subtext: "Simple equation!" },
+  { lang: "English 🌎",    text: "\"Dahibara called. We answered. 😋\"",               subtext: "And now it's your turn!" },
+  { lang: "English 🌎",    text: "\"Your diet can wait. Dahibara can't. 😂\"",         subtext: "Some things are more important." },
+  { lang: "English 🌎",    text: "\"Warning: Odia food may cause happiness. 🤤\"",     subtext: "Proceed without caution!" },
+  { lang: "English 🌎",    text: "\"Come for one bite. Stay for five plates. 😂\"",    subtext: "We've all been there!" },
+  { lang: "English 🌎",    text: "\"Odia cravings? You're in the right place. 🔥\"",   subtext: "Welcome to Kalinga Bites!" },
+
+  // 🟣 KALINGA BITES BRAND LINES
+  { lang: "Kalinga Bites ❤️", text: "\"Ame Odia, bhari badhia! 😎\"",                 subtext: "Kalinga Bites — Odisha on your plate!" },
+  { lang: "Kalinga Bites ❤️", text: "\"Bhookh Odisha ra, jawab Kalinga Bites ra! 🔥\"", subtext: "Your Odisha craving has found its answer!" },
+  { lang: "Kalinga Bites ❤️", text: "\"Odia swad, Bengaluru re! ❤️\"",                subtext: "The taste of Odisha, right here in Bengaluru!" },
+  { lang: "Kalinga Bites ❤️", text: "\"Gharara swad, Kalinga Bites ra! 😋\"",          subtext: "That homely Odisha taste, at Kalinga Bites!" },
 ];
 
 export const FOOD_TIPS = [
