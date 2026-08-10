@@ -612,27 +612,7 @@ export default function CheckoutModal({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={upiQrDataUrl} alt="UPI QR Code" width={220} height={220} className="rounded-lg" />
                   </div>
-                  {/* One-tap UPI app deep links */}
-                  {upiDeepLink && (
-                    <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-                      {[
-                        { label: "PhonePe", emoji: "💜", scheme: upiDeepLink.replace("upi://", "phonepe://") },
-                        { label: "GPay",    emoji: "🟢", scheme: upiDeepLink.replace("upi://pay?", "tez://upi/pay?") },
-                        { label: "Paytm",   emoji: "💙", scheme: upiDeepLink.replace("upi://", "paytmmp://") },
-                        { label: "Any UPI", emoji: "⚡", scheme: upiDeepLink },
-                      ].map(({ label, emoji, scheme }) => (
-                        <button
-                          key={label}
-                          type="button"
-                          onClick={() => { window.location.href = scheme; }}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 rounded-full px-3 py-1.5 shadow-sm active:scale-95 transition-transform"
-                        >
-                          <span>{emoji}</span> {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-slate-500">Tap a button to open your UPI app, or scan the QR code</p>
+                  <p className="text-xs text-slate-500">Scan with any UPI app — PhonePe, GPay, Paytm, etc.</p>
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-32 text-slate-400 text-sm">Generating QR…</div>
@@ -658,7 +638,7 @@ export default function CheckoutModal({
 
               <div className="text-left bg-white rounded-xl p-4 border border-indigo-100 space-y-1.5 text-sm text-slate-600">
                 <p className="font-semibold text-slate-700">📋 Steps:</p>
-                <p>1. Scan the QR above <em>or</em> open PhonePe / GPay / Paytm</p>
+                <p>1. Open PhonePe / GPay / Paytm and scan the QR above</p>
                 <p>2. Pay <strong>₹{total.toFixed(2)}</strong> — amount auto-filled when scanned</p>
                 <p>3. Take a screenshot of the success screen</p>
                 <p>4. Upload the screenshot &amp; enter the UTR below</p>
