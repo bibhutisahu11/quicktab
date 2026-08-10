@@ -540,28 +540,111 @@ export default function MenuManager() {
             </div>
 
             <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
-              {(
-                [
-                  { label: "Item Name *", key: "name", type: "text", required: true, placeholder: "e.g. Butter Chicken" },
-                  { label: "Category *", key: "category", type: "text", required: true, placeholder: "e.g. Main Course" },
-                  { label: "Price (₹) *", key: "price", type: "number", required: true, placeholder: "199" },
-                  { label: "Description", key: "description", type: "text", required: false, placeholder: "Brief description" },
-                  { label: "Image URL (optional)", key: "imageUrl", type: "url", required: false, placeholder: "https://..." },
-                  { label: "Sort Order", key: "sortOrder", type: "number", required: false, placeholder: "0" },
-                ] as const
-              ).map((field) => (
-                <div key={field.key}>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{field.label}</label>
+              {/* Item Name */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Item Name *</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  required
+                  placeholder="e.g. Butter Chicken"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Category — dropdown of existing + free-type new */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Category *</label>
+                <div className="relative">
                   <input
-                    type={field.type}
-                    value={form[field.key] as string}
-                    onChange={(e) => setForm((f) => ({ ...f, [field.key]: e.target.value }))}
-                    required={field.required}
-                    placeholder={field.placeholder}
+                    list="category-list"
+                    type="text"
+                    value={form.category}
+                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                    required
+                    placeholder="Select existing or type a new one…"
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
+                  <datalist id="category-list">
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
-              ))}
+                {form.category && !categories.includes(form.category) && (
+                  <p className="text-xs text-amber-600 mt-1 font-medium">
+                    ✨ New category &quot;{form.category}&quot; will be created
+                  </p>
+                )}
+                {categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, category: cat }))}
+                        className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                          form.category === cat
+                            ? "bg-amber-500 text-white border-amber-500"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-amber-400 hover:text-amber-600"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Price (₹) *</label>
+                <input
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                  required
+                  placeholder="199"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Brief description"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Image URL */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Image URL (optional)</label>
+                <input
+                  type="url"
+                  value={form.imageUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Sort Order */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Sort Order</label>
+                <input
+                  type="number"
+                  value={form.sortOrder}
+                  onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))}
+                  placeholder="0"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
 
               <div className="flex items-center gap-3">
                 <input
