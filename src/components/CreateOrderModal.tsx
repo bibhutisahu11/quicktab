@@ -24,6 +24,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
   const [orderType, setOrderType] = useState<"TABLE" | "PARCEL">("TABLE");
   const [tableId, setTableId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI">("CASH");
+  const [parcelCharge, setParcelCharge] = useState<0 | 5 | 10>(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -75,7 +76,8 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
     return cart.find((r) => r.item.id === itemId)?.qty ?? 0;
   }
 
-  const total = cart.reduce((s, r) => s + r.item.price * r.qty, 0);
+  const subtotal = cart.reduce((s, r) => s + r.item.price * r.qty, 0);
+  const total = subtotal + (orderType === "PARCEL" ? parcelCharge : 0);
   const itemCount = cart.reduce((s, r) => s + r.qty, 0);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -94,6 +96,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
         phone: phone.trim() || undefined,
         notes: notes.trim() || undefined,
         paymentMethod,
+        parcelCharge: orderType === "PARCEL" ? parcelCharge : 0,
         adminCreated: true,
         items: cart.map((r) => ({ menuItemId: r.item.id, quantity: r.qty })),
       };
@@ -221,6 +224,32 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                 </div>
               )}
 
+              {/* Parcel charge — only for parcel orders */}
+              {orderType === "PARCEL" && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Parcel Charge</label>
+                  <div className="flex rounded-lg border border-slate-300 overflow-hidden">
+                    {([0, 5, 10] as const).map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setParcelCharge(amt)}
+                        className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                          parcelCharge === amt
+                            ? "bg-orange-500 text-white"
+                            : "bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {amt === 0 ? "None" : `+₹${amt}`}
+                      </button>
+                    ))}
+                  </div>
+                  {parcelCharge > 0 && (
+                    <p className="text-xs text-orange-600 mt-1">₹{parcelCharge} parcel charge will be added to total</p>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Notes</label>
                 <input
@@ -296,13 +325,25 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
           )}
 
           {cart.length > 0 && (
-            <div className="bg-slate-50 rounded-xl px-4 py-3 space-y-1 max-h-28 overflow-y-auto">
+            <div className="bg-slate-50 rounded-xl px-4 py-3 space-y-1 max-h-32 overflow-y-auto">
               {cart.map((r) => (
                 <div key={r.item.id} className="flex justify-between text-sm">
                   <span className="text-slate-700">{r.item.name} × {r.qty}</span>
                   <span className="text-slate-500 font-medium">₹{(r.item.price * r.qty).toFixed(0)}</span>
                 </div>
               ))}
+              {orderType === "PARCEL" && parcelCharge > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-orange-600 pt-1 border-t border-slate-200">
+                    <span>Parcel charge</span>
+                    <span className="font-medium">₹{parcelCharge}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold text-slate-800 pt-1 border-t border-slate-200">
+                    <span>Total</span>
+                    <span>₹{total.toFixed(0)}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
