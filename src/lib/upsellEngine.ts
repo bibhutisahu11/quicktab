@@ -32,14 +32,14 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     emoji: "🥞",
   },
   "Biryani Zone": {
-    message: "Great choice! The perfect finish after Biryani is",
-    itemNames: ["Chhenapoda Sugar (per Kg)", "Pahala Rasagola", "Rasmalai", "Malpua", "Gulab Jamun"],
-    emoji: "🍛",
+    message: "🚀 20% OFF! Since you're having Biryani, try our Chinese too! Add",
+    itemNames: ["Chicken Hakka Noodles", "Veg Noodles", "Chicken Fried Rice", "Veg Fried Rice"],
+    emoji: "🍜",
   },
   "Dum Zone": {
-    message: "Dum Biryani + Dessert = Pure Bliss! Try",
-    itemNames: ["Chhenapoda Jaggery (per Kg)", "Pahala Rasagola", "Chhena Steam", "Rasmalai"],
-    emoji: "🍮",
+    message: "🚀 20% OFF! Complete the feast — add a Chinese side too!",
+    itemNames: ["Chicken Manchow", "Hot & Sour Chicken", "Veg Manchow"],
+    emoji: "🍲",
   },
   "Non-Veg Starters": {
     message: "Great starter! Pair it with a hot",
@@ -57,9 +57,9 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     emoji: "🥟",
   },
   "Fried Rice & Noodles": {
-    message: "Add a sweet ending to your meal!",
-    itemNames: ["Gulab Jamun", "Rasmalai", "Malpua", "Chhena Jhilli"],
-    emoji: "🍜",
+    message: "🚀 20% OFF! Having Chinese? Add some Biryani to share!",
+    itemNames: ["Chicken Dum Biryani", "Paneer Biryani", "Veg Biryani"],
+    emoji: "🍛",
   },
   "Breads": {
     message: "Breads go best with a rich gravy! How about",
@@ -70,21 +70,6 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     message: "Ending on a sweet note? Why not make it a full meal with",
     itemNames: ["Chicken Dum Biryani", "Mutton Biryani", "Veg Dum Biryani"],
     emoji: "🍯",
-  },
-  "Biryani Zone": {
-    message: "🚀 20% OFF! Since you're having Biryani, try our Chinese too! Add",
-    itemNames: ["Chicken Hakka Noodles", "Veg Noodles", "Chicken Fried Rice", "Veg Fried Rice"],
-    emoji: "🍜",
-  },
-  "Dum Zone": {
-    message: "🚀 20% OFF! Complete the feast — add a Chinese side too!",
-    itemNames: ["Chicken Manchow", "Hot & Sour Chicken", "Veg Manchow"],
-    emoji: "🍲",
-  },
-  "Fried Rice & Noodles": {
-    message: "🚀 20% OFF! Having Chinese? Add some Biryani to share!",
-    itemNames: ["Chicken Dum Biryani", "Paneer Biryani", "Veg Biryani"],
-    emoji: "🍛",
   },
   "Egg Zone": {
     message: "Eggs & Bread — classic! Add",

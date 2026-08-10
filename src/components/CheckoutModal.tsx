@@ -532,18 +532,19 @@ export default function CheckoutModal({
                   {upiDeepLink && (
                     <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
                       {[
-                        { label: "PhonePe", emoji: "💜", href: upiDeepLink.replace("upi://", "phonepe://") },
-                        { label: "GPay",    emoji: "🟢", href: upiDeepLink.replace("upi://pay?", "tez://upi/pay?") },
-                        { label: "Paytm",   emoji: "💙", href: upiDeepLink.replace("upi://", "paytmmp://") },
-                        { label: "Any UPI", emoji: "⚡", href: upiDeepLink },
-                      ].map(({ label, emoji, href }) => (
-                        <a
+                        { label: "PhonePe", emoji: "💜", scheme: upiDeepLink.replace("upi://", "phonepe://") },
+                        { label: "GPay",    emoji: "🟢", scheme: upiDeepLink.replace("upi://pay?", "tez://upi/pay?") },
+                        { label: "Paytm",   emoji: "💙", scheme: upiDeepLink.replace("upi://", "paytmmp://") },
+                        { label: "Any UPI", emoji: "⚡", scheme: upiDeepLink },
+                      ].map(({ label, emoji, scheme }) => (
+                        <button
                           key={label}
-                          href={href}
+                          type="button"
+                          onClick={() => { window.location.href = scheme; }}
                           className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 rounded-full px-3 py-1.5 shadow-sm active:scale-95 transition-transform"
                         >
                           <span>{emoji}</span> {label}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}
