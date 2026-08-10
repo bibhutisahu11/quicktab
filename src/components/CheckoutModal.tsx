@@ -21,6 +21,7 @@ interface CheckoutModalProps {
     upiUtr?: string,
     paymentScreenshot?: string,
     discountAmount?: number,
+    paidAmount?: number,
   ) => Promise<void>;
   isParcel: boolean;
   orgUpiId: string | null;
@@ -28,12 +29,73 @@ interface CheckoutModalProps {
   isDiningCustomer?: boolean;
 }
 
-// UTR validation: 6–22 alphanumeric characters (covers NEFT/IMPS/UPI formats)
+/**
+ * Comprehensive UTR / Transaction ID validator
+ * Based on publicly documented Indian payment system formats:
+ *
+ * IMPS / UPI RRN   : exactly 12 digits  (e.g. 407812345678)
+ * NEFT UTR         : 16 alphanumeric, starts with 4-letter bank code
+ *                    (e.g. HDFC0123456789012, SBIN0123456789012)
+ * RTGS UTR         : 16 alphanumeric, same pattern as NEFT
+ * UPI Ref (Paytm)  : starts with 'T' + digits (e.g. T2506041234567890)
+ * UPI Ref (PhonePe): alphanumeric, 12-16 chars (e.g. P2506041234)
+ * UPI Ref (GPay)   : 12-digit numeric
+ * Bank UPI refs    : 12-22 alphanumeric
+ */
 function validateUtr(utr: string): string | null {
-  const trimmed = utr.trim();
-  if (!trimmed) return "UTR / Transaction ID is required";
-  if (!/^[A-Za-z0-9]{6,22}$/.test(trimmed))
-    return "Enter a valid UTR (6–22 alphanumeric characters, no spaces)";
+  const t = utr.trim().toUpperCase();
+
+  if (!t) return "UTR / Transaction ID is required";
+
+  // Must be strictly alphanumeric — no spaces, hyphens, dots etc.
+  if (!/^[A-Z0-9]+$/.test(t))
+    return "UTR must contain only letters and numbers (no spaces or special characters)";
+
+  if (t.length < 6)  return "UTR too short — minimum 6 characters";
+  if (t.length > 22) return "UTR too long — maximum 22 characters";
+
+  // Reject all-same character (e.g. 000000000000 or AAAAAAAAAAAA)
+  if (/^(.)\1+$/.test(t))
+    return "Invalid UTR — looks like a test/dummy value";
+
+  // Reject simple ascending sequences (123456789012)
+  const digits = t.replace(/\D/g, "");
+  if (digits.length >= 6) {
+    let ascending = true, descending = true;
+    for (let i = 1; i < digits.length; i++) {
+      if (+digits[i] !== +digits[i - 1] + 1) ascending = false;
+      if (+digits[i] !== +digits[i - 1] - 1) descending = false;
+    }
+    if (ascending || descending)
+      return "Invalid UTR — sequential numbers are not valid transaction IDs";
+  }
+
+  // Format-specific validations
+  // IMPS / UPI RRN: exactly 12 digits
+  if (/^\d{12}$/.test(t)) return null;
+
+  // NEFT / RTGS: 16 chars, first 4 are uppercase alpha (bank IFSC prefix)
+  if (/^[A-Z]{4}\d{12}$/.test(t) || /^[A-Z]{4}[A-Z0-9]{12}$/.test(t)) return null;
+
+  // Paytm UPI: starts with T + 16+ digits
+  if (/^T\d{10,}$/.test(t)) return null;
+
+  // PhonePe: starts with P + alphanumeric
+  if (/^P[A-Z0-9]{8,}$/.test(t)) return null;
+
+  // General UPI / bank refs: 12-22 alphanumeric (catch-all for other banks)
+  if (t.length >= 12 && t.length <= 22) return null;
+
+  return "Invalid UTR format — please copy the exact transaction ID from your UPI app";
+}
+
+/** Check that the paid amount matches the order total (±₹1 tolerance for rounding) */
+function validatePaidAmount(paid: string, expected: number): string | null {
+  if (!paid.trim()) return "Please enter the amount you paid";
+  const n = parseFloat(paid.replace(/,/g, "").trim());
+  if (isNaN(n) || n <= 0) return "Enter a valid amount";
+  if (Math.abs(n - expected) > 1)
+    return `Amount mismatch! You entered ₹${n.toFixed(2)} but the order total is ₹${expected.toFixed(2)}. Please pay the exact amount.`;
   return null;
 }
 
@@ -65,6 +127,8 @@ export default function CheckoutModal({
   const [utrError, setUtrError]           = useState("");
   const [utrFraud, setUtrFraud]           = useState(false);
   const [utrChecking, setUtrChecking]     = useState(false);
+  const [paidAmount, setPaidAmount]       = useState("");
+  const [paidAmountError, setPaidAmountError] = useState("");
   const [screenshot, setScreenshot]       = useState<string | null>(null);
   const [screenshotName, setScreenshotName] = useState("");
   const [screenshotError, setScreenshotError] = useState("");
@@ -123,7 +187,9 @@ export default function CheckoutModal({
   /* ── helpers ── */
   function resetAndClose() {
     setName(""); setPhone(""); setEmail(""); setBirthday(""); setAddress(""); setNotes("");
-    setUpiUtr(""); setUtrError(""); setUtrFraud(false); setUtrChecking(false); setScreenshot(null); setScreenshotName(""); setScreenshotError("");
+    setUpiUtr(""); setUtrError(""); setUtrFraud(false); setUtrChecking(false);
+    setPaidAmount(""); setPaidAmountError("");
+    setScreenshot(null); setScreenshotName(""); setScreenshotError("");
     setUpiQrDataUrl(null);
     setOfferRevealed(false); setShowOfferBanner(false);
     setStep(1); setLoading(false); setError("");
@@ -186,6 +252,10 @@ export default function CheckoutModal({
   function handleStep2Submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    // Amount check first
+    const amtErr = validatePaidAmount(paidAmount, total);
+    if (amtErr) { setPaidAmountError(amtErr); return; }
+    // UTR checks
     if (utrFraud) { setUtrError("⚠️ This UTR has already been used. Please make a new payment."); return; }
     const utrErr = validateUtr(upiUtr);
     if (utrErr) { setUtrError(utrErr); return; }
@@ -201,6 +271,7 @@ export default function CheckoutModal({
         requirePayment ? upiUtr.trim() : undefined,
         requirePayment ? screenshot ?? undefined : undefined,
         discountAmount > 0 ? discountAmount : undefined,
+        requirePayment ? parseFloat(paidAmount) : undefined,
       );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -480,6 +551,39 @@ export default function CheckoutModal({
               </div>
             </div>
 
+            {/* ── Amount paid confirmation ── */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Amount Paid (₹) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={paidAmount}
+                  onChange={(e) => { setPaidAmount(e.target.value); setPaidAmountError(""); }}
+                  onBlur={() => setPaidAmountError(validatePaidAmount(paidAmount, total) ?? "")}
+                  className={`w-full border rounded-lg pl-8 pr-4 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg font-bold ${paidAmountError ? "border-red-400 bg-red-50" : "border-slate-300"}`}
+                  placeholder={total.toFixed(2)}
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+              {paidAmountError ? (
+                <div className="mt-2 bg-red-50 border border-red-300 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <span className="text-xl mt-0.5">❌</span>
+                  <p className="text-red-700 text-sm font-medium">{paidAmountError}</p>
+                </div>
+              ) : paidAmount && !validatePaidAmount(paidAmount, total) ? (
+                <p className="text-green-600 text-xs mt-1 font-medium">✅ Amount matches — great!</p>
+              ) : (
+                <p className="text-xs text-slate-400 mt-1">
+                  Must exactly match the order total of <strong>₹{total.toFixed(2)}</strong>
+                </p>
+              )}
+            </div>
+
             {/* Screenshot upload */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -594,7 +698,7 @@ export default function CheckoutModal({
               </button>
               <button
                 type="submit"
-                disabled={loading || utrFraud || utrChecking}
+                  disabled={loading || utrFraud || utrChecking || !!paidAmountError}
                 className="flex-[2] bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl transition-colors"
               >
                 {utrChecking ? "Verifying UTR…" : utrFraud ? "🚨 Invalid UTR" : loading ? "Submitting..." : "Submit Payment & Place Order"}

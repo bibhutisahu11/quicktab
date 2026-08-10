@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount } = body;
+    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount } = body;
 
     if (!type || !customerName || !items?.length) {
       return NextResponse.json(
@@ -70,6 +70,10 @@ export async function POST(req: NextRequest) {
       if (!paymentScreenshot) {
         return NextResponse.json({ error: "Payment screenshot is required" }, { status: 400 });
       }
+
+      // ── Amount validation ────────────────────────────────────────────────
+      // We don't know the final total yet (calculated below), so we store
+      // paidAmount and re-validate after total is computed (see below).
 
       // ── Fraud detection: duplicate UTR ──────────────────────────────────
       const normalizedUtr = upiUtr.trim().toUpperCase();
@@ -123,6 +127,17 @@ export async function POST(req: NextRequest) {
 
     const appliedDiscount = Math.min(Number(discountAmount) || 0, subtotal);
     const total = Math.max(0, subtotal - appliedDiscount);
+
+    // ── Server-side paid-amount check ────────────────────────────────────────
+    if (orgUpiId && paidAmount !== undefined) {
+      const paid = parseFloat(String(paidAmount));
+      if (isNaN(paid) || Math.abs(paid - total) > 1) {
+        return NextResponse.json(
+          { error: `Payment amount ₹${paid.toFixed(2)} does not match order total ₹${total.toFixed(2)}. Please pay the exact amount.` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Detect repeat diner: same phone/table with an active order in the last 90 minutes
     let isRepeatDiner = false;
