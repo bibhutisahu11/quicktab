@@ -439,17 +439,23 @@ export default function WaiterDashboard() {
                       </div>
                     ) : (
                       <>
-                        {/* UPI — UTR */}
+                        {/* UPI — UTR (tap to copy) */}
                         {order.upiUtr && (
-                          <div className="bg-white border border-purple-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard.writeText(order.upiUtr!).then(() => alert("UTR copied!"))}
+                            className="w-full bg-white border border-purple-200 rounded-lg px-3 py-2 flex items-center gap-2 hover:bg-purple-50 active:scale-95 transition-all text-left"
+                            title="Tap to copy UTR"
+                          >
                             <span className="text-xs text-slate-500 font-medium">UTR:</span>
                             <span className="font-mono font-bold text-slate-800 text-sm flex-1">{order.upiUtr}</span>
+                            <span className="text-xs text-purple-400">📋 Copy</span>
                             {order.nudgeCount > 0 && (
                               <span className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">
                                 🔔 {order.nudgeCount}
                               </span>
                             )}
-                          </div>
+                          </button>
                         )}
                         {/* UPI — Screenshot thumbnail */}
                         {order.paymentScreenshot && (
