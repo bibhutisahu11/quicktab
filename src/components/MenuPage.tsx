@@ -200,6 +200,21 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
   const allCategories = useMemo(() => ["All", ...categories], [categories]);
 
+  // ── Time-based availability ──────────────────────────────────────────────
+  // Before 12:00 PM only Breakfast Delights, Sweets & Beverages are served.
+  // Admin's explicit available=false always takes priority.
+  // After noon everything follows the admin's available flag normally.
+  const MORNING_CATEGORIES = new Set([
+    "Breakfast Delights", "Sweets", "Beverages",
+  ]);
+  const isBeforeNoon = new Date().getHours() < 12;
+
+  function isItemAvailableNow(item: MenuItemData): boolean {
+    if (!item.available) return false;                      // admin disabled
+    if (isBeforeNoon && !MORNING_CATEGORIES.has(item.category)) return false; // time gate
+    return true;
+  }
+
   // Show available items first, unavailable at bottom with a "Sold Out" indicator
   // When a search query is active, search across ALL items (ignore category filter)
   const filtered = useMemo(() => {
@@ -213,9 +228,10 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       : (activeCategory === "All"
           ? menuItems
           : menuItems.filter((i) => i.category === activeCategory));
-    const avail   = pool.filter((i) =>  i.available);
-    const unavail = pool.filter((i) => !i.available);
+    const avail   = pool.filter((i) =>  isItemAvailableNow(i));
+    const unavail = pool.filter((i) => !isItemAvailableNow(i));
     return [...avail, ...unavail];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuItems, activeCategory, customerSearch]);
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
@@ -401,6 +417,19 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
       {/* Main scroll area — extra bottom padding when floating cart bar is visible so it never covers the last item's Add button */}
       <div style={cartCount > 0 ? { paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" } : undefined}>
+
+      {/* Morning hours notice */}
+      {isBeforeNoon && (
+        <div className="max-w-2xl mx-auto px-4 pt-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-2xl">☀️</span>
+            <div>
+              <p className="text-sm font-bold text-amber-800">Good Morning! Breakfast menu is live</p>
+              <p className="text-xs text-amber-600">Full menu (Biryani, Chinese, Starters etc.) opens at 12:00 PM</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Time-of-day greeting banner */}
       {showGreeting && (

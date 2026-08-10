@@ -179,6 +179,9 @@ export default function CheckoutModal({
     }
   }
 
+  /* ── billing mode ── */
+  const [billingMode, setBillingMode] = useState<"choose" | "quick" | "detailed">("choose");
+
   /* ── shared ── */
   const [step, setStep]     = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
@@ -219,6 +222,7 @@ export default function CheckoutModal({
     setOfferRevealed(false); setShowOfferBanner(false);
     setStep(1); setLoading(false); setError("");
     setPhoneError(""); setEmailError("");
+    setBillingMode("choose");
     onClose();
   }
 
@@ -240,6 +244,19 @@ export default function CheckoutModal({
       setScreenshotName(file.name);
     };
     reader.readAsDataURL(file);
+  }
+
+  /* ── quick billing submit ── */
+  function handleQuickSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    const pErr = phone ? validatePhone(phone) : null;
+    if (pErr) { setPhoneError(pErr); return; }
+    if (paymentMethod === "CASH") {
+      submitOrder();
+    } else {
+      setStep(2);
+    }
   }
 
   /* ── step 1 → step 2 ── */
@@ -319,7 +336,15 @@ export default function CheckoutModal({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
-            {paymentMethod === "UPI" ? (
+            {billingMode === "choose" ? (
+              <h2 className="text-base font-bold text-slate-800">
+                {isParcel ? "📦 Parcel Order" : "🍽️ Table Order"} · Checkout
+              </h2>
+            ) : billingMode === "quick" && step === 1 ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-amber-600">⚡ Quick Billing</span>
+              </div>
+            ) : paymentMethod === "UPI" ? (
               <div className="flex items-center gap-1 text-xs">
                 <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 1 ? "bg-amber-500 text-white" : "bg-green-500 text-white"}`}>
                   {step === 1 ? "1" : "✓"}
@@ -349,8 +374,112 @@ export default function CheckoutModal({
           </div>
         )}
 
-        {/* ── STEP 1: Customer details ── */}
-        {step === 1 && (
+        {/* ── MODE CHOOSER ── */}
+        {billingMode === "choose" && (
+          <div className="px-5 py-6 space-y-4">
+            {/* Order summary mini */}
+            <div className="bg-slate-50 rounded-xl px-4 py-3 flex justify-between items-center">
+              <span className="text-sm text-slate-600">{cart.reduce((s,i)=>s+i.quantity,0)} item{cart.reduce((s,i)=>s+i.quantity,0)!==1?"s":""}</span>
+              <span className="font-bold text-amber-600 text-lg">₹{total.toFixed(0)}</span>
+            </div>
+            <p className="text-center text-slate-500 text-sm font-medium">How would you like to checkout?</p>
+            <button
+              onClick={() => setBillingMode("quick")}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-2xl p-5 text-left flex items-center gap-4 transition-colors shadow-sm"
+            >
+              <span className="text-4xl">⚡</span>
+              <div>
+                <p className="font-black text-lg">Quick Billing</p>
+                <p className="text-amber-100 text-sm">Just your name or phone — done in 10 seconds!</p>
+              </div>
+              <span className="ml-auto text-amber-200 text-2xl">›</span>
+            </button>
+            <button
+              onClick={() => setBillingMode("detailed")}
+              className="w-full bg-white hover:bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 text-left flex items-center gap-4 transition-colors"
+            >
+              <span className="text-4xl">📋</span>
+              <div>
+                <p className="font-black text-lg text-slate-800">Detailed Billing</p>
+                <p className="text-slate-500 text-sm">Add email, birthday, special instructions & more</p>
+              </div>
+              <span className="ml-auto text-slate-300 text-2xl">›</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── QUICK BILLING FORM ── */}
+        {billingMode === "quick" && step === 1 && (
+          <form onSubmit={handleQuickSubmit} className="px-5 py-5 space-y-5">
+            {isDiningCustomer && (
+              <div className="bg-gradient-to-r from-amber-400 to-orange-400 rounded-2xl px-4 py-3 flex items-center gap-3 shadow">
+                <span className="text-2xl">🍽️</span>
+                <div className="flex-1">
+                  <p className="font-black text-white text-sm">You&apos;re already dining with us!</p>
+                  <p className="text-amber-100 text-xs">Your order will be prioritized. Eat slowly 😊</p>
+                </div>
+              </div>
+            )}
+            {/* Order summary */}
+            <div className="bg-slate-50 rounded-xl p-4 space-y-1.5">
+              {cart.map((item) => (
+                <div key={item.menuItemId} className="flex justify-between text-sm">
+                  <span className="text-slate-600">{item.name} × {item.quantity}</span>
+                  <span className="font-medium text-slate-800">₹{(item.price * item.quantity).toFixed(0)}</span>
+                </div>
+              ))}
+              <div className="border-t border-slate-200 pt-2 flex justify-between font-bold">
+                <span>Total</span>
+                <span className="text-amber-600">₹{total.toFixed(0)}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Your Name <span className="text-red-500">*</span></label>
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required
+                className={inputCls()} placeholder="Enter your name" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone <span className="text-slate-400 text-xs">(optional)</span></label>
+              <input type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); setPhoneError(""); }}
+                onBlur={() => setPhoneError(phone ? (validatePhone(phone) ?? "") : "")}
+                className={inputCls(phoneError)} placeholder="+91 98765 43210" />
+              {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+            </div>
+
+            {/* Payment method */}
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">Payment Method</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["UPI", "CASH"] as const).map((m) => (
+                  <button key={m} type="button" onClick={() => setPaymentMethod(m)}
+                    className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-semibold transition-all ${
+                      paymentMethod === m
+                        ? m === "UPI" ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-green-500 bg-green-50 text-green-700"
+                        : "border-slate-200 text-slate-500 hover:border-slate-300"
+                    }`}>
+                    <span className="text-2xl">{m === "UPI" ? "📲" : "💵"}</span>
+                    <span className="text-sm">{m === "UPI" ? "UPI / QR" : "Cash"}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setBillingMode("choose")}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3.5 rounded-xl">
+                ← Back
+              </button>
+              <button type="submit" disabled={loading}
+                className={`flex-[2] text-white font-bold py-3.5 rounded-xl transition-colors ${paymentMethod==="CASH" ? "bg-green-500 hover:bg-green-600" : "bg-amber-500 hover:bg-amber-600"}`}>
+                {loading ? "Placing…" : paymentMethod === "CASH" ? `Place Order · ₹${total.toFixed(0)}` : `Pay ₹${total.toFixed(0)} →`}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ── STEP 1: Customer details (detailed billing) ── */}
+        {billingMode === "detailed" && step === 1 && (
           <form onSubmit={handleStep1Submit} className="px-5 py-5 space-y-5">
 
             {/* Priority dining customer banner */}
