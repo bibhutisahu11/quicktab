@@ -4,11 +4,25 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { MenuItemData, OrderData, OrderStatus, OrgSettings } from "@/types";
 
-/** Web-Audio beep — no external files needed */
-function playBeep(type: "order" | "nudge") {
+/** Shared AudioContext — created once and reused to avoid suspension */
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
   try {
     const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AudioCtx();
+    if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+    // Resume if suspended (browser autoplay policy)
+    if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+    return sharedAudioCtx;
+  } catch { return null; }
+}
+
+/** Web-Audio beep — no external files needed */
+function playBeep(type: "order" | "nudge") {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  try {
     const play = (freq: number, start: number, duration: number) => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -22,16 +36,14 @@ function playBeep(type: "order" | "nudge") {
       osc.stop(ctx.currentTime + start + duration);
     };
     if (type === "nudge") {
-      // Three rapid high-pitched pings for nudge
       play(1046, 0,    0.18);
       play(1318, 0.22, 0.18);
       play(1568, 0.44, 0.25);
     } else {
-      // Two warm chimes for new order
       play(660, 0,    0.3);
       play(880, 0.35, 0.4);
     }
-  } catch { /* AudioContext blocked (e.g. server-side render) — ignore */ }
+  } catch { /* ignore */ }
 }
 import { printOrder } from "@/lib/printOrder";
 import CreateOrderModal from "./CreateOrderModal";
@@ -69,9 +81,29 @@ export default function WaiterDashboard() {
   const [search, setSearch] = useState("");
   const [diningPopup, setDiningPopup] = useState<OrderData | null>(null);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const seenRepeatDinerIds = useState(() => new Set<string>())[0];
   const seenOrderIds    = useRef(new Set<string>());
   const lastNudgeCounts = useRef(new Map<string, number>());
+
+  function enableSounds() {
+    const ctx = getAudioCtx();
+    if (ctx) {
+      ctx.resume().then(() => {
+        setSoundEnabled(true);
+        // Play a soft confirmation beep
+        playBeep("nudge");
+      }).catch(() => setSoundEnabled(true));
+    } else {
+      setSoundEnabled(true);
+    }
+  }
+
+  // Check if AudioContext is already running (some browsers auto-allow it)
+  useEffect(() => {
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === "running") setSoundEnabled(true);
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin/org-settings")
@@ -222,10 +254,25 @@ export default function WaiterDashboard() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
+      {/* Sound enable banner — browsers block audio until user interaction */}
+      {!soundEnabled && (
+        <button
+          onClick={enableSounds}
+          className="w-full mb-4 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-amber-100 transition-colors text-left"
+        >
+          <span className="text-2xl flex-shrink-0">🔔</span>
+          <div className="flex-1">
+            <p className="font-bold text-amber-800 text-sm">Tap to enable order notifications</p>
+            <p className="text-amber-600 text-xs">Browsers require a tap before playing sounds. Click here once to activate.</p>
+          </div>
+          <span className="text-xs bg-amber-500 text-white font-bold px-3 py-1.5 rounded-lg flex-shrink-0">Enable</span>
+        </button>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">My Orders</h1>
-          <p className="text-slate-500 text-sm">Auto-refreshes every 15 seconds</p>
+          <p className="text-slate-500 text-sm">Auto-refreshes every 15 seconds {soundEnabled ? "🔔" : "🔕"}</p>
         </div>
         <div className="flex items-center gap-3">
           {readyCount > 0 && (
