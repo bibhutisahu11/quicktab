@@ -72,13 +72,33 @@ export async function DELETE(
       id
     );
 
-    await prisma.menuItem.delete({
-      where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
-    });
+    // Try deleting with orgId guard first
+    try {
+      await prisma.menuItem.delete({
+        where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
+      });
+    } catch (inner) {
+      if ((inner as { code?: string }).code === "P2025" && ctx.orgId) {
+        // Item may have been inserted without orgId (e.g. via script).
+        // Verify it exists and belongs to no other org before deleting by id only.
+        const existing = await prisma.menuItem.findUnique({ where: { id } });
+        if (!existing) {
+          // Already gone — treat as success
+          return NextResponse.json({ success: true });
+        }
+        if (existing.orgId && existing.orgId !== ctx.orgId && !ctx.isSuperAdmin) {
+          return NextResponse.json({ error: "Item not found" }, { status: 404 });
+        }
+        // Safe to delete — item has null orgId or belongs to this org
+        await prisma.menuItem.delete({ where: { id } });
+      } else {
+        throw inner;
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE /api/menu error:", err);
-    // P2025 = record not found — treat as already deleted
     if ((err as { code?: string }).code === "P2025") {
       return NextResponse.json({ success: true });
     }
