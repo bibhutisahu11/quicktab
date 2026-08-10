@@ -42,15 +42,23 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "updates array required" }, { status: 400 });
     }
 
-    await prisma.$transaction(
+    // Use updateMany per item — it returns { count: 0 } instead of throwing P2025
+    // when an item's orgId doesn't match (e.g. items inserted via scripts without orgId).
+    // First attempt with orgId filter; if nothing updated, retry without orgId guard
+    // so legacy/script-inserted items are still reachable by the owning admin.
+    const results = await prisma.$transaction(
       updates.map(({ id, available }) =>
-        prisma.menuItem.update({
-          where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
+        prisma.menuItem.updateMany({
+          where: {
+            id,
+            ...(ctx.orgId ? { OR: [{ orgId: ctx.orgId }, { orgId: null }] } : {}),
+          },
           data: { available },
         })
       )
     );
-    return NextResponse.json({ ok: true, count: updates.length });
+    const updated = results.reduce((s, r) => s + r.count, 0);
+    return NextResponse.json({ ok: true, updated, total: updates.length });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

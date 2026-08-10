@@ -16,18 +16,36 @@ export async function PUT(
     const body = await req.json();
     const { name, description, price, category, imageUrl, available, sortOrder } = body;
 
-    const item = await prisma.menuItem.update({
-      where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
-      data: {
-        ...(name && { name }),
-        ...(description !== undefined && { description }),
-        ...(price !== undefined && { price: parseFloat(price) }),
-        ...(category && { category }),
-        ...(imageUrl !== undefined && { imageUrl }),
-        ...(available !== undefined && { available }),
-        ...(sortOrder !== undefined && { sortOrder }),
-      },
-    });
+    const data = {
+      ...(name && { name }),
+      ...(description !== undefined && { description }),
+      ...(price !== undefined && { price: parseFloat(price) }),
+      ...(category && { category }),
+      ...(imageUrl !== undefined && { imageUrl }),
+      ...(available !== undefined && { available }),
+      ...(sortOrder !== undefined && { sortOrder }),
+    };
+
+    // Try with orgId guard first; fall back to id-only for legacy/script-inserted items
+    let item;
+    try {
+      item = await prisma.menuItem.update({
+        where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
+        data,
+      });
+    } catch (inner) {
+      if ((inner as { code?: string }).code === "P2025" && ctx.orgId) {
+        // Item may have been inserted without orgId — retry without orgId guard
+        // but verify org ownership separately to stay secure
+        const existing = await prisma.menuItem.findUnique({ where: { id } });
+        if (!existing || (existing.orgId && existing.orgId !== ctx.orgId && !ctx.isSuperAdmin)) {
+          return NextResponse.json({ error: "Item not found" }, { status: 404 });
+        }
+        item = await prisma.menuItem.update({ where: { id }, data });
+      } else {
+        throw inner;
+      }
+    }
     return NextResponse.json(item);
   } catch (err) {
     console.error("PUT /api/menu error:", err);
