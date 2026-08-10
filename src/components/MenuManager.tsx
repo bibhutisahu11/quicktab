@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { MenuItemData } from "@/types";
 import MenuScanner from "./MenuScanner";
@@ -217,6 +217,36 @@ export default function MenuManager() {
     }
   }
 
+  // ── Category rename state ────────────────────────────────────────────────
+  const [editingCat, setEditingCat]   = useState<string | null>(null);
+  const [catDraft, setCatDraft]       = useState("");
+  const [renamingCat, setRenamingCat] = useState(false);
+  const catInputRef = useRef<HTMLInputElement>(null);
+
+  async function renameCategory(oldName: string, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) { setEditingCat(null); return; }
+    setRenamingCat(true);
+    try {
+      const res = await fetch("/api/menu/rename-category", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName, newName: trimmed }),
+      });
+      if (res.ok) {
+        setItems((prev) => prev.map((i) => i.category === oldName ? { ...i, category: trimmed } : i));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error ?? "Failed to rename category.");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    } finally {
+      setRenamingCat(false);
+      setEditingCat(null);
+    }
+  }
+
   const availChanged = Object.keys(pendingAvail).length > 0;
   const availByCategory = categories.reduce((acc, cat) => {
     acc[cat] = items.filter((i) => i.category === cat);
@@ -291,7 +321,35 @@ export default function MenuManager() {
           {Object.entries(availByCategory).map(([cat, catItems]) => (
             <div key={cat} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="bg-slate-50 border-b border-slate-100 px-5 py-3 flex items-center justify-between">
-                <h3 className="font-bold text-slate-700">{cat} <span className="text-slate-400 text-sm font-normal">({catItems.length})</span></h3>
+                {editingCat === cat ? (
+                  <form className="flex items-center gap-2"
+                    onSubmit={(e) => { e.preventDefault(); renameCategory(cat, catDraft); }}>
+                    <input
+                      ref={catInputRef}
+                      value={catDraft}
+                      onChange={(e) => setCatDraft(e.target.value)}
+                      onBlur={() => renameCategory(cat, catDraft)}
+                      onKeyDown={(e) => e.key === "Escape" && setEditingCat(null)}
+                      className="border border-amber-400 rounded-lg px-2 py-0.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 w-40"
+                      disabled={renamingCat}
+                      autoFocus
+                    />
+                    <button type="submit" disabled={renamingCat}
+                      className="text-xs bg-amber-500 text-white font-semibold px-2 py-0.5 rounded-lg">
+                      {renamingCat ? "…" : "✓"}
+                    </button>
+                    <button type="button" onClick={() => setEditingCat(null)}
+                      className="text-xs text-slate-400 hover:text-slate-600">✕</button>
+                  </form>
+                ) : (
+                  <button className="font-bold text-slate-700 flex items-center gap-1.5 group hover:text-amber-600"
+                    title="Click to rename"
+                    onClick={() => { setEditingCat(cat); setCatDraft(cat); setTimeout(() => catInputRef.current?.focus(), 50); }}>
+                    {cat}
+                    <span className="text-slate-400 text-sm font-normal">({catItems.length})</span>
+                    <span className="text-xs text-slate-300 group-hover:text-amber-400">✏️</span>
+                  </button>
+                )}
                 <div className="flex gap-2">
                   <button onClick={() => setCategoryAvail(cat, true)} className="text-xs bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-3 py-1 rounded-lg">
                     All On
@@ -361,11 +419,44 @@ export default function MenuManager() {
         <div className="space-y-8">
           {Object.entries(grouped).map(([cat, catItems]) => (
             <div key={cat}>
-              <h2 className="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 bg-amber-400 rounded-full" />
-                {cat}
-                <span className="text-slate-400 text-sm font-normal">({catItems.length})</span>
-              </h2>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0" />
+                {editingCat === cat ? (
+                  <form
+                    className="flex items-center gap-2 flex-1"
+                    onSubmit={(e) => { e.preventDefault(); renameCategory(cat, catDraft); }}
+                  >
+                    <input
+                      ref={catInputRef}
+                      value={catDraft}
+                      onChange={(e) => setCatDraft(e.target.value)}
+                      onBlur={() => renameCategory(cat, catDraft)}
+                      onKeyDown={(e) => e.key === "Escape" && setEditingCat(null)}
+                      className="border border-amber-400 rounded-lg px-3 py-1 text-base font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 w-48"
+                      disabled={renamingCat}
+                      autoFocus
+                    />
+                    <button type="submit" disabled={renamingCat}
+                      className="text-xs bg-amber-500 text-white font-semibold px-3 py-1 rounded-lg hover:bg-amber-600 disabled:opacity-50">
+                      {renamingCat ? "…" : "Save"}
+                    </button>
+                    <button type="button" onClick={() => setEditingCat(null)}
+                      className="text-xs bg-slate-200 text-slate-600 font-semibold px-3 py-1 rounded-lg hover:bg-slate-300">
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    className="text-lg font-bold text-slate-700 hover:text-amber-600 flex items-center gap-2 group"
+                    title="Click to rename section"
+                    onClick={() => { setEditingCat(cat); setCatDraft(cat); setTimeout(() => catInputRef.current?.focus(), 50); }}
+                  >
+                    {cat}
+                    <span className="text-slate-400 text-sm font-normal">({catItems.length})</span>
+                    <span className="text-xs text-slate-300 group-hover:text-amber-400 transition-colors">✏️</span>
+                  </button>
+                )}
+              </div>
               <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100">
                 {catItems.map((item) => (
                   <div key={item.id} className="flex items-center gap-4 px-5 py-4">
