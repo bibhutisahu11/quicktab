@@ -644,11 +644,17 @@ export default function CheckoutModal({
                 <p className="text-amber-100 text-xs">Amount to pay</p>
               </div>
 
-              {/* Manual UPI ID fallback */}
-              <div className="bg-white rounded-xl py-3 px-5 border border-indigo-100 text-center">
-                <p className="text-xs text-slate-400 mb-1">Or pay manually to UPI ID</p>
+              {/* Manual UPI ID — tap to copy */}
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(orgUpiId!).then(() => alert("UPI ID copied!"))}
+                className="w-full bg-white rounded-xl py-3 px-5 border border-indigo-100 text-center hover:bg-indigo-50 active:scale-95 transition-all"
+                title="Tap to copy UPI ID"
+              >
+                <p className="text-xs text-slate-400 mb-1">Or pay manually to UPI ID &nbsp;📋</p>
                 <p className="text-lg font-black text-slate-800 tracking-tight">{orgUpiId}</p>
-              </div>
+                <p className="text-xs text-indigo-400 mt-0.5">Tap to copy</p>
+              </button>
 
               <div className="text-left bg-white rounded-xl p-4 border border-indigo-100 space-y-1.5 text-sm text-slate-600">
                 <p className="font-semibold text-slate-700">📋 Steps:</p>
