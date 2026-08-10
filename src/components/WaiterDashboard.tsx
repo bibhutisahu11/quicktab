@@ -128,13 +128,23 @@ export default function WaiterDashboard() {
       const data: OrderData[] = await res.json();
       const isFirstLoad = seenOrderIds.current.size === 0;
 
-      // ── Sound: new orders ──────────────────────────────────────────────────
+      // ── Sound + auto-switch filter for new orders ─────────────────────────
       if (!isFirstLoad) {
-        const hasNewOrder = data.some(
+        const newOrders = data.filter(
           (o) => !seenOrderIds.current.has(o.id) &&
             ["PAYMENT_PENDING", "PENDING"].includes(o.status)
         );
-        if (hasNewOrder) playBeep("order");
+        if (newOrders.length > 0) {
+          playBeep("order");
+          // Auto-switch tab: if new order is PAYMENT_PENDING and admin is on ACTIVE tab, switch to show it
+          const hasNewPaymentPending = newOrders.some((o) => o.status === "PAYMENT_PENDING");
+          const hasNewPending        = newOrders.some((o) => o.status === "PENDING");
+          setFilter((prev) => {
+            if (hasNewPaymentPending && prev === "ACTIVE") return "PAYMENT_PENDING";
+            if (hasNewPending && prev === "PAYMENT_PENDING") return "ACTIVE";
+            return prev;
+          });
+        }
       }
       data.forEach((o) => seenOrderIds.current.add(o.id));
 
@@ -402,7 +412,9 @@ export default function WaiterDashboard() {
           className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
             filter === "PAYMENT_PENDING"
               ? "bg-purple-600 text-white"
-              : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              : pendingPaymentOrders.length > 0
+                ? "bg-purple-100 border-2 border-purple-400 text-purple-700 animate-pulse"
+                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
           }`}
         >
           🔐 Pending Payment
