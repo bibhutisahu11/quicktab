@@ -111,6 +111,7 @@ model MenuItem {
   imageUrl    String?
   available   Boolean       @default(true)
   sortOrder   Int           @default(0)
+  unit        String?       // e.g. "100g", "250g", "piece", "plate" — shown in cart & receipt
   orgId       String?
   org         Organization? @relation(fields: [orgId], references: [id])
   createdAt   DateTime      @default(now())

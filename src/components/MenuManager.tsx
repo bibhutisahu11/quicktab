@@ -13,7 +13,18 @@ const EMPTY_FORM = {
   imageUrl: "",
   available: true,
   sortOrder: "0",
+  unit: "",
 };
+
+const UNIT_OPTIONS = [
+  { value: "",      label: "piece (default)" },
+  { value: "100g",  label: "100g — per 100 grams" },
+  { value: "250g",  label: "250g — per 250 grams" },
+  { value: "500g",  label: "500g — per 500 grams" },
+  { value: "1kg",   label: "1kg — per kilogram" },
+  { value: "plate", label: "plate" },
+  { value: "glass", label: "glass" },
+];
 
 export default function MenuManager() {
   const { data: session } = useSession();
@@ -62,6 +73,7 @@ export default function MenuManager() {
       imageUrl: item.imageUrl ?? "",
       available: item.available,
       sortOrder: String(item.sortOrder),
+      unit: item.unit ?? "",
     });
     setFormOpen(true);
   }
@@ -78,6 +90,7 @@ export default function MenuManager() {
         imageUrl: form.imageUrl || null,
         available: form.available,
         sortOrder: parseInt(form.sortOrder),
+        unit: form.unit || null,
       };
 
       if (editItem) {
@@ -644,6 +657,27 @@ export default function MenuManager() {
                   placeholder="0"
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
+              </div>
+
+              {/* Unit — for weight-based items like sweets */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Sold per unit <span className="text-slate-400 font-normal">(for weight-sold items)</span>
+                </label>
+                <select
+                  value={form.unit}
+                  onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  {UNIT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                {form.unit && form.unit !== "piece" && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Price (₹{form.price || "?"}) is per <strong>{form.unit}</strong>. Customer selects multiples in cart (200g, 300g…).
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-3">

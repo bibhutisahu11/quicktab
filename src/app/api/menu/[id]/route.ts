@@ -14,7 +14,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, description, price, category, imageUrl, available, sortOrder } = body;
+    const { name, description, price, category, imageUrl, available, sortOrder, unit } = body;
 
     const data = {
       ...(name && { name }),
@@ -24,6 +24,7 @@ export async function PUT(
       ...(imageUrl !== undefined && { imageUrl }),
       ...(available !== undefined && { available }),
       ...(sortOrder !== undefined && { sortOrder }),
+      ...(unit !== undefined && { unit: unit || null }),
     };
 
     // Try with orgId guard first; fall back to id-only for legacy/script-inserted items

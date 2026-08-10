@@ -626,6 +626,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
       <CartDrawer
         cart={cart}
+        menuItems={menuItems}
         onAdd={addByIdToCart}
         onRemove={removeFromCart}
         open={cartOpen}

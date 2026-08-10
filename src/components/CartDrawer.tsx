@@ -1,9 +1,10 @@
 "use client";
 
-import { CartItem } from "@/types";
+import { CartItem, MenuItemData, formatQty } from "@/types";
 
 interface CartDrawerProps {
   cart: CartItem[];
+  menuItems?: MenuItemData[];
   onAdd: (itemId: string) => void;
   onRemove: (itemId: string) => void;
   onCheckout: () => void;
@@ -13,6 +14,7 @@ interface CartDrawerProps {
 
 export default function CartDrawer({
   cart,
+  menuItems = [],
   onAdd,
   onRemove,
   onCheckout,
@@ -46,32 +48,40 @@ export default function CartDrawer({
 
         {/* Scrollable item list — flex-1 takes leftover space between header and footer */}
         <div className="overflow-y-auto flex-1 px-5 py-3 space-y-3 overscroll-contain">
-          {cart.map((item) => (
-            <div key={item.menuItemId} className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-slate-800 truncate">{item.name}</p>
-                <p className="text-slate-500 text-sm">₹{item.price.toFixed(2)} each</p>
+          {cart.map((item) => {
+            const menuItem = menuItems.find((m) => m.id === item.menuItemId);
+            const unit = menuItem?.unit ?? null;
+            return (
+              <div key={item.menuItemId} className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-slate-800 truncate">{item.name}</p>
+                  <p className="text-slate-500 text-sm">
+                    ₹{item.price.toFixed(0)}/{unit && unit !== "piece" ? unit : "pc"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 ml-3">
+                  <button
+                    onClick={() => onRemove(item.menuItemId)}
+                    className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 font-bold flex items-center justify-center transition-colors text-sm"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[32px] text-center font-semibold text-sm">
+                    {formatQty(item.quantity, unit)}
+                  </span>
+                  <button
+                    onClick={() => onAdd(item.menuItemId)}
+                    className="w-7 h-7 bg-amber-500 hover:bg-amber-600 rounded-full text-white font-bold flex items-center justify-center transition-colors text-sm"
+                  >
+                    +
+                  </button>
+                  <span className="w-16 text-right font-semibold text-slate-800">
+                    ₹{(item.price * item.quantity).toFixed(0)}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 ml-3">
-                <button
-                  onClick={() => onRemove(item.menuItemId)}
-                  className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 font-bold flex items-center justify-center transition-colors text-sm"
-                >
-                  −
-                </button>
-                <span className="w-5 text-center font-semibold">{item.quantity}</span>
-                <button
-                  onClick={() => onAdd(item.menuItemId)}
-                  className="w-7 h-7 bg-amber-500 hover:bg-amber-600 rounded-full text-white font-bold flex items-center justify-center transition-colors text-sm"
-                >
-                  +
-                </button>
-                <span className="w-16 text-right font-semibold text-slate-800">
-                  ₹{(item.price * item.quantity).toFixed(2)}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer — always visible, never scrolls away */}

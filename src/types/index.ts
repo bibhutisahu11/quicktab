@@ -18,6 +18,21 @@ export interface MenuItemData {
   imageUrl: string | null;
   available: boolean;
   sortOrder: number;
+  unit: string | null;  // e.g. "100g" — each +1 in cart = 1 unit
+}
+
+/** How to display quantity in the cart for a given unit */
+export function formatQty(qty: number, unit: string | null | undefined): string {
+  if (!unit || unit === "piece") return `${qty}`;
+  // Weight units: multiply qty by the numeric part
+  const match = unit.match(/^(\d+)(g|kg|ml|l)$/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    const suffix = match[2].toLowerCase();
+    const total = num * qty;
+    return `${total}${suffix}`;
+  }
+  return `${qty} × ${unit}`;
 }
 
 export interface TableData {

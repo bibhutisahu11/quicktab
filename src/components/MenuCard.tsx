@@ -1,6 +1,6 @@
 "use client";
 
-import { MenuItemData, CartItem } from "@/types";
+import { MenuItemData, CartItem, formatQty } from "@/types";
 
 interface MenuCardProps {
   item: MenuItemData;
@@ -68,14 +68,19 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
 
         {/* Price row */}
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-base font-bold text-amber-600">₹{item.price.toFixed(0)}</span>
+          <div>
+            <span className="text-base font-bold text-amber-600">₹{item.price.toFixed(0)}</span>
+            {item.unit && item.unit !== "piece" && (
+              <span className="text-xs text-slate-400 ml-1">/{item.unit}</span>
+            )}
+          </div>
 
           {qty === 0 ? (
             <button
               onClick={() => onAdd(item)}
               className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
             >
-              Add
+              {item.unit && item.unit !== "piece" ? `Add ${item.unit}` : "Add"}
             </button>
           ) : (
             <div className="flex items-center gap-1.5">
@@ -83,7 +88,9 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
                 onClick={() => onRemove(item.id)}
                 className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 font-bold flex items-center justify-center transition-colors text-sm"
               >−</button>
-              <span className="w-5 text-center font-semibold text-slate-800 text-sm">{qty}</span>
+              <span className="min-w-[28px] text-center font-semibold text-slate-800 text-sm">
+                {formatQty(qty, item.unit)}
+              </span>
               <button
                 onClick={() => onAdd(item)}
                 className="w-7 h-7 bg-amber-500 hover:bg-amber-600 rounded-full text-white font-bold flex items-center justify-center transition-colors text-sm"
