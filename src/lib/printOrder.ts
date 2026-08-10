@@ -60,7 +60,7 @@ const thermalCss = `
     margin-top: 2px;
   }
   .meta {
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 500;
     line-height: 1.5;
     text-align: center;
