@@ -95,6 +95,11 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [ghugniPrompt, setGhugniPrompt] = useState(false);
   const ghugniTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Dahipani is FREE with Dahibara Aloodum
+  const DAHIPANI_TRIGGER_KEYWORDS = ["dahibara", "dahi bara", "dahi-bara", "aloodum", "aloo dum"];
+  const [dahipaniPrompt, setDahipaniPrompt] = useState(false);
+  const dahipaniTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Popular items (social proof) ──────────────────────────────────────────
   const [popularMap, setPopularMap] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -250,6 +255,16 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
         // Ghugni upsell — triggered by bara/samosa/gulgula/aloo chop
         const nameLower = item.name.toLowerCase();
+        // Dahipani upsell
+        const isDahipaniTrigger = DAHIPANI_TRIGGER_KEYWORDS.some((kw) => nameLower.includes(kw));
+        const dahipaniItem = menuItems.find((m) => m.name.toLowerCase().includes("dahipani"));
+        const dahipaniAlreadyInCart = newCart.some((c) => c.name.toLowerCase().includes("dahipani"));
+        if (isDahipaniTrigger && dahipaniItem && !dahipaniAlreadyInCart) {
+          setDahipaniPrompt(true);
+          if (dahipaniTimeoutRef.current) clearTimeout(dahipaniTimeoutRef.current);
+          dahipaniTimeoutRef.current = setTimeout(() => setDahipaniPrompt(false), 15000);
+        }
+
         const isGhugniTrigger = GHUGNI_TRIGGER_KEYWORDS.some((kw) => nameLower.includes(kw));
         const ghugniItem = menuItems.find((m) => m.available && m.name.toLowerCase().includes("ghugni"));
         const ghugniAlreadyInCart = newCart.some((c) => c.name.toLowerCase().includes("ghugni"));
@@ -488,6 +503,31 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       )}
 
       {/* Ghugni upsell prompt */}
+      {/* Dahipani free item prompt */}
+      {dahipaniPrompt && (() => {
+        const dahipaniItem = menuItems.find((m) => m.name.toLowerCase().includes("dahipani"));
+        const alreadyInCart = cart.some((c) => c.name.toLowerCase().includes("dahipani"));
+        if (!dahipaniItem || alreadyInCart) return null;
+        return (
+          <div className="fixed bottom-24 left-0 right-0 z-40 px-4 animate-bounce-once">
+            <div className="max-w-md mx-auto bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-2xl shadow-2xl px-4 py-4 flex items-center gap-3">
+              <span className="text-3xl">🥛</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-sm leading-tight">Dahibara special! Get Dahipani FREE</p>
+                <p className="text-cyan-100 text-xs mt-0.5">Odia tradition — spiced yogurt water is on us! 🎉</p>
+              </div>
+              <button
+                onClick={() => { addToCart(dahipaniItem); setDahipaniPrompt(false); }}
+                className="flex-shrink-0 bg-white text-teal-700 font-black text-sm px-3 py-2 rounded-xl shadow">
+                + FREE
+              </button>
+              <button onClick={() => setDahipaniPrompt(false)}
+                className="flex-shrink-0 text-cyan-200 text-lg font-bold ml-1">✕</button>
+            </div>
+          </div>
+        );
+      })()}
+
       {ghugniPrompt && (() => {
         const ghugniItem = menuItems.find((m) => m.available && m.name.toLowerCase().includes("ghugni"));
         const alreadyInCart = cart.some((c) => c.name.toLowerCase().includes("ghugni"));

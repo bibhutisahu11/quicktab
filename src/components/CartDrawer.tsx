@@ -56,7 +56,7 @@ export default function CartDrawer({
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-800 truncate">{item.name}</p>
                   <p className="text-slate-500 text-sm">
-                    ₹{item.price.toFixed(0)}/{unit && unit !== "piece" ? unit : "pc"}
+                    {item.price === 0 ? <span className="text-teal-600 font-semibold">FREE 🎉</span> : `₹${item.price.toFixed(0)}/${unit && unit !== "piece" ? unit : "pc"}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 ml-3">
@@ -76,7 +76,7 @@ export default function CartDrawer({
                     +
                   </button>
                   <span className="w-16 text-right font-semibold text-slate-800">
-                    ₹{(item.price * item.quantity).toFixed(0)}
+                    {item.price === 0 ? <span className="text-teal-600">FREE</span> : `₹${(item.price * item.quantity).toFixed(0)}`}
                   </span>
                 </div>
               </div>

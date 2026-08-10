@@ -69,9 +69,15 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
         {/* Price row */}
         <div className="mt-2 flex items-center justify-between gap-2">
           <div>
-            <span className="text-base font-bold text-amber-600">₹{item.price.toFixed(0)}</span>
-            {item.unit && item.unit !== "piece" && (
-              <span className="text-xs text-slate-400 ml-1">/{item.unit}</span>
+            {item.price === 0 ? (
+              <span className="text-base font-bold text-teal-600">FREE 🎉</span>
+            ) : (
+              <>
+                <span className="text-base font-bold text-amber-600">₹{item.price.toFixed(0)}</span>
+                {item.unit && item.unit !== "piece" && (
+                  <span className="text-xs text-slate-400 ml-1">/{item.unit}</span>
+                )}
+              </>
             )}
           </div>
 
@@ -80,7 +86,7 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
               onClick={() => onAdd(item)}
               className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
             >
-              {item.unit && item.unit !== "piece" ? `Add ${item.unit}` : "Add"}
+              {item.price === 0 ? "Add FREE" : item.unit && item.unit !== "piece" ? `Add ${item.unit}` : "Add"}
             </button>
           ) : (
             <div className="flex items-center gap-1.5">
