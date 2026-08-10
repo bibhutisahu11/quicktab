@@ -93,17 +93,17 @@ const thermalCss = `
   }
   table { width: 100%; border-collapse: collapse; }
   th {
-    font-size: 22px;
+    font-size: 17px;
     font-weight: 700;
     border-bottom: 3px solid #000;
-    padding-bottom: 5px;
+    padding-bottom: 4px;
   }
   th.left  { text-align: left; }
   th.right { text-align: right; }
   th.center{ text-align: center; }
-  td { font-size: 24px; padding: 5px 0; vertical-align: top; }
-  td.qty   { text-align: center; width: 36px; }
-  td.amt   { text-align: right;  width: 70px; white-space: nowrap; }
+  td { font-size: 18px; padding: 4px 0; vertical-align: top; }
+  td.qty   { text-align: center; width: 32px; }
+  td.amt   { text-align: right;  width: 62px; white-space: nowrap; }
   .total-row td {
     font-weight: 900;
     font-size: 28px;
@@ -199,17 +199,17 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
     ${isDineIn ? `🍽️ DINE-IN &nbsp;|&nbsp; Table: ${esc(tableName)}` : "📦 PARCEL / TAKEAWAY"}
   </div>
 
-  <div class="row" style="margin-top:4px;">
+  <div class="row" style="margin-top:4px;font-size:16px;">
     <span class="bold">Rcpt# ${receiptNo(order.id, order.createdAt)}</span>
-    <span style="font-size:18px;">${timeStr}</span>
+    <span>${timeStr}</span>
   </div>
   <div style="font-size:18px;margin-top:1px;">${dateStr}</div>
   <hr class="divider"/>
 
-  <div><span class="bold">Customer:</span> ${esc(order.customerName)}</div>
-  ${order.phone           ? `<div><span class="bold">Phone:</span> ${esc(order.phone)}</div>` : ""}
-  ${order.deliveryAddress ? `<div><span class="bold">Address:</span> ${esc(order.deliveryAddress)}</div>` : ""}
-  ${order.notes           ? `<div style="font-size:18px;font-style:italic;margin-top:2px;">Note: ${esc(order.notes)}</div>` : ""}
+  <div style="font-size:18px;font-weight:700;">Customer: ${esc(order.customerName)}</div>
+  ${order.phone           ? `<div style="font-size:18px;font-weight:700;">Phone: ${esc(order.phone)}</div>` : ""}
+  ${order.deliveryAddress ? `<div style="font-size:16px;font-weight:700;">Address: ${esc(order.deliveryAddress)}</div>` : ""}
+  ${order.notes           ? `<div style="font-size:16px;font-style:italic;margin-top:2px;">Note: ${esc(order.notes)}</div>` : ""}
   <hr class="divider"/>
 
   <table>
