@@ -86,6 +86,15 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       .catch(() => {});
   }, []);
 
+  // ── Customer search ───────────────────────────────────────────────────────
+  const [customerSearch, setCustomerSearch] = useState("");
+
+  // ── Ghugni upsell prompt ──────────────────────────────────────────────────
+  // Items that pair with Ghugni (bara, samosa, gulgula, aloochop variants)
+  const GHUGNI_TRIGGER_KEYWORDS = ["bara", "samosa", "gulgula", "aloo chop", "aloochop", "aloo-chop"];
+  const [ghugniPrompt, setGhugniPrompt] = useState(false);
+  const ghugniTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Popular items (social proof) ──────────────────────────────────────────
   const [popularMap, setPopularMap] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -193,14 +202,22 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
   // Show available items first, unavailable at bottom with a "Sold Out" indicator
   const filtered = useMemo(() => {
-    const pool =
-      activeCategory === "All"
+    const q = customerSearch.trim().toLowerCase();
+    const pool = (() => {
+      const catPool = activeCategory === "All"
         ? menuItems
         : menuItems.filter((i) => i.category === activeCategory);
+      if (!q) return catPool;
+      return catPool.filter((i) =>
+        i.name.toLowerCase().includes(q) ||
+        i.category.toLowerCase().includes(q) ||
+        (i.description ?? "").toLowerCase().includes(q)
+      );
+    })();
     const avail   = pool.filter((i) =>  i.available);
     const unavail = pool.filter((i) => !i.available);
     return [...avail, ...unavail];
-  }, [menuItems, activeCategory]);
+  }, [menuItems, activeCategory, customerSearch]);
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -215,6 +232,18 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       // Only show upsell on first add (not repeat increments)
       if (!existing) {
         if (upsellTimeoutRef.current) clearTimeout(upsellTimeoutRef.current);
+
+        // Ghugni upsell — triggered by bara/samosa/gulgula/aloo chop
+        const nameLower = item.name.toLowerCase();
+        const isGhugniTrigger = GHUGNI_TRIGGER_KEYWORDS.some((kw) => nameLower.includes(kw));
+        const ghugniItem = menuItems.find((m) => m.available && m.name.toLowerCase().includes("ghugni"));
+        const ghugniAlreadyInCart = newCart.some((c) => c.name.toLowerCase().includes("ghugni"));
+        if (isGhugniTrigger && ghugniItem && !ghugniAlreadyInCart) {
+          setGhugniPrompt(true);
+          if (ghugniTimeoutRef.current) clearTimeout(ghugniTimeoutRef.current);
+          ghugniTimeoutRef.current = setTimeout(() => setGhugniPrompt(false), 12000);
+        }
+
         const cartIds = new Set(newCart.map((c) => c.menuItemId));
         const result = getUpsellSuggestion(item.category, menuItems, cartIds);
         if (result) {
@@ -328,6 +357,28 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           )}
         </div>
 
+        {/* Customer search bar */}
+        <div className="max-w-2xl mx-auto px-4 pb-2">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-300 text-base pointer-events-none">🔍</span>
+            <input
+              type="search"
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+              placeholder="Search items…"
+              className="w-full bg-white/20 placeholder-amber-200 text-white rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:bg-white/30 transition-colors"
+            />
+            {customerSearch && (
+              <button
+                onClick={() => setCustomerSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-200 hover:text-white text-base leading-none"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Category tabs */}
         <div className="max-w-2xl mx-auto px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
           {allCategories.map((cat) => (
@@ -405,6 +456,40 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         </div>
       )}
 
+      {/* Ghugni upsell prompt */}
+      {ghugniPrompt && (() => {
+        const ghugniItem = menuItems.find((m) => m.available && m.name.toLowerCase().includes("ghugni"));
+        const alreadyInCart = cart.some((c) => c.name.toLowerCase().includes("ghugni"));
+        if (!ghugniItem || alreadyInCart) return null;
+        return (
+          <div className="max-w-2xl mx-auto px-4 pt-3">
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-amber-300 rounded-2xl px-5 py-4 flex items-center gap-4 shadow-md">
+              <span className="text-4xl flex-shrink-0">🍲</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-slate-800 text-sm">Arre! Ghugni bhi lo na! 😋</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {ghugniItem.name} pairs perfectly with what you just added — only <span className="font-bold text-amber-600">₹{ghugniItem.price}</span>!
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => { addToCart(ghugniItem); setGhugniPrompt(false); }}
+                  className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors whitespace-nowrap"
+                >
+                  + Add ₹{ghugniItem.price}
+                </button>
+                <button
+                  onClick={() => setGhugniPrompt(false)}
+                  className="text-slate-400 hover:text-slate-600 text-xs text-center transition-colors"
+                >
+                  No thanks
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Priority dining banner */}
       {isDiningCustomer && (
         <div className="max-w-2xl mx-auto px-4 pt-3">
@@ -471,8 +556,16 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       <div className="max-w-2xl mx-auto px-4 py-5">
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
-            <div className="text-5xl mb-3">🍽️</div>
-            <p>No items in this category</p>
+            <div className="text-5xl mb-3">{customerSearch ? "🔍" : "🍽️"}</div>
+            <p>{customerSearch ? `No items found for "${customerSearch}"` : "No items in this category"}</p>
+            {customerSearch && (
+              <button
+                onClick={() => setCustomerSearch("")}
+                className="mt-3 text-amber-500 font-semibold text-sm hover:underline"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         ) : (
           <>
