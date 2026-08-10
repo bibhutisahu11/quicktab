@@ -194,6 +194,28 @@ export default function WaiterDashboard() {
     }
   }
 
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  async function bulkUpdateStatus(fromStatus: OrderStatus, toStatus: OrderStatus) {
+    const targets = orders.filter((o) => o.status === fromStatus);
+    if (targets.length === 0) return;
+    setBulkUpdating(true);
+    try {
+      await Promise.all(
+        targets.map((o) =>
+          fetch(`/api/orders/${o.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: toStatus }),
+          })
+        )
+      );
+      await fetchOrders();
+    } finally {
+      setBulkUpdating(false);
+    }
+  }
+
   async function verifyPayment(orderId: string, action: "ACCEPT" | "REJECT") {
     setUpdatingId(orderId);
     try {
@@ -279,15 +301,15 @@ export default function WaiterDashboard() {
         </button>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">My Orders</h1>
           <p className="text-slate-500 text-sm">Auto-refreshes every 15 seconds {soundEnabled ? "🔔" : "🔕"}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {readyCount > 0 && (
-            <span className="animate-pulse bg-green-500 text-white font-bold px-4 py-2 rounded-xl text-sm">
-              {readyCount} order{readyCount !== 1 ? "s" : ""} ready to serve!
+            <span className="animate-pulse bg-green-500 text-white font-bold px-3 py-2 rounded-xl text-sm">
+              {readyCount} ready to serve!
             </span>
           )}
           <button
@@ -298,6 +320,44 @@ export default function WaiterDashboard() {
           </button>
         </div>
       </div>
+
+      {/* ── Bulk Actions — admin only ─────────────────────────────────────── */}
+      {isAdmin && (() => {
+        const preparingCount = orders.filter((o) => o.status === "PREPARING").length;
+        const rCount = orders.filter((o) => o.status === "READY").length;
+        if (preparingCount === 0 && rCount === 0) return null;
+        return (
+          <div className="flex items-center gap-2 mb-5 p-3 bg-slate-50 border border-slate-200 rounded-xl flex-wrap">
+            <span className="text-xs font-semibold text-slate-500 mr-1">Bulk Actions:</span>
+            {preparingCount > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm(`Mark all ${preparingCount} preparing order${preparingCount > 1 ? "s" : ""} as Ready?`))
+                    bulkUpdateStatus("PREPARING", "READY");
+                }}
+                disabled={bulkUpdating}
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                {bulkUpdating ? "⏳" : "✅"} Mark All Ready
+                <span className="bg-blue-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">{preparingCount}</span>
+              </button>
+            )}
+            {rCount > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm(`Mark all ${rCount} ready order${rCount > 1 ? "s" : ""} as Done / Served?`))
+                    bulkUpdateStatus("READY", "DONE");
+                }}
+                disabled={bulkUpdating}
+                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                {bulkUpdating ? "⏳" : "🍽️"} Mark All Done
+                <span className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">{rCount}</span>
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {createOrderOpen && orgSettings?.slug && (
         <CreateOrderModal
