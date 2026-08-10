@@ -266,6 +266,47 @@ export default function MenuManager() {
     return acc;
   }, {} as Record<string, MenuItemData[]>);
 
+  // ── Multi-select state ───────────────────────────────────────────────────
+  const [selectMode, setSelectMode]   = useState(false);
+  const [selected, setSelected]       = useState<Set<string>>(new Set());
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelected(new Set(items.map((i) => i.id)));
+  }
+
+  function selectNone() {
+    setSelected(new Set());
+  }
+
+  function selectCategory(cat: string) {
+    const ids = items.filter((i) => i.category === cat).map((i) => i.id);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allIn = ids.every((id) => next.has(id));
+      ids.forEach((id) => allIn ? next.delete(id) : next.add(id));
+      return next;
+    });
+  }
+
+  function applyToSelected(val: boolean) {
+    if (selected.size === 0) return;
+    setPendingAvail((prev) => {
+      const next = { ...prev };
+      selected.forEach((id) => { next[id] = val; });
+      return next;
+    });
+    setSelected(new Set());
+    setSelectMode(false);
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -311,13 +352,55 @@ export default function MenuManager() {
         <div className="space-y-4">
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex gap-2">
-              <button onClick={() => setAllAvail(true)} className="bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-                ✅ All Available
-              </button>
-              <button onClick={() => setAllAvail(false)} className="bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-                ❌ All Unavailable
-              </button>
+            <div className="flex gap-2 flex-wrap">
+              {!selectMode ? (
+                <>
+                  <button onClick={() => setAllAvail(true)} className="bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+                    ✅ All Available
+                  </button>
+                  <button onClick={() => setAllAvail(false)} className="bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+                    ❌ All Unavailable
+                  </button>
+                  <button
+                    onClick={() => { setSelectMode(true); setSelected(new Set()); }}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5"
+                  >
+                    ☑️ Multi-Select
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm font-bold text-blue-700 flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl">
+                    ☑️ {selected.size} selected
+                  </span>
+                  <button onClick={selectAll} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition-colors">
+                    Select All
+                  </button>
+                  <button onClick={selectNone} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm transition-colors">
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => applyToSelected(true)}
+                    disabled={selected.size === 0}
+                    className="bg-green-500 hover:bg-green-600 disabled:bg-green-200 disabled:text-green-400 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors"
+                  >
+                    ✅ Mark Available
+                  </button>
+                  <button
+                    onClick={() => applyToSelected(false)}
+                    disabled={selected.size === 0}
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-red-200 disabled:text-red-400 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors"
+                  >
+                    ❌ Mark Unavailable
+                  </button>
+                  <button
+                    onClick={() => { setSelectMode(false); setSelected(new Set()); }}
+                    className="text-slate-500 hover:text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm border border-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
             </div>
             <button onClick={saveAvailability} disabled={!availChanged || savingAvail}
               className="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold px-6 py-2 rounded-xl text-sm transition-colors">
@@ -363,13 +446,28 @@ export default function MenuManager() {
                     <span className="text-xs text-slate-300 group-hover:text-amber-400">✏️</span>
                   </button>
                 )}
-                <div className="flex gap-2">
-                  <button onClick={() => setCategoryAvail(cat, true)} className="text-xs bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-3 py-1 rounded-lg">
-                    All On
-                  </button>
-                  <button onClick={() => setCategoryAvail(cat, false)} className="text-xs bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-3 py-1 rounded-lg">
-                    All Off
-                  </button>
+                <div className="flex gap-2 items-center">
+                  {selectMode && (() => {
+                    const catIds = items.filter((i) => i.category === cat).map((i) => i.id);
+                    const allSelected = catIds.length > 0 && catIds.every((id) => selected.has(id));
+                    const someSelected = catIds.some((id) => selected.has(id));
+                    return (
+                      <button
+                        onClick={() => selectCategory(cat)}
+                        className={`text-xs font-semibold px-3 py-1 rounded-lg border transition-colors ${allSelected ? "bg-blue-500 text-white border-blue-500" : someSelected ? "bg-blue-100 text-blue-700 border-blue-300" : "bg-white text-slate-500 border-slate-300 hover:border-blue-400"}`}
+                      >
+                        {allSelected ? "✓ All" : someSelected ? "— Some" : "Select All"}
+                      </button>
+                    );
+                  })()}
+                  {!selectMode && <>
+                    <button onClick={() => setCategoryAvail(cat, true)} className="text-xs bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-3 py-1 rounded-lg">
+                      All On
+                    </button>
+                    <button onClick={() => setCategoryAvail(cat, false)} className="text-xs bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-3 py-1 rounded-lg">
+                      All Off
+                    </button>
+                  </>}
                 </div>
               </div>
               <div className="divide-y divide-slate-50">
@@ -377,23 +475,44 @@ export default function MenuManager() {
                   const avail = getAvail(item);
                   const changed = pendingAvail[item.id] !== undefined && pendingAvail[item.id] !== item.available;
                   return (
-                    <div key={item.id} className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${changed ? "bg-amber-50/60" : ""}`}>
+                    <div
+                      key={item.id}
+                      className={`flex items-center gap-4 px-5 py-3.5 transition-colors cursor-pointer ${
+                        selectMode && selected.has(item.id) ? "bg-blue-50" : changed ? "bg-amber-50/60" : "hover:bg-slate-50"
+                      }`}
+                      onClick={selectMode ? () => toggleSelect(item.id) : undefined}
+                    >
+                      {/* Checkbox — visible in select mode */}
+                      {selectMode && (
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selected.has(item.id) ? "bg-blue-500 border-blue-500" : "border-slate-300 bg-white"}`}>
+                          {selected.has(item.id) && <span className="text-white text-xs font-bold">✓</span>}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className={`font-semibold text-sm ${avail ? "text-slate-800" : "text-slate-400"}`}>{item.name}</p>
                         <p className="text-xs text-slate-400">₹{item.price.toFixed(0)}</p>
                       </div>
                       {changed && <span className="text-xs text-amber-600 font-medium">unsaved</span>}
-                      {/* Toggle switch */}
-                      <button
-                        onClick={() => togglePending(item.id, !avail)}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${avail ? "bg-green-500" : "bg-slate-200"}`}
-                        title={avail ? "Click to mark unavailable" : "Click to mark available"}
-                      >
-                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${avail ? "left-7" : "left-1"}`} />
-                      </button>
-                      <span className={`text-xs font-semibold w-20 text-right ${avail ? "text-green-600" : "text-red-500"}`}>
-                        {avail ? "Available" : "Unavailable"}
-                      </span>
+                      {/* Toggle switch — hidden in select mode */}
+                      {!selectMode && (
+                        <>
+                          <button
+                            onClick={() => togglePending(item.id, !avail)}
+                            className={`relative w-12 h-6 rounded-full transition-colors ${avail ? "bg-green-500" : "bg-slate-200"}`}
+                            title={avail ? "Click to mark unavailable" : "Click to mark available"}
+                          >
+                            <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${avail ? "left-7" : "left-1"}`} />
+                          </button>
+                          <span className={`text-xs font-semibold w-20 text-right ${avail ? "text-green-600" : "text-red-500"}`}>
+                            {avail ? "Available" : "Unavailable"}
+                          </span>
+                        </>
+                      )}
+                      {selectMode && (
+                        <span className={`text-xs font-semibold w-20 text-right ${avail ? "text-green-500" : "text-slate-400"}`}>
+                          {avail ? "Available" : "Unavailable"}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
