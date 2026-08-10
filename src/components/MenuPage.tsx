@@ -48,6 +48,44 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [showReorderBanner, setShowReorderBanner] = useState(false);
   const [isDiningCustomer, setIsDiningCustomer] = useState(false);
 
+  // ── Weather-based suggestion (Open-Meteo, no key needed) ─────────────────
+  // Coordinates for pin 560067 (Bengaluru South, Karnataka)
+  const [weatherSuggestion, setWeatherSuggestion] = useState<{
+    emoji: string; label: string; suggestion: string; items: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    // WMO weather code → category
+    function decodeWeather(code: number, temp: number, rain: number): {
+      emoji: string; label: string; suggestion: string; items: string[];
+    } {
+      if (rain > 0.5 || (code >= 51 && code <= 67) || (code >= 80 && code <= 82))
+        return { emoji: "🌧️", label: "Rainy weather", suggestion: "Perfect time to warm up!", items: ["Masala Chai", "Filter Coffee", "Hot Soup", "Pakoda", "Samosa"] };
+      if (code >= 71 && code <= 77)
+        return { emoji: "🌨️", label: "Chilly outside", suggestion: "Stay cozy with something warm!", items: ["Masala Chai", "Hot Coffee", "Soup", "Idli"] };
+      if (code >= 95)
+        return { emoji: "⛈️", label: "Thunderstorm outside", suggestion: "Sit back, enjoy something hot!", items: ["Masala Chai", "Hot Soup", "Coffee", "Pakoda"] };
+      if (code >= 1 && code <= 3 && temp > 32)
+        return { emoji: "🌤️", label: `${temp.toFixed(0)}°C outside`, suggestion: "It's warm — cool down with something refreshing!", items: ["Cold Coffee", "Nimbu Pani", "Lassi", "Ice Cream", "Cold Drink"] };
+      if (temp > 28)
+        return { emoji: "☀️", label: `${temp.toFixed(0)}°C outside`, suggestion: "Hot day! Try something chilled!", items: ["Cold Coffee", "Lassi", "Ice Cream", "Fresh Juice", "Soda"] };
+      if (temp < 20)
+        return { emoji: "🌬️", label: `${temp.toFixed(0)}°C outside`, suggestion: "Cool weather — perfect for hot sips!", items: ["Masala Chai", "Filter Coffee", "Hot Chocolate", "Soup"] };
+      return { emoji: "🌤️", label: `${temp.toFixed(0)}°C, lovely day`, suggestion: "Great weather, great food — what else do you need?", items: ["Biryani", "Thali", "Dosa", "Filter Coffee"] };
+    }
+
+    fetch(
+      "https://api.open-meteo.com/v1/forecast?latitude=12.9139&longitude=77.6397&current=temperature_2m,weathercode,precipitation&timezone=Asia%2FKolkata"
+    )
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.current) return;
+        const { temperature_2m: temp, weathercode: code, precipitation: rain } = data.current;
+        setWeatherSuggestion(decodeWeather(code, temp, rain));
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Popular items (social proof) ──────────────────────────────────────────
   const [popularMap, setPopularMap] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -326,6 +364,39 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               </div>
             </div>
             <button onClick={() => setShowGreeting(false)} className="text-slate-300 hover:text-slate-500 text-xl leading-none flex-shrink-0 ml-3">×</button>
+          </div>
+        </div>
+      )}
+
+      {/* Weather-based suggestion banner */}
+      {weatherSuggestion && (
+        <div className="max-w-2xl mx-auto px-4 pt-3">
+          <div className="bg-gradient-to-r from-sky-50 to-cyan-50 border border-sky-200 rounded-2xl px-5 py-3.5 flex items-start gap-3 shadow-sm">
+            <span className="text-3xl flex-shrink-0 mt-0.5">{weatherSuggestion.emoji}</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-slate-800 text-sm">{weatherSuggestion.label}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{weatherSuggestion.suggestion}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {weatherSuggestion.items.map((item) => {
+                  const match = menuItems.find((m) =>
+                    m.available && m.name.toLowerCase().includes(item.toLowerCase())
+                  );
+                  return match ? (
+                    <button
+                      key={item}
+                      onClick={() => addToCart(match)}
+                      className="text-xs bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold px-2.5 py-1 rounded-full border border-sky-200 transition-colors"
+                    >
+                      + {match.name}
+                    </button>
+                  ) : (
+                    <span key={item} className="text-xs bg-sky-50 text-sky-500 px-2.5 py-1 rounded-full border border-sky-100">
+                      {item}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
