@@ -7,6 +7,7 @@ import MenuCard from "./MenuCard";
 import CartDrawer from "./CartDrawer";
 import CheckoutModal from "./CheckoutModal";
 import UpsellToast from "./UpsellToast";
+import QuirkyDialogue from "./QuirkyDialogue";
 import { getUpsellSuggestion, FOOD_TIPS } from "@/lib/upsellEngine";
 
 interface MenuPageProps {
@@ -473,6 +474,9 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         orgSlug={orgSlug}
         isDiningCustomer={isDiningCustomer}
       />
+
+      {/* Quirky Odia/Hindi/English dialogue bubbles */}
+      {!checkoutOpen && !cartOpen && <QuirkyDialogue />}
 
       {/* Upsell / cross-sell toast */}
       {upsellToast && !checkoutOpen && !cartOpen && (

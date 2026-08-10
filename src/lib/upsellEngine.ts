@@ -128,6 +128,41 @@ export function getUpsellSuggestion(
 
 // ── Rotating food tips / upsell banners ──────────────────────────────────────
 
+// ── Quirky Odia / Hindi / English dialogues ─────────────────────────────────
+// Shown randomly on the menu as floating speech bubbles
+
+export const QUIRKY_DIALOGUES = [
+  // 🟠 Odia
+  { lang: "Odia 🏛️",   text: "\"Khia piba karo, bhai!\"",              subtext: "Come eat and drink, brother! 😄" },
+  { lang: "Odia 🏛️",   text: "\"Peta bhara ta mana khusiya!\"",         subtext: "Full stomach = happy soul! 🤩" },
+  { lang: "Odia 🏛️",   text: "\"Aau khaa, aau khaa!\"",                 subtext: "Come eat, come eat! (We insist 😆)" },
+  { lang: "Odia 🏛️",   text: "\"Dahibara khai nai? Kalinga Bites achi!\"", subtext: "Haven't had Dahibara yet? We're right here! 🥣" },
+  { lang: "Odia 🏛️",   text: "\"Mo maa ra haata ra ranna pari!\"",       subtext: "Tastes just like mom's cooking 🤌❤️" },
+  { lang: "Odia 🏛️",   text: "\"Rasagola khaile mana ta thanda hoi!\"", subtext: "One Rasagola and all stress is gone 🍡😌" },
+  { lang: "Odia 🏛️",   text: "\"Odisha ra swad, apana ghar re!\"",       subtext: "The taste of Odisha, right at your table 🌿" },
+  { lang: "Odia 🏛️",   text: "\"Biryani dekhi peta ta naache!\"",        subtext: "The stomach dances at the sight of Biryani 🍛💃" },
+
+  // 🟢 Hindi
+  { lang: "Hindi 🇮🇳",  text: "\"Bhookhe pet na bhajan hoy...\"",         subtext: "Can't do great things on an empty stomach 😅 Order karo!" },
+  { lang: "Hindi 🇮🇳",  text: "\"Pehle khao, phir socho!\"",              subtext: "Eat first, think later 😂🍽️" },
+  { lang: "Hindi 🇮🇳",  text: "\"Dil aur pet dono kush karo!\"",          subtext: "Make both your heart AND stomach happy 🥰" },
+  { lang: "Hindi 🇮🇳",  text: "\"Yaar, khaana toh banta hai!\"",          subtext: "Bro, food is a must! 😎🍛" },
+  { lang: "Hindi 🇮🇳",  text: "\"Biryani dekhke aankhein bhi khush ho jaati hain!\"", subtext: "Even your eyes smile seeing Biryani 👀🍛" },
+  { lang: "Hindi 🇮🇳",  text: "\"Meetha khaoge toh zindagi meethi hogi!\"", subtext: "Eat sweets, life gets sweeter 🍮😊" },
+  { lang: "Hindi 🇮🇳",  text: "\"Ek aur order toh banta hai, boss!\"",    subtext: "One more order is totally justified, boss 😆" },
+  { lang: "Hindi 🇮🇳",  text: "\"Jo khata hai woh muskurata hai!\"",      subtext: "Those who eat well, smile more 😄🍜" },
+
+  // 🔵 English
+  { lang: "English 🌍",  text: "\"You can't buy happiness, but you can buy food!\"", subtext: "And that's basically the same thing 😂🍽️" },
+  { lang: "English 🌍",  text: "\"Diet starts tomorrow. Today — Biryani!\"", subtext: "We fully support this decision 🍛😄" },
+  { lang: "English 🌍",  text: "\"Life is too short for bad food.\"",      subtext: "Fortunately, you're at the right place 🌟" },
+  { lang: "English 🌍",  text: "\"In a world full of choices, always choose Mutton Biryani.\"", subtext: "Words of wisdom 🍛🙏" },
+  { lang: "English 🌍",  text: "\"Rasagola is proof that the universe loves us.\"", subtext: "Pure philosophy, pure sweetness 🍡✨" },
+  { lang: "English 🌍",  text: "\"I follow a strict diet: I eat everything! 😂\"", subtext: "Respect. Absolute respect." },
+  { lang: "English 🌍",  text: "\"Soup + Biryani = the combo your soul deserves!\"", subtext: "Order both. Live your best life 🍲🍛" },
+  { lang: "English 🌍",  text: "\"Come hungry. Leave with a piece of Odisha. ❤️\"", subtext: "— Kalinga Bites Promise 🌿" },
+];
+
 export const FOOD_TIPS = [
   // Launch offer promos — show these more prominently
   { text: "🚀 LAUNCH OFFER! Our Biryani & Chinese items are NOW 20% OFF — newly launched! Try today!", cta: "Chicken Dum Biryani" },
