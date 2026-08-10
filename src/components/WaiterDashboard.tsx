@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { MenuItemData, OrderData, OrderStatus, OrgSettings } from "@/types";
 
 /** Web-Audio beep — no external files needed */
@@ -54,6 +55,8 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 };
 
 export default function WaiterDashboard() {
+  const { data: session } = useSession();
+  const isAdmin = ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"].includes(session?.user?.role ?? "");
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -229,8 +232,8 @@ export default function WaiterDashboard() {
         )}
       </div>
 
-      {/* ── Today's Payment Summary ──────────────────────────────────────── */}
-      {dayTotal > 0 && (
+      {/* ── Today's Payment Summary (admins only) ────────────────────────── */}
+      {isAdmin && dayTotal > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-5">
           <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
             <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">💵 Cash Today</p>
