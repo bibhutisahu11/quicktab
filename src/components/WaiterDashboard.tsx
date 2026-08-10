@@ -1,7 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MenuItemData, OrderData, OrderStatus, OrgSettings } from "@/types";
+
+/** Web-Audio beep — no external files needed */
+function playBeep(type: "order" | "nudge") {
+  try {
+    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const play = (freq: number, start: number, duration: number) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.35, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+    if (type === "nudge") {
+      // Three rapid high-pitched pings for nudge
+      play(1046, 0,    0.18);
+      play(1318, 0.22, 0.18);
+      play(1568, 0.44, 0.25);
+    } else {
+      // Two warm chimes for new order
+      play(660, 0,    0.3);
+      play(880, 0.35, 0.4);
+    }
+  } catch { /* AudioContext blocked (e.g. server-side render) — ignore */ }
+}
 import { printOrder } from "@/lib/printOrder";
 import { estimateWaitMins, formatWait, getOrderUrgency, overdueByMins } from "@/lib/waitingTime";
 
@@ -35,6 +65,8 @@ export default function WaiterDashboard() {
   const [search, setSearch] = useState("");
   const [diningPopup, setDiningPopup] = useState<OrderData | null>(null);
   const seenRepeatDinerIds = useState(() => new Set<string>())[0];
+  const seenOrderIds    = useRef(new Set<string>());
+  const lastNudgeCounts = useRef(new Map<string, number>());
 
   useEffect(() => {
     fetch("/api/admin/org-settings")
@@ -57,8 +89,28 @@ export default function WaiterDashboard() {
     const res = await fetch("/api/orders");
     if (res.ok) {
       const data: OrderData[] = await res.json();
+      const isFirstLoad = seenOrderIds.current.size === 0;
+
+      // ── Sound: new orders ──────────────────────────────────────────────────
+      if (!isFirstLoad) {
+        const hasNewOrder = data.some(
+          (o) => !seenOrderIds.current.has(o.id) &&
+            ["PAYMENT_PENDING", "PENDING"].includes(o.status)
+        );
+        if (hasNewOrder) playBeep("order");
+      }
+      data.forEach((o) => seenOrderIds.current.add(o.id));
+
+      // ── Sound: nudge ───────────────────────────────────────────────────────
+      data.forEach((o) => {
+        const prev = lastNudgeCounts.current.get(o.id) ?? 0;
+        if ((o.nudgeCount ?? 0) > prev) playBeep("nudge");
+        lastNudgeCounts.current.set(o.id, o.nudgeCount ?? 0);
+      });
+
       setOrders(data);
-      // Show popup for new repeat-diner orders not yet acknowledged
+
+      // ── Repeat-diner popup ─────────────────────────────────────────────────
       const newRepeat = data.find(
         (o) => o.isRepeatDiner && !seenRepeatDinerIds.has(o.id) &&
           ["PENDING", "PAYMENT_PENDING", "PREPARING"].includes(o.status)

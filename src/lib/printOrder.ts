@@ -175,6 +175,9 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
   const discountLine = order.discountAmount && order.discountAmount > 0
     ? `<tr class="discount-row"><td colspan="2">Discount</td><td class="amt">-&#8377;${order.discountAmount.toFixed(0)}</td></tr>`
     : "";
+  const parcelLine = (order as { parcelCharge?: number }).parcelCharge && (order as { parcelCharge?: number }).parcelCharge! > 0
+    ? `<tr class="discount-row"><td colspan="2">Parcel Charge</td><td class="amt">+&#8377;${(order as { parcelCharge?: number }).parcelCharge!.toFixed(0)}</td></tr>`
+    : "";
 
   const utrLine = order.upiUtr
     ? `<div class="row" style="font-size:13px;margin-top:2px;"><span>UTR:</span><span>${esc(order.upiUtr)}</span></div>`
@@ -223,6 +226,7 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
     <tbody>${itemRows}</tbody>
     <tfoot>
       ${discountLine}
+      ${parcelLine}
       <tr class="total-row">
         <td colspan="2">TOTAL</td>
         <td class="amt">&#8377;${order.total.toFixed(0)}</td>

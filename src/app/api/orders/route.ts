@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount } = body;
+    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount, parcelCharge } = body;
 
     if (!type || !customerName || !items?.length) {
       return NextResponse.json(
@@ -126,7 +126,8 @@ export async function POST(req: NextRequest) {
     });
 
     const appliedDiscount = Math.min(Number(discountAmount) || 0, subtotal);
-    const total = Math.max(0, subtotal - appliedDiscount);
+    const appliedParcelCharge = Math.max(0, Number(parcelCharge) || 0);
+    const total = Math.max(0, subtotal - appliedDiscount + appliedParcelCharge);
 
     // ── Server-side paid-amount check ────────────────────────────────────────
     if (orgUpiId && paidAmount !== undefined) {
@@ -177,8 +178,9 @@ export async function POST(req: NextRequest) {
         upiUtr: upiUtr ?? null,
         paymentScreenshot: paymentScreenshot ?? null,
         screenshotExpiry: paymentScreenshot
-          ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2 days from now
+          ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
           : null,
+        parcelCharge: appliedParcelCharge,
         items: { create: orderItemsData },
       },
       include: { items: true, table: true },

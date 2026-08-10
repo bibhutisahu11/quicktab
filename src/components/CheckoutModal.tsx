@@ -22,6 +22,7 @@ interface CheckoutModalProps {
     paymentScreenshot?: string,
     discountAmount?: number,
     paidAmount?: number,
+    parcelCharge?: number,
   ) => Promise<void>;
   isParcel: boolean;
   orgUpiId: string | null;
@@ -101,6 +102,20 @@ function validatePaidAmount(paid: string, expected: number): string | null {
 
 const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024; // 5 MB
 
+// Categories that attract ₹5 parcel charge; everything else gets ₹10
+const SNACK_CATEGORIES = new Set([
+  "Evening Snacks",
+  "Breakfast Delights",
+  "Beverages",
+]);
+
+function calcParcelCharge(cart: import("@/types").CartItem[], menuItems: { id: string; category: string }[]): number {
+  if (cart.length === 0) return 0;
+  const catMap = Object.fromEntries(menuItems.map((m) => [m.id, m.category]));
+  const allSnacks = cart.every((item) => SNACK_CATEGORIES.has(catMap[item.menuItemId] ?? ""));
+  return allSnacks ? 5 : 10;
+}
+
 export default function CheckoutModal({
   open,
   onClose,
@@ -170,7 +185,9 @@ export default function CheckoutModal({
   const categoryMap = Object.fromEntries(menuItems.map((m) => [m.id, m.category]));
   const appliedDiscounts: AppliedDiscount[] = applyDiscounts(discounts, cart, subtotal, categoryMap);
   const discountAmount = totalDiscount(appliedDiscounts);
-  const total = Math.max(0, subtotal - discountAmount);
+  // Parcel charge — only for parcel orders, non-removable by customer
+  const parcelCharge = isParcel ? calcParcelCharge(cart, menuItems) : 0;
+  const total = Math.max(0, subtotal - discountAmount + parcelCharge);
   const requirePayment = true; // UPI payment is always required
 
   /* ── UPI QR generation (runs when payment step is shown) ── */
@@ -275,6 +292,7 @@ export default function CheckoutModal({
         requirePayment ? screenshot ?? undefined : undefined,
         discountAmount > 0 ? discountAmount : undefined,
         requirePayment ? parseFloat(paidAmount) : undefined,
+        parcelCharge > 0 ? parcelCharge : undefined,
       );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -343,7 +361,7 @@ export default function CheckoutModal({
                   <span className="font-medium text-slate-800">₹{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
-              {appliedDiscounts.length > 0 && (
+              {(appliedDiscounts.length > 0 || parcelCharge > 0) && (
                 <>
                   <div className="border-t border-slate-200 pt-2 flex justify-between text-sm text-slate-500">
                     <span>Subtotal</span>
@@ -360,7 +378,29 @@ export default function CheckoutModal({
                       <span>−₹{saving.toFixed(2)}</span>
                     </div>
                   ))}
+                  {parcelCharge > 0 && (
+                    <div className="flex justify-between text-sm text-orange-700 font-medium">
+                      <span className="flex items-center gap-1">
+                        📦 Parcel Charge
+                        <span className="text-xs text-orange-500">
+                          ({parcelCharge === 5 ? "Snacks" : "Food items"})
+                        </span>
+                      </span>
+                      <span>+₹{parcelCharge.toFixed(0)}</span>
+                    </div>
+                  )}
                 </>
+              )}
+              {parcelCharge > 0 && appliedDiscounts.length === 0 && (
+                <div className="border-t border-slate-200 pt-2 flex justify-between text-sm text-orange-700 font-medium">
+                  <span className="flex items-center gap-1">
+                    📦 Parcel Charge
+                    <span className="text-xs text-orange-500">
+                      ({parcelCharge === 5 ? "Snacks" : "Food items"})
+                    </span>
+                  </span>
+                  <span>+₹{parcelCharge.toFixed(0)}</span>
+                </div>
               )}
               <div className="border-t border-slate-200 pt-2 flex justify-between font-bold">
                 <span>Total</span>
