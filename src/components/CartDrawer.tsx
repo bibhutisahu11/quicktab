@@ -27,8 +27,12 @@ export default function CartDrawer({
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+      {/* Sheet — pinned to bottom, never taller than 85dvh, footer always visible */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl flex flex-col"
+           style={{ maxHeight: "min(85dvh, 85vh)" }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">
           <h2 className="text-xl font-bold text-slate-800">
             Your Order ({itemCount} item{itemCount !== 1 ? "s" : ""})
           </h2>
@@ -40,7 +44,8 @@ export default function CartDrawer({
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-3">
+        {/* Scrollable item list — flex-1 takes leftover space between header and footer */}
+        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-3 overscroll-contain">
           {cart.map((item) => (
             <div key={item.menuItemId} className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
@@ -69,14 +74,16 @@ export default function CartDrawer({
           ))}
         </div>
 
-        <div className="p-5 border-t border-slate-100">
+        {/* Footer — always visible, never scrolls away */}
+        <div className="flex-shrink-0 px-5 pt-4 pb-6 border-t border-slate-100 bg-white"
+             style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom, 24px))" }}>
           <div className="flex justify-between items-center mb-4">
             <span className="text-lg font-semibold text-slate-700">Total</span>
             <span className="text-2xl font-bold text-amber-600">₹{total.toFixed(2)}</span>
           </div>
           <button
             onClick={onCheckout}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl text-lg transition-colors"
+            className="w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold py-4 rounded-xl text-lg transition-colors shadow-lg"
           >
             Proceed to Checkout →
           </button>
