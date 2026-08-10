@@ -170,11 +170,12 @@ export default function CheckoutModal({
   const appliedDiscounts: AppliedDiscount[] = applyDiscounts(discounts, cart, subtotal, categoryMap);
   const discountAmount = totalDiscount(appliedDiscounts);
   const total = Math.max(0, subtotal - discountAmount);
-  const requirePayment = !!orgUpiId;
+  const requirePayment = true; // UPI payment is always required
 
   /* ── UPI QR generation (runs when payment step is shown) ── */
   useEffect(() => {
-    if (step !== 2 || !orgUpiId) return;
+    if (step !== 2) return;
+    if (!orgUpiId) return;
     const upiUri = `upi://pay?pa=${encodeURIComponent(orgUpiId)}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent("Food order")}`;
     QRCode.toDataURL(upiUri, { width: 260, margin: 1, color: { dark: "#1e293b", light: "#ffffff" } })
       .then(setUpiQrDataUrl)
@@ -291,22 +292,15 @@ export default function CheckoutModal({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
-            {requirePayment && (
-              <div className="flex items-center gap-1 text-xs">
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 1 ? "bg-amber-500 text-white" : "bg-green-500 text-white"}`}>
-                  {step === 1 ? "1" : "✓"}
-                </span>
-                <span className={`text-xs font-medium ${step === 1 ? "text-amber-600" : "text-green-600"}`}>Details</span>
-                <span className="text-slate-300 mx-1">→</span>
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 2 ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-500"}`}>2</span>
-                <span className={`text-xs font-medium ${step === 2 ? "text-amber-600" : "text-slate-400"}`}>Payment</span>
-              </div>
-            )}
-            {!requirePayment && (
-              <h2 className="text-xl font-bold text-slate-800">
-                {isParcel ? "📦 Parcel Order" : "🍽️ Table Order"}
-              </h2>
-            )}
+            <div className="flex items-center gap-1 text-xs">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 1 ? "bg-amber-500 text-white" : "bg-green-500 text-white"}`}>
+                {step === 1 ? "1" : "✓"}
+              </span>
+              <span className={`text-xs font-medium ${step === 1 ? "text-amber-600" : "text-green-600"}`}>Details</span>
+              <span className="text-slate-300 mx-1">→</span>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${step === 2 ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-500"}`}>2</span>
+              <span className={`text-xs font-medium ${step === 2 ? "text-amber-600" : "text-slate-400"}`}>Payment</span>
+            </div>
           </div>
           <button
             onClick={resetAndClose}
@@ -499,9 +493,23 @@ export default function CheckoutModal({
               type="submit"
               className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl text-lg transition-colors"
             >
-              {requirePayment ? `Proceed to Pay · ₹${total.toFixed(2)} →` : `Place Order · ₹${total.toFixed(2)}`}
+              {`Proceed to Pay · ₹${total.toFixed(2)} →`}
             </button>
           </form>
+        )}
+
+        {/* ── STEP 2: UPI not configured warning ── */}
+        {step === 2 && !orgUpiId && (
+          <div className="px-5 py-10 flex flex-col items-center gap-4 text-center">
+            <div className="text-5xl">⚙️</div>
+            <h3 className="text-lg font-bold text-slate-800">UPI Payment Not Configured</h3>
+            <p className="text-slate-500 text-sm max-w-xs">
+              The restaurant has not set up a UPI ID yet. Please ask the staff to configure it in the admin settings before placing an order.
+            </p>
+            <button type="button" onClick={resetAndClose} className="mt-2 px-6 py-2 bg-slate-200 rounded-xl font-medium text-slate-700 hover:bg-slate-300">
+              Close
+            </button>
+          </div>
         )}
 
         {/* ── STEP 2: UPI Payment ── */}
