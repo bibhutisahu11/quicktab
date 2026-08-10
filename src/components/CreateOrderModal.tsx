@@ -147,7 +147,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Walk-in Customer"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
                 <div>
@@ -157,7 +157,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Optional"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
               </div>
@@ -184,7 +184,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                     <select
                       value={tableId}
                       onChange={(e) => setTableId(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
                     >
                       {tables.map((t) => (
                         <option key={t.id} value={t.id}>{t.name}</option>
@@ -257,7 +257,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Special instructions…"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
               </div>
             </div>
@@ -271,7 +271,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search items…"
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
               </div>
 

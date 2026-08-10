@@ -525,7 +525,7 @@ export default function CheckoutModal({
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   rows={2}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                   placeholder="House / flat, street, area..."
                 />
               </div>
@@ -539,7 +539,7 @@ export default function CheckoutModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2.5 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                 placeholder="Any allergies or special requests..."
               />
             </div>
@@ -640,8 +640,8 @@ export default function CheckoutModal({
                 <p className="font-semibold text-slate-700">📋 Steps:</p>
                 <p>1. Open PhonePe / GPay / Paytm and scan the QR above</p>
                 <p>2. Pay <strong>₹{total.toFixed(2)}</strong> — amount auto-filled when scanned</p>
-                <p>3. Take a screenshot of the success screen</p>
-                <p>4. Upload the screenshot &amp; enter the UTR below</p>
+                <p>3. Take a <strong>live photo</strong> of the payment success screen</p>
+                <p>4. Upload the photo &amp; paste the UTR number below</p>
               </div>
             </div>
 
@@ -683,10 +683,12 @@ export default function CheckoutModal({
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Payment Screenshot <span className="text-red-500">*</span>
               </label>
+              {/* capture="environment" opens rear camera directly, no gallery access */}
               <input
                 ref={fileRef}
                 type="file"
                 accept="image/*"
+                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -711,9 +713,9 @@ export default function CheckoutModal({
                   onClick={() => fileRef.current?.click()}
                   className={`w-full border-2 border-dashed rounded-xl py-8 flex flex-col items-center gap-2 transition-colors ${screenshotError ? "border-red-400 bg-red-50" : "border-slate-300 hover:border-amber-400 hover:bg-amber-50"}`}
                 >
-                  <span className="text-3xl">📸</span>
-                  <span className="text-sm font-medium text-slate-600">Tap to upload screenshot</span>
-                  <span className="text-xs text-slate-400">Gallery or camera — max 5 MB</span>
+                  <span className="text-3xl">📷</span>
+                  <span className="text-sm font-medium text-slate-600">Take a live photo of payment screen</span>
+                  <span className="text-xs text-slate-400">Opens camera directly — max 5 MB</span>
                 </button>
               )}
               {screenshotError && <p className="text-red-500 text-xs mt-1">{screenshotError}</p>}
@@ -722,7 +724,7 @@ export default function CheckoutModal({
             {/* UTR input */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                UTR / Transaction ID <span className="text-red-500">*</span>
+                Paste UTR / Transaction ID <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -768,7 +770,7 @@ export default function CheckoutModal({
               {utrError && !utrFraud && <p className="text-red-500 text-xs mt-1">{utrError}</p>}
               {!utrError && !utrFraud && (
                 <p className="text-xs text-slate-400 mt-1">
-                  Find the UTR/Transaction ID on your UPI app&apos;s payment success screen
+                  Copy &amp; paste the UTR / Transaction ID from your UPI app&apos;s payment success screen
                 </p>
               )}
             </div>
