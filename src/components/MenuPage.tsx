@@ -368,34 +368,38 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         </div>
       )}
 
-      {/* Weather-based suggestion banner */}
-      {weatherSuggestion && (
+      {/* Weather-based suggestion banner — only shown when ≥1 item from the live menu matches */}
+      {weatherSuggestion && weatherSuggestion.items.some((item) =>
+        menuItems.some((m) => m.available && m.name.toLowerCase().includes(item.toLowerCase()))
+      ) && (
         <div className="max-w-2xl mx-auto px-4 pt-3">
           <div className="bg-gradient-to-r from-sky-50 to-cyan-50 border border-sky-200 rounded-2xl px-5 py-3.5 flex items-start gap-3 shadow-sm">
             <span className="text-3xl flex-shrink-0 mt-0.5">{weatherSuggestion.emoji}</span>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-slate-800 text-sm">{weatherSuggestion.label}</p>
               <p className="text-xs text-slate-500 mt-0.5">{weatherSuggestion.suggestion}</p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {weatherSuggestion.items.map((item) => {
-                  const match = menuItems.find((m) =>
+              {(() => {
+                const matched = weatherSuggestion.items
+                  .map((item) => menuItems.find((m) =>
                     m.available && m.name.toLowerCase().includes(item.toLowerCase())
-                  );
-                  return match ? (
-                    <button
-                      key={item}
-                      onClick={() => addToCart(match)}
-                      className="text-xs bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold px-2.5 py-1 rounded-full border border-sky-200 transition-colors"
-                    >
-                      + {match.name}
-                    </button>
-                  ) : (
-                    <span key={item} className="text-xs bg-sky-50 text-sky-500 px-2.5 py-1 rounded-full border border-sky-100">
-                      {item}
-                    </span>
-                  );
-                })}
-              </div>
+                  ))
+                  .filter((m): m is MenuItemData => !!m)
+                  // de-duplicate by id
+                  .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i);
+                return matched.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {matched.map((match) => (
+                      <button
+                        key={match.id}
+                        onClick={() => addToCart(match)}
+                        className="text-xs bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold px-2.5 py-1 rounded-full border border-sky-200 transition-colors"
+                      >
+                        + {match.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>

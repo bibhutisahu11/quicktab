@@ -48,11 +48,6 @@ export default function QuirkyDialogue() {
     >
       {/* Speech bubble */}
       <div className="bg-white rounded-2xl rounded-bl-sm shadow-xl border border-amber-200 px-4 py-3 relative">
-        {/* Language tag */}
-        <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wide block mb-1">
-          {current.lang}
-        </span>
-
         {/* Main dialogue */}
         <p className="text-slate-800 font-bold text-sm leading-snug">{current.text}</p>
 
