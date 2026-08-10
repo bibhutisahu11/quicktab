@@ -157,9 +157,9 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
     .map(
       (item) => `
       <tr>
-        <td>${esc(item.name)}</td>
+        <td>${esc(item.name)}${item.notes ? `<br/><span style="font-size:14px;color:#b45309;">🌶 ${esc(item.notes)}</span>` : ""}</td>
         <td class="qty">x${item.quantity}</td>
-        <td class="amt">&#8377;${(item.price * item.quantity).toFixed(0)}</td>
+        <td class="amt">${item.price === 0 ? "FREE" : `&#8377;${(item.price * item.quantity).toFixed(0)}`}</td>
       </tr>`
     )
     .join("");

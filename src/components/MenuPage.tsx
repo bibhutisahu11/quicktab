@@ -89,6 +89,35 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   // ── Customer search ───────────────────────────────────────────────────────
   const [customerSearch, setCustomerSearch] = useState("");
 
+  // ── Per-item spice / instruction picker ──────────────────────────────────
+  const SPICE_OPTIONS = [
+    { label: "Less Spicy 🌶", value: "Less Spicy" },
+    { label: "Medium Spicy 🌶🌶", value: "Medium Spicy" },
+    { label: "Extra Spicy 🌶🌶🌶", value: "Extra Spicy" },
+    { label: "No Spice 🙅", value: "No Spice" },
+  ];
+  // Categories where spice prompt doesn't make sense
+  const NO_SPICE_CATEGORIES = new Set(["Beverages", "Sweets", "Breakfast Delights"]);
+  const [spicePicker, setSpicePicker] = useState<{ item: MenuItemData } | null>(null);
+  const [pendingSpiceNote, setPendingSpiceNote] = useState("");
+
+  function openSpicePicker(item: MenuItemData) {
+    if (NO_SPICE_CATEGORIES.has(item.category) || item.price === 0) return null;
+    setSpicePicker({ item });
+    setPendingSpiceNote("");
+    return "opened";
+  }
+
+  function applySpiceNote(note: string) {
+    if (!spicePicker) return;
+    setCart((prev) =>
+      prev.map((c) =>
+        c.menuItemId === spicePicker.item.id ? { ...c, notes: note || undefined } : c
+      )
+    );
+    setSpicePicker(null);
+  }
+
   // ── Ghugni upsell prompt ──────────────────────────────────────────────────
   // Items that pair with Ghugni (bara, samosa, gulgula, aloochop variants)
   const GHUGNI_TRIGGER_KEYWORDS = ["bara", "samosa", "gulgula", "aloo chop", "aloochop", "aloo-chop"];
@@ -263,6 +292,9 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       if (!existing) {
         if (upsellTimeoutRef.current) clearTimeout(upsellTimeoutRef.current);
 
+        // Open spice picker for food items
+        openSpicePicker(item);
+
         // Ghugni upsell — triggered by bara/samosa/gulgula/aloo chop
         const nameLower = item.name.toLowerCase();
         // Dahipani upsell
@@ -356,7 +388,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       parcelCharge: parcelCharge ?? 0,
       paymentMethod: paymentMethod ?? "UPI",
       paidAmount: paidAmount ?? undefined,
-      items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity })),
+      items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity, ...(c.notes ? { notes: c.notes } : {}) })),
     };
 
     const res = await fetch("/api/orders", {
@@ -513,6 +545,51 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       )}
 
       {/* Ghugni upsell prompt */}
+      {/* ── Spice / instruction picker bottom sheet ── */}
+      {spicePicker && (
+        <div className="fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSpicePicker(null)} />
+          <div className="relative w-full bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-8">
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
+            <p className="font-black text-slate-800 text-base mb-0.5">
+              🍽️ How spicy for <span className="text-amber-600">{spicePicker.item.name}</span>?
+            </p>
+            <p className="text-slate-500 text-xs mb-4">We&apos;ll take care of it exactly the way you like!</p>
+
+            {/* Quick spice chips */}
+            <div className="grid grid-cols-2 gap-2.5 mb-4">
+              {SPICE_OPTIONS.map((opt) => (
+                <button key={opt.value} onClick={() => applySpiceNote(opt.value)}
+                  className={`py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                    pendingSpiceNote === opt.value
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-slate-200 text-slate-700 hover:border-amber-300"
+                  }`}
+                  onMouseEnter={() => setPendingSpiceNote(opt.value)}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom instruction */}
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="Any other instruction? e.g. No onion, extra gravy…"
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                onKeyDown={(e) => { if (e.key === "Enter") applySpiceNote((e.target as HTMLInputElement).value); }}
+              />
+              <p className="text-xs text-slate-400 mt-1">Press Enter or tap Skip to continue</p>
+            </div>
+
+            <button onClick={() => applySpiceNote("")}
+              className="w-full py-3 text-slate-500 text-sm font-medium">
+              Skip — no preference
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Dahipani free item prompt */}
       {dahipaniPrompt && (() => {
         const dahipaniItem = menuItems.find((m) => m.name.toLowerCase().includes("dahipani"));

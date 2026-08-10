@@ -289,7 +289,12 @@ function OrderCard({
       <div className="space-y-1 mb-3">
         {order.items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm">
-            <span className="font-medium text-slate-700">{item.name} × {item.quantity}</span>
+            <div>
+              <span className="font-medium text-slate-700">{item.name} × {item.quantity}</span>
+              {item.notes && (
+                <p className="text-xs font-bold text-amber-600 mt-0.5">🌶 {item.notes}</p>
+              )}
+            </div>
           </div>
         ))}
       </div>

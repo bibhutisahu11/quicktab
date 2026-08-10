@@ -58,6 +58,9 @@ export default function CartDrawer({
                   <p className="text-slate-500 text-sm">
                     {item.price === 0 ? <span className="text-teal-600 font-semibold">FREE 🎉</span> : `₹${item.price.toFixed(0)}/${unit && unit !== "piece" ? unit : "pc"}`}
                   </p>
+                  {item.notes && (
+                    <p className="text-xs text-amber-600 font-medium mt-0.5">🌶 {item.notes}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 ml-3">
                   <button

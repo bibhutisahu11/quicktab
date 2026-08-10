@@ -7,6 +7,7 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  notes?: string;   // per-item spice/instruction note
 }
 
 export interface MenuItemData {
@@ -49,6 +50,7 @@ export interface OrderItemData {
   price: number;
   quantity: number;
   menuItemId: string;
+  notes?: string | null;
 }
 
 export type DiscountType = "PERCENTAGE" | "FLAT";

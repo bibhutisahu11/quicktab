@@ -506,9 +506,12 @@ export default function KitchenDashboard() {
                 <div className="space-y-1">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-slate-700">
-                        {item.name} × {item.quantity}
-                      </span>
+                      <div>
+                        <span className="text-slate-700">{item.name} × {item.quantity}</span>
+                        {item.notes && (
+                          <p className="text-xs font-bold text-amber-600 mt-0.5">🌶 {item.notes}</p>
+                        )}
+                      </div>
                       <span className="text-slate-500">₹{(item.price * item.quantity).toFixed(0)}</span>
                     </div>
                   ))}

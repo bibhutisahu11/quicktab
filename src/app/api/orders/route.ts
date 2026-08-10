@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
 
     const menuMap = new Map(menuItems.map((m) => [m.id, m]));
     let subtotal = 0;
-    const orderItemsData = items.map((item: { menuItemId: string; quantity: number }) => {
+    const orderItemsData = items.map((item: { menuItemId: string; quantity: number; notes?: string }) => {
       const menuItem = menuMap.get(item.menuItemId)!;
       subtotal += menuItem.price * item.quantity;
       return {
@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
         name: menuItem.name,
         price: menuItem.price,
         quantity: item.quantity,
+        ...(item.notes ? { notes: item.notes } : {}),
       };
     });
 

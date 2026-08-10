@@ -163,6 +163,7 @@ model OrderItem {
   name       String
   price      Float
   quantity   Int
+  notes      String?   // per-item spice/instruction note from customer
 
   @@map("order_items")
 }
