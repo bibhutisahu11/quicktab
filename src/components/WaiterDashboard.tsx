@@ -34,6 +34,7 @@ function playBeep(type: "order" | "nudge") {
   } catch { /* AudioContext blocked (e.g. server-side render) — ignore */ }
 }
 import { printOrder } from "@/lib/printOrder";
+import CreateOrderModal from "./CreateOrderModal";
 import { estimateWaitMins, formatWait, getOrderUrgency, overdueByMins } from "@/lib/waitingTime";
 
 const STATUS_COLORS: Record<string, { bg: string; border: string; badge: string }> = {
@@ -67,6 +68,7 @@ export default function WaiterDashboard() {
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [diningPopup, setDiningPopup] = useState<OrderData | null>(null);
+  const [createOrderOpen, setCreateOrderOpen] = useState(false);
   const seenRepeatDinerIds = useState(() => new Set<string>())[0];
   const seenOrderIds    = useRef(new Set<string>());
   const lastNudgeCounts = useRef(new Map<string, number>());
@@ -225,12 +227,28 @@ export default function WaiterDashboard() {
           <h1 className="text-2xl font-bold text-slate-800">My Orders</h1>
           <p className="text-slate-500 text-sm">Auto-refreshes every 15 seconds</p>
         </div>
-        {readyCount > 0 && (
-          <span className="animate-pulse bg-green-500 text-white font-bold px-4 py-2 rounded-xl text-sm">
-            {readyCount} order{readyCount !== 1 ? "s" : ""} ready to serve!
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {readyCount > 0 && (
+            <span className="animate-pulse bg-green-500 text-white font-bold px-4 py-2 rounded-xl text-sm">
+              {readyCount} order{readyCount !== 1 ? "s" : ""} ready to serve!
+            </span>
+          )}
+          <button
+            onClick={() => setCreateOrderOpen(true)}
+            className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+          >
+            ➕ New Order
+          </button>
+        </div>
       </div>
+
+      {createOrderOpen && orgSettings?.slug && (
+        <CreateOrderModal
+          orgSlug={orgSettings.slug}
+          onClose={() => setCreateOrderOpen(false)}
+          onCreated={() => { fetchOrders(); }}
+        />
+      )}
 
       {/* ── Today's Payment Summary (admins only) ────────────────────────── */}
       {isAdmin && dayTotal > 0 && (

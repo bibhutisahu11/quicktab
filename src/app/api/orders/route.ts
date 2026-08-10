@@ -30,8 +30,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount, parcelCharge, paymentMethod } = body;
+    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount, parcelCharge, paymentMethod, adminCreated, tableId: directTableId } = body;
     const isCash = paymentMethod === "CASH";
+    // adminCreated: order placed by admin/biller at the counter — skip payment validation
+    const isAdminCreated = !!adminCreated;
 
     if (!type || !customerName || !items?.length) {
       return NextResponse.json(
@@ -46,25 +48,34 @@ export async function POST(req: NextRequest) {
     let orgUpiId: string | null = null;
 
     if (type === "TABLE") {
-      if (!tableToken) {
-        return NextResponse.json({ error: "tableToken required for table orders" }, { status: 400 });
+      if (directTableId) {
+        // Admin created — table passed by DB id directly
+        const table = await prisma.table.findUnique({ where: { id: directTableId }, include: { org: true } });
+        if (!table) return NextResponse.json({ error: "Table not found" }, { status: 404 });
+        tableId = table.id;
+        orgId = table.orgId ?? null;
+        orgUpiId = table.org?.upiId ?? null;
+      } else {
+        if (!tableToken) {
+          return NextResponse.json({ error: "tableToken required for table orders" }, { status: 400 });
+        }
+        const table = await prisma.table.findUnique({
+          where: { qrToken: tableToken },
+          include: { org: true },
+        });
+        if (!table) return NextResponse.json({ error: "Invalid table token" }, { status: 404 });
+        if (!table.active) return NextResponse.json({ error: "Table is not active" }, { status: 400 });
+        tableId = table.id;
+        orgId = table.orgId ?? null;
+        orgUpiId = table.org?.upiId ?? null;
       }
-      const table = await prisma.table.findUnique({
-        where: { qrToken: tableToken },
-        include: { org: true },
-      });
-      if (!table) return NextResponse.json({ error: "Invalid table token" }, { status: 404 });
-      if (!table.active) return NextResponse.json({ error: "Table is not active" }, { status: 400 });
-      tableId = table.id;
-      orgId = table.orgId ?? null;
-      orgUpiId = table.org?.upiId ?? null;
     } else if (orgSlug) {
       const org = await prisma.organization.findUnique({ where: { slug: orgSlug } });
       if (org) { orgId = org.id; orgUpiId = org.upiId ?? null; }
     }
 
-    // UPI-specific validations (skip for cash)
-    if (!isCash && orgUpiId) {
+    // UPI-specific validations (skip for cash and admin-created orders)
+    if (!isCash && !isAdminCreated && orgUpiId) {
       if (!upiUtr || upiUtr.trim().length < 6) {
         return NextResponse.json({ error: "Valid UTR / Transaction ID is required for payment" }, { status: 400 });
       }
@@ -126,8 +137,8 @@ export async function POST(req: NextRequest) {
     const appliedParcelCharge = Math.max(0, Number(parcelCharge) || 0);
     const total = Math.max(0, subtotal - appliedDiscount + appliedParcelCharge);
 
-    // ── Server-side paid-amount check (UPI only) ─────────────────────────────
-    if (!isCash && orgUpiId && paidAmount !== undefined) {
+    // ── Server-side paid-amount check (UPI only, not admin-created) ─────────
+    if (!isCash && !isAdminCreated && orgUpiId && paidAmount !== undefined) {
       const paid = parseFloat(String(paidAmount));
       if (isNaN(paid) || Math.abs(paid - total) > 1) {
         return NextResponse.json(
@@ -170,9 +181,10 @@ export async function POST(req: NextRequest) {
         discountAmount: appliedDiscount,
         total,
         isRepeatDiner,
-        // Cash orders go straight to PENDING (admin collects cash in person).
+        // Admin-created orders go straight to PREPARING (already handled at counter).
+        // Cash orders go to PENDING (admin confirms after collecting cash).
         // UPI orders wait in PAYMENT_PENDING until admin verifies the screenshot.
-        status: (!isCash && orgUpiId) ? "PAYMENT_PENDING" : "PENDING",
+        status: isAdminCreated ? "PREPARING" : ((!isCash && orgUpiId) ? "PAYMENT_PENDING" : "PENDING"),
         upiUtr: upiUtr ?? null,
         paymentScreenshot: paymentScreenshot ?? null,
         screenshotExpiry: paymentScreenshot
