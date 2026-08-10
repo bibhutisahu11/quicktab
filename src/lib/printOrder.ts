@@ -49,21 +49,31 @@ const thermalCss = `
   .right  { text-align: right; }
   .bold   { font-weight: 700; }
   .hotel-name {
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 900;
     letter-spacing: 2px;
     text-transform: uppercase;
   }
   .tagline {
-    font-size: 22px;
+    font-size: 16px;
     font-weight: 600;
-    margin-top: 3px;
+    margin-top: 2px;
   }
   .meta {
-    font-size: 20px;
-    font-weight: 600;
-    line-height: 1.6;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
     text-align: center;
+  }
+  .order-type-badge {
+    font-size: 22px;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: 1px;
+    border: 3px solid #000;
+    padding: 4px 8px;
+    margin: 6px 0 4px;
+    text-transform: uppercase;
   }
   hr.divider {
     border: none;
@@ -137,10 +147,11 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
   const orgPhone   = org?.phone ?? "";
   const orgEmail   = org?.email ?? "";
 
-  const time = new Date(order.createdAt).toLocaleString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: true,
-  });
+  const d = new Date(order.createdAt);
+  const dateStr = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
+  const isDineIn = order.type === "TABLE";
+  const tableName = order.table?.name ?? "?";
 
   const itemRows = order.items
     .map(
@@ -179,21 +190,26 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
 <body>
   ${logoHtml(org?.logoUrl)}
   <div class="center hotel-name">${esc(hotelName)}</div>
-  ${tagline    ? `<div class="center tagline">${esc(tagline)}</div>` : ""}
-  ${metaLines  ? `<div class="meta" style="margin-top:3px;">${metaLines}</div>` : ""}
+  ${tagline   ? `<div class="center tagline">${esc(tagline)}</div>` : ""}
+  ${metaLines ? `<div class="meta" style="margin-top:3px;">${metaLines}</div>` : ""}
   <hr class="divider"/>
 
-  <div class="row">
-    <span class="bold">Rcpt# ${receiptNo(order.id, order.createdAt)}</span>
-    <span>${order.type === "TABLE" ? `Table: ${esc(order.table?.name ?? "?")}` : "Parcel"}</span>
+  <!-- Order type badge -->
+  <div class="order-type-badge">
+    ${isDineIn ? `🍽️ DINE-IN &nbsp;|&nbsp; Table: ${esc(tableName)}` : "📦 PARCEL / TAKEAWAY"}
   </div>
-  <div style="font-size:13px;margin-top:1px;">${time}</div>
+
+  <div class="row" style="margin-top:4px;">
+    <span class="bold">Rcpt# ${receiptNo(order.id, order.createdAt)}</span>
+    <span style="font-size:18px;">${timeStr}</span>
+  </div>
+  <div style="font-size:18px;margin-top:1px;">${dateStr}</div>
   <hr class="divider"/>
 
   <div><span class="bold">Customer:</span> ${esc(order.customerName)}</div>
-  ${order.phone            ? `<div><span class="bold">Phone:</span> ${esc(order.phone)}</div>` : ""}
-  ${order.deliveryAddress  ? `<div><span class="bold">Address:</span> ${esc(order.deliveryAddress)}</div>` : ""}
-  ${order.notes            ? `<div style="font-size:13px;font-style:italic;margin-top:2px;">Note: ${esc(order.notes)}</div>` : ""}
+  ${order.phone           ? `<div><span class="bold">Phone:</span> ${esc(order.phone)}</div>` : ""}
+  ${order.deliveryAddress ? `<div><span class="bold">Address:</span> ${esc(order.deliveryAddress)}</div>` : ""}
+  ${order.notes           ? `<div style="font-size:18px;font-style:italic;margin-top:2px;">Note: ${esc(order.notes)}</div>` : ""}
   <hr class="divider"/>
 
   <table>
