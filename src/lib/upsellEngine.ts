@@ -32,24 +32,34 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     emoji: "🥞",
   },
   "Biryani Zone": {
-    message: "🚀 20% OFF! Since you're having Biryani, try our Chinese too! Add",
-    itemNames: ["Chicken Hakka Noodles", "Veg Noodles", "Chicken Fried Rice", "Veg Fried Rice"],
-    emoji: "🍜",
+    message: "🍮 No biryani is complete without Odisha sweets! Save room for",
+    itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Pahala Rasagola", "Malpua", "Chhena Steam"],
+    emoji: "🍮",
   },
   "Dum Zone": {
-    message: "🚀 20% OFF! Complete the feast — add a Chinese side too!",
-    itemNames: ["Chicken Manchow", "Hot & Sour Chicken", "Veg Manchow"],
-    emoji: "🍲",
+    message: "🍮 Meal nearly done? End it sweetly with",
+    itemNames: ["Rasbali", "Chhenapoda (Jaggery)", "Malpua", "Pahala Rasagola"],
+    emoji: "🍮",
   },
   "Non-Veg Starters": {
     message: "Great starter! Pair it with a hot",
     itemNames: ["Hot & Sour Chicken", "Chicken Manchow", "Veg Manchow", "Hot & Sour Veg"],
     emoji: "🍗",
   },
+  "Odisha Special": {
+    message: "🍮 Authentic Odia meal calls for authentic Odia sweets! Try",
+    itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Chhena Steam", "Malpua", "Pahala Rasagola"],
+    emoji: "🍮",
+  },
   "Soups": {
     message: "Soup as a starter? Perfect! Follow it with",
     itemNames: ["Chicken Dum Biryani", "Mutton Biryani", "Paneer Biryani", "Veg Biryani"],
     emoji: "🍲",
+  },
+  "Thali Corner": {
+    message: "🍮 Thali without dessert? Not done! Complete it with",
+    itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Pahala Rasagola", "Malpua", "Chhena Steam"],
+    emoji: "🍮",
   },
   "Rolls & Momos": {
     message: "Rolls & Momos love company! Add some",
@@ -79,9 +89,9 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
 };
 
 const DEFAULT_SUGGESTION: UpsellSuggestion = {
-  message: "While you're at it, try our bestseller",
-  itemNames: ["Chhenapoda Sugar (per Kg)", "Pahala Rasagola", "Chicken Satay (6 pcs)", "Dahibara Aloodum"],
-  emoji: "⭐",
+  message: "🍮 Don't leave without trying Odisha's finest sweets —",
+  itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Pahala Rasagola", "Chhena Steam", "Malpua"],
+  emoji: "🍮",
 };
 
 /** Pick one random item from the suggestion list that is actually in the menu */
@@ -161,22 +171,27 @@ export const QUIRKY_DIALOGUES = [
 ];
 
 export const FOOD_TIPS = [
-  // Launch offer promos — show these more prominently
+  // ── Odisha Sweets — highest priority, shown most often ──
+  { text: "🥛 Rasbali — soft chhena patties soaked in thick condensed milk. Odisha's hidden gem! Must try 🌟", cta: "Rasbali" },
+  { text: "🍮 Chhenapoda — the ONLY Indian sweet baked in a fire pit. Odisha's gift to the world! Try it today 🔥", cta: "Chhenapoda (Sugar)" },
+  { text: "🍡 Pahala Rasagola — the original! Spongy, juicy, melt-in-mouth. Not the store-bought kind 😍", cta: "Pahala Rasagola" },
+  { text: "🍰 Chhena Steam — silky smooth, lightly sweet, melt-in-mouth. A hidden classic of Odisha! ✨", cta: "Chhena Steam" },
+  { text: "🥞 Malpua — pan-fried sweet pancake with a crispy golden edge & a soft sweet centre. 100% homemade 🍯", cta: "Malpua" },
+  { text: "🍮 \"Rasagola dekhi kie na kahiba?\" 🤤 Who can say no after seeing Pahala Rasagola? We dare you!", cta: "Pahala Rasagola" },
+  { text: "🥛 Rasbali + Chhenapoda = the ultimate Odia dessert duo. Both made fresh in-house every day! 🌟", cta: "Rasbali" },
+  { text: "🍮 Chhenapoda ke liye jagah hamesha hoti hai ❤️ — There is ALWAYS room for Chhenapoda!", cta: "Chhenapoda (Jaggery)" },
+  { text: "🏆 Top 3 must-try sweets: Rasbali · Chhenapoda · Pahala Rasagola — all available right now! 🎉", cta: "Rasbali" },
+  // ── Mains & dishes ──
   { text: "🚀 LAUNCH OFFER! Our Biryani & Chinese items are NOW 20% OFF — newly launched! Try today!", cta: "Chicken Dum Biryani" },
-  { text: "🍛 We just launched Biryani! Slow-cooked Mutton Dum Biryani is flying off tables — grab yours at 20% OFF!", cta: "Mutton Biryani" },
+  { text: "🍛 Slow-cooked Mutton Dum Biryani is flying off tables — grab yours at 20% OFF!", cta: "Mutton Biryani" },
   { text: "🍜 Craving Chinese? Chicken Hakka Noodles, Fried Rice, Manchurian — all 20% OFF right now! 🔥", cta: "Chicken Hakka Noodles" },
-  { text: "🍲 Warm your soul — Chicken Manchow Soup with a side of Biryani? Both at 20% OFF today!", cta: "Chicken Manchow" },
   { text: "🏆 Chef's pick: Chicken Satay — lightly spiced, perfectly grilled! Most ordered starter!", cta: "Chicken Satay (6 pcs)" },
-  { text: "🍮 Odisha's pride — Chhenapoda baked fresh every morning. The perfect sweet ending 🍯", cta: "Chhenapoda Sugar (per Kg)" },
   { text: "🌟 Soul of Odisha in one bowl — Dahibara Aloodum. Try something truly local today!", cta: "Dahibara Aloodum" },
-  { text: "💫 Authentic Pahala Rasagola — made with real Chhena, sweeter than any store-bought!", cta: "Pahala Rasagola" },
   { text: "🔥 Hot from the tandoor — Garlic Butter Naan pairs perfectly with any Biryani or gravy.", cta: "Garlic Butter Naan" },
   { text: "🥇 Table favourite: Cabbage Pakoda — crispy, golden, totally addictive! ⭐ Must Try!", cta: "Cabbage Pakoda" },
-  { text: "🎉 Feeding a group? Family Pack Biryani (Serves 3) for just ₹510 — best deal in town!", cta: "Chicken Family Pack Biryani (Serves 3)" },
-  { text: "😋 Traditional Odia Kakara Pitha — sweet, crispy, unforgettable. Try something new!", cta: "Kakara Pitha" },
+  { text: "🎉 Feeding a group? Family Pack Biryani (Serves 3) for just ₹510 — best deal in town!", cta: "Chicken Family Pack Dum Biryani (Serves 3)" },
   { text: "🍵 Nimki + Tea = the most satisfying combo ever. Add some to your order!", cta: "Nimki" },
   { text: "🦐 Fresh Bali Prawn — coastal Odia flavour, cooked with love. Only ₹230 for 6 pcs!", cta: "Bali Prawn (6 pcs)" },
-  { text: "🍡 Life is short — save room for dessert! Rasmalai, Chhena Steam, Gulab Jamun Roll 🍯", cta: "Rasmalai" },
   { text: "✨ 'Food tastes better when shared with loved ones.' — Why not order something extra today?", cta: null },
   { text: "🌿 Fresh every day · Sunflower & Mustard Oil only · No compromise on quality ❤️ — Kalinga Bites", cta: null },
 ];

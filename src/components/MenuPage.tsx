@@ -173,6 +173,13 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [dahipaniPrompt, setDahipaniPrompt] = useState(false);
   const dahipaniTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Odisha Sweets upsell — triggers after ordering a main course ─────────
+  // The 5 star sweets to promote
+  const ODIA_STAR_SWEETS = ["Rasbali", "Chhenapoda (Sugar)", "Chhenapoda (Jaggery)", "Pahala Rasagola", "Chhena Steam", "Malpua"];
+  const SWEET_TRIGGER_CATEGORIES = new Set(["Thali Corner", "Odisha Special", "Biryani Zone", "Dum Zone", "Non-Veg Starters", "Egg Zone", "Fried Rice & Noodles"]);
+  const [sweetPrompt, setSweetPrompt] = useState(false);
+  const sweetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Popular items (social proof) ──────────────────────────────────────────
   const [popularMap, setPopularMap] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -365,6 +372,26 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           setGhugniPrompt(true);
           if (ghugniTimeoutRef.current) clearTimeout(ghugniTimeoutRef.current);
           ghugniTimeoutRef.current = setTimeout(() => setGhugniPrompt(false), 12000);
+        }
+
+        // Odisha sweets upsell — show after adding any main course item
+        if (SWEET_TRIGGER_CATEGORIES.has(item.category) && item.category !== "Sweets") {
+          const hasSweetInCart = newCart.some((c) => {
+            const mi = menuItems.find((m) => m.id === c.menuItemId);
+            return mi?.category === "Sweets";
+          });
+          const availableStarSweets = menuItems.filter(
+            (m) => m.available && m.category === "Sweets" &&
+            ODIA_STAR_SWEETS.some((s) => m.name.toLowerCase().includes(s.toLowerCase()))
+          );
+          if (!hasSweetInCart && availableStarSweets.length > 0) {
+            // Delay slightly so spice picker doesn't clash
+            setTimeout(() => {
+              setSweetPrompt(true);
+              if (sweetTimeoutRef.current) clearTimeout(sweetTimeoutRef.current);
+              sweetTimeoutRef.current = setTimeout(() => setSweetPrompt(false), 20000);
+            }, 1200);
+          }
         }
 
         const cartIds = new Set(newCart.map((c) => c.menuItemId));
@@ -762,6 +789,85 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
                   No thanks
                 </button>
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Odisha Star Sweets upsell bottom sheet ── */}
+      {sweetPrompt && (() => {
+        const starSweets = menuItems.filter(
+          (m) => m.available && m.category === "Sweets" &&
+          ODIA_STAR_SWEETS.some((s) => m.name.toLowerCase().includes(s.toLowerCase()))
+        );
+        if (starSweets.length === 0) return null;
+        return (
+          <div className="fixed inset-0 z-40 flex items-end" onClick={() => setSweetPrompt(false)}>
+            <div className="absolute inset-0 bg-black/30" />
+            <div
+              className="relative w-full bg-white rounded-t-3xl shadow-2xl px-4 pt-5 pb-8 max-h-[75vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-1" />
+              <button onClick={() => setSweetPrompt(false)} className="absolute top-4 right-4 text-slate-400 text-xl font-bold">✕</button>
+
+              {/* Header */}
+              <div className="text-center mb-4">
+                <p className="text-2xl mb-1">🍮</p>
+                <p className="font-black text-slate-800 text-lg leading-tight">End with something sweet?</p>
+                <p className="text-slate-500 text-sm mt-0.5">
+                  Odisha&apos;s finest sweets — baked &amp; made fresh daily 🌟
+                </p>
+              </div>
+
+              {/* Sweet cards */}
+              <div className="flex flex-col gap-3">
+                {starSweets.map((sweet) => {
+                  const inCart = cart.some((c) => c.menuItemId === sweet.id);
+                  return (
+                    <div key={sweet.id}
+                      className={`flex items-center gap-3 rounded-2xl px-4 py-3 border-2 transition-all ${
+                        inCart ? "border-green-400 bg-green-50" : "border-amber-200 bg-amber-50"
+                      }`}>
+                      <span className="text-3xl flex-shrink-0">
+                        {sweet.name.toLowerCase().includes("chhenapoda") ? "🍮" :
+                         sweet.name.toLowerCase().includes("rasagola") ? "🍡" :
+                         sweet.name.toLowerCase().includes("rasbali") ? "🥛" :
+                         sweet.name.toLowerCase().includes("malpua") ? "🥞" :
+                         sweet.name.toLowerCase().includes("chhena") ? "🍰" : "🍯"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-800 text-sm leading-tight">{sweet.name}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {sweet.name.toLowerCase().includes("rasbali") && "Soft chhena patties soaked in rich condensed milk 🥛"}
+                          {sweet.name.toLowerCase().includes("chhenapoda") && "Baked caramelised cottage cheese — Odisha's signature! 🔥"}
+                          {sweet.name.toLowerCase().includes("rasagola") && "Authentic Pahala-style — spongy & lightly sweet 🌸"}
+                          {sweet.name.toLowerCase().includes("chhena steam") && "Steamed chhena — melt-in-mouth, light & delicate ✨"}
+                          {sweet.name.toLowerCase().includes("malpua") && "Pan-fried sweet pancake with a crispy golden edge 🍯"}
+                        </p>
+                        <p className="text-amber-600 font-black text-sm mt-1">
+                          {sweet.unit === "100g" ? `₹${sweet.price * 10}/kg` : `₹${sweet.price}`}
+                        </p>
+                      </div>
+                      {inCart ? (
+                        <span className="flex-shrink-0 text-green-600 font-black text-xs bg-green-100 px-3 py-2 rounded-xl">✓ Added</span>
+                      ) : (
+                        <button
+                          onClick={() => { addToCart(sweet); }}
+                          className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2 rounded-xl transition-colors whitespace-nowrap">
+                          {sweet.unit === "100g" ? "⚖️ Choose g" : `+ Add`}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setSweetPrompt(false)}
+                className="mt-5 w-full text-slate-400 text-xs py-1.5 text-center">
+                No thanks, skip dessert
+              </button>
             </div>
           </div>
         );
