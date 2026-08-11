@@ -7,7 +7,8 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
-  notes?: string;   // per-item spice/instruction note
+  notes?: string;      // per-item spice/instruction note (also stores weight e.g. "60g")
+  customGrams?: number; // for weight-based items: the total grams ordered
 }
 
 export interface MenuItemData {

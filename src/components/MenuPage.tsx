@@ -89,6 +89,49 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   // ── Customer search ───────────────────────────────────────────────────────
   const [customerSearch, setCustomerSearch] = useState("");
 
+  // ── Weight-based custom gram entry (for 100g-unit items like Chhenapoda) ──
+  const [weightPicker, setWeightPicker] = useState<{ item: MenuItemData } | null>(null);
+  const [weightGrams, setWeightGrams]   = useState("");
+
+  /** Returns true if this item needs a custom gram entry before adding */
+  function isWeightItem(item: MenuItemData) {
+    return item.unit === "100g";
+  }
+
+  function addWeightItemToCart() {
+    if (!weightPicker) return;
+    const grams = parseFloat(weightGrams);
+    if (!grams || grams <= 0) return;
+    const item = weightPicker.item;
+    // price per gram = item.price / 100  (item.price is per 100g)
+    const calculatedPrice = Math.ceil((grams / 100) * item.price);
+    setCart((prev) => {
+      const existing = prev.find((c) => c.menuItemId === item.id);
+      if (existing) {
+        // accumulate grams: parse existing note, add new grams
+        const prevGrams = existing.customGrams ?? 0;
+        const totalGrams = prevGrams + grams;
+        const newPrice = Math.ceil((totalGrams / 100) * item.price);
+        return prev.map((c) =>
+          c.menuItemId === item.id
+            ? { ...c, price: newPrice, quantity: 1, customGrams: totalGrams, notes: `${totalGrams}g` }
+            : c
+        );
+      }
+      return [...prev, {
+        menuItemId: item.id,
+        name: item.name,
+        price: calculatedPrice,
+        quantity: 1,
+        customGrams: grams,
+        notes: `${grams}g`,
+      }];
+    });
+    setWeightPicker(null);
+    setWeightGrams("");
+    openSpicePicker(item);
+  }
+
   // ── Per-item spice / instruction picker ──────────────────────────────────
   const SPICE_OPTIONS = [
     { label: "Less Spicy 🌶", value: "Less Spicy" },
@@ -282,6 +325,13 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
   function addToCart(item: MenuItemData) {
+    // Weight-based items need a gram entry first
+    if (isWeightItem(item)) {
+      setWeightPicker({ item });
+      setWeightGrams("");
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((c) => c.menuItemId === item.id);
       const newCart = existing
@@ -545,6 +595,72 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       )}
 
       {/* Ghugni upsell prompt */}
+      {/* ── Weight picker bottom sheet (100g-unit items like Chhenapoda) ── */}
+      {weightPicker && (
+        <div className="fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setWeightPicker(null)} />
+          <div className="relative w-full bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-8">
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4" />
+            <p className="font-black text-slate-800 text-base mb-0.5">
+              ⚖️ How many grams of <span className="text-amber-600">{weightPicker.item.name}</span>?
+            </p>
+            <p className="text-slate-500 text-xs mb-4">
+              ₹{weightPicker.item.price} per 100g
+              {weightGrams && parseFloat(weightGrams) > 0 && (
+                <span className="ml-2 font-bold text-amber-600 text-sm">
+                  → ₹{Math.ceil((parseFloat(weightGrams) / 100) * weightPicker.item.price)} for {weightGrams}g
+                </span>
+              )}
+            </p>
+
+            {/* Quick gram chips */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[50, 100, 150, 200, 250, 500].map((g) => (
+                <button key={g} onClick={() => setWeightGrams(String(g))}
+                  className={`px-4 py-2 rounded-full border-2 font-semibold text-sm transition-all ${
+                    weightGrams === String(g)
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-slate-200 text-slate-600 hover:border-amber-300"
+                  }`}>
+                  {g}g
+                  <span className="ml-1 text-xs text-slate-400">
+                    ₹{Math.ceil((g / 100) * weightPicker.item.price)}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom gram input */}
+            <div className="flex items-center gap-3 mb-5">
+              <input
+                type="number"
+                min="10"
+                max="2000"
+                value={weightGrams}
+                onChange={(e) => setWeightGrams(e.target.value)}
+                placeholder="Enter grams e.g. 60"
+                className="flex-1 border-2 border-slate-200 focus:border-amber-400 rounded-xl px-4 py-3 text-lg font-bold text-slate-800 bg-white focus:outline-none"
+                onKeyDown={(e) => { if (e.key === "Enter") addWeightItemToCart(); }}
+                autoFocus
+              />
+              <span className="text-slate-500 font-medium">grams</span>
+            </div>
+
+            <button
+              onClick={addWeightItemToCart}
+              disabled={!weightGrams || parseFloat(weightGrams) <= 0}
+              className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black py-4 rounded-2xl text-base transition-colors">
+              {weightGrams && parseFloat(weightGrams) > 0
+                ? `Add ${weightGrams}g — ₹${Math.ceil((parseFloat(weightGrams) / 100) * weightPicker.item.price)}`
+                : "Enter grams to add"}
+            </button>
+            <button onClick={() => setWeightPicker(null)} className="mt-2 w-full text-slate-400 text-xs py-1.5">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Spice / instruction picker bottom sheet ── */}
       {spicePicker && (
         <div className="fixed inset-0 z-50 flex items-end">

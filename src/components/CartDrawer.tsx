@@ -51,36 +51,58 @@ export default function CartDrawer({
           {cart.map((item) => {
             const menuItem = menuItems.find((m) => m.id === item.menuItemId);
             const unit = menuItem?.unit ?? null;
+            const isWeightBased = !!item.customGrams;
             return (
               <div key={item.menuItemId} className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-800 truncate">{item.name}</p>
-                  <p className="text-slate-500 text-sm">
-                    {item.price === 0 ? <span className="text-teal-600 font-semibold">FREE 🎉</span> : `₹${item.price.toFixed(0)}/${unit && unit !== "piece" ? unit : "pc"}`}
-                  </p>
-                  {item.notes && (
+                  {isWeightBased ? (
+                    <p className="text-amber-600 text-sm font-semibold">⚖️ {item.customGrams}g</p>
+                  ) : (
+                    <p className="text-slate-500 text-sm">
+                      {item.price === 0 ? <span className="text-teal-600 font-semibold">FREE 🎉</span> : `₹${item.price.toFixed(0)}/${unit && unit !== "piece" ? unit : "pc"}`}
+                    </p>
+                  )}
+                  {item.notes && !isWeightBased && (
                     <p className="text-xs text-amber-600 font-medium mt-0.5">🌶 {item.notes}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 ml-3">
-                  <button
-                    onClick={() => onRemove(item.menuItemId)}
-                    className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 font-bold flex items-center justify-center transition-colors text-sm"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-[32px] text-center font-semibold text-sm">
-                    {formatQty(item.quantity, unit)}
-                  </span>
-                  <button
-                    onClick={() => onAdd(item.menuItemId)}
-                    className="w-7 h-7 bg-amber-500 hover:bg-amber-600 rounded-full text-white font-bold flex items-center justify-center transition-colors text-sm"
-                  >
-                    +
-                  </button>
-                  <span className="w-16 text-right font-semibold text-slate-800">
-                    {item.price === 0 ? <span className="text-teal-600">FREE</span> : `₹${(item.price * item.quantity).toFixed(0)}`}
-                  </span>
+                  {isWeightBased ? (
+                    /* Weight item: just show the calculated price + remove button */
+                    <>
+                      <button
+                        onClick={() => onRemove(item.menuItemId)}
+                        className="w-7 h-7 bg-red-50 hover:bg-red-100 rounded-full text-red-500 font-bold flex items-center justify-center transition-colors text-sm"
+                      >
+                        ✕
+                      </button>
+                      <span className="w-16 text-right font-semibold text-slate-800">
+                        ₹{item.price.toFixed(0)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => onRemove(item.menuItemId)}
+                        className="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 font-bold flex items-center justify-center transition-colors text-sm"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[32px] text-center font-semibold text-sm">
+                        {formatQty(item.quantity, unit)}
+                      </span>
+                      <button
+                        onClick={() => onAdd(item.menuItemId)}
+                        className="w-7 h-7 bg-amber-500 hover:bg-amber-600 rounded-full text-white font-bold flex items-center justify-center transition-colors text-sm"
+                      >
+                        +
+                      </button>
+                      <span className="w-16 text-right font-semibold text-slate-800">
+                        {item.price === 0 ? <span className="text-teal-600">FREE</span> : `₹${(item.price * item.quantity).toFixed(0)}`}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             );

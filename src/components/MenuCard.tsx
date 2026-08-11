@@ -77,6 +77,9 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
                 {item.unit && item.unit !== "piece" && (
                   <span className="text-xs text-slate-400 ml-1">/{item.unit}</span>
                 )}
+                {item.unit === "100g" && (
+                  <p className="text-xs text-slate-400 mt-0.5">₹{(item.price / 100).toFixed(2)}/g · order any grams</p>
+                )}
               </>
             )}
           </div>
@@ -86,7 +89,15 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
               onClick={() => onAdd(item)}
               className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
             >
-              {item.price === 0 ? "Add FREE" : item.unit && item.unit !== "piece" ? `Add ${item.unit}` : "Add"}
+              {item.price === 0 ? "Add FREE" : item.unit === "100g" ? "⚖️ Choose Grams" : item.unit && item.unit !== "piece" ? `Add ${item.unit}` : "Add"}
+            </button>
+          ) : item.unit === "100g" ? (
+            /* Weight-based item in cart — show "Add More" to open picker again */
+            <button
+              onClick={() => onAdd(item)}
+              className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-full transition-colors"
+            >
+              ⚖️ Add More
             </button>
           ) : (
             <div className="flex items-center gap-1.5">
