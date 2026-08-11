@@ -25,6 +25,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
   const [tableId, setTableId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI">("CASH");
   const [parcelCharge, setParcelCharge] = useState<0 | 5 | 10>(0);
+  const [discountInput, setDiscountInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   // gram inputs for weight-based (100g unit) items
@@ -98,7 +99,8 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
   }
 
   const subtotal = cart.reduce((s, r) => s + (r.customPrice ?? r.item.price * r.qty), 0);
-  const total = subtotal + (orderType === "PARCEL" ? parcelCharge : 0);
+  const discountAmt = Math.min(Math.max(parseFloat(discountInput) || 0, 0), subtotal);
+  const total = subtotal - discountAmt + (orderType === "PARCEL" ? parcelCharge : 0);
   const itemCount = cart.length;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -118,6 +120,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
         notes: notes.trim() || undefined,
         paymentMethod,
         parcelCharge: orderType === "PARCEL" ? parcelCharge : 0,
+        discountAmount: discountAmt > 0 ? discountAmt : undefined,
         adminCreated: true,
         items: cart.map((r) => ({
           menuItemId: r.item.id,
@@ -285,6 +288,46 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
               </div>
+
+              {/* Discount */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Discount (₹) <span className="text-slate-400 font-normal">— optional</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={discountInput}
+                    onChange={(e) => setDiscountInput(e.target.value)}
+                    placeholder="0"
+                    className="w-32 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-400"
+                  />
+                  {/* Quick discount chips */}
+                  {[10, 20, 30, 50].map((pct) => {
+                    const amt = Math.round(subtotal * pct / 100);
+                    return (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => setDiscountInput(String(amt))}
+                        className="text-xs px-2.5 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 transition-colors font-medium"
+                      >
+                        {pct}% (₹{amt})
+                      </button>
+                    );
+                  })}
+                  {discountInput && (
+                    <button type="button" onClick={() => setDiscountInput("")}
+                      className="text-xs text-slate-400 hover:text-slate-600">✕</button>
+                  )}
+                </div>
+                {discountAmt > 0 && (
+                  <p className="text-xs text-green-600 font-semibold mt-1">
+                    ✓ ₹{discountAmt.toFixed(0)} discount applied — new total ₹{total.toFixed(0)}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Item search + list */}
@@ -406,17 +449,25 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                   <span className="text-slate-500 font-medium">₹{(r.customPrice ?? r.item.price * r.qty).toFixed(0)}</span>
                 </div>
               ))}
-              {orderType === "PARCEL" && parcelCharge > 0 && (
-                <>
-                  <div className="flex justify-between text-sm text-orange-600 pt-1 border-t border-slate-200">
-                    <span>Parcel charge</span>
-                    <span className="font-medium">₹{parcelCharge}</span>
-                  </div>
+              {(discountAmt > 0 || (orderType === "PARCEL" && parcelCharge > 0)) && (
+                <div className="pt-1 border-t border-slate-200 space-y-1">
+                  {discountAmt > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount</span>
+                      <span className="font-medium">-₹{discountAmt.toFixed(0)}</span>
+                    </div>
+                  )}
+                  {orderType === "PARCEL" && parcelCharge > 0 && (
+                    <div className="flex justify-between text-sm text-orange-600">
+                      <span>Parcel charge</span>
+                      <span className="font-medium">+₹{parcelCharge}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm font-bold text-slate-800 pt-1 border-t border-slate-200">
                     <span>Total</span>
                     <span>₹{total.toFixed(0)}</span>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
