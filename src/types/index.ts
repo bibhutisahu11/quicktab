@@ -80,6 +80,7 @@ export interface AppliedDiscount {
 
 export interface OrderData {
   id: string;
+  orgId: string;
   type: OrderType;
   tableId: string | null;
   table: TableData | null;

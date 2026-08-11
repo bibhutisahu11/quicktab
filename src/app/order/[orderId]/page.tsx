@@ -4,6 +4,14 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { OrderData, OrderStatus } from "@/types";
 
+const EMOJI_RATINGS = [
+  { value: 1, emoji: "😞", label: "Poor" },
+  { value: 2, emoji: "😕", label: "Bad" },
+  { value: 3, emoji: "😐", label: "Okay" },
+  { value: 4, emoji: "😊", label: "Good" },
+  { value: 5, emoji: "🤩", label: "Excellent!" },
+];
+
 const STATUS_CONFIG: Record<
   OrderStatus,
   { label: string; icon: string; color: string; step: number }
@@ -41,6 +49,15 @@ export default function OrderStatusPage() {
   // Auto-logout countdown (starts when order becomes DONE)
   const [logoutCountdown, setLogoutCountdown] = useState<number | null>(null);
   const doneTimeRef = useRef<number | null>(null);
+
+  // Feedback
+  const FEEDBACK_KEY = `feedback_submitted_${orderId}`;
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [fbRating, setFbRating]         = useState(0);
+  const [fbExperience, setFbExperience] = useState("");
+  const [fbImprovement, setFbImprovement] = useState("");
+  const [fbSubmitting, setFbSubmitting] = useState(false);
+  const [fbDone, setFbDone]             = useState(false);
 
   async function fetchOrder() {
     try {
@@ -81,6 +98,39 @@ export default function OrderStatusPage() {
       }
     } finally {
       setNudging(false);
+    }
+  }
+
+  // Check if feedback already submitted (persisted in localStorage)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(FEEDBACK_KEY) === "1") setFeedbackSubmitted(true);
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function submitFeedback() {
+    if (!fbRating || !order) return;
+    setFbSubmitting(true);
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId: order.orgId,
+          orderId: order.id,
+          rating: fbRating,
+          experience: fbExperience,
+          improvement: fbImprovement,
+          customerName: order.customerName,
+          phone: order.phone,
+        }),
+      });
+      try { localStorage.setItem(FEEDBACK_KEY, "1"); } catch { /* ignore */ }
+      setFeedbackSubmitted(true);
+      setFbDone(true);
+    } finally {
+      setFbSubmitting(false);
     }
   }
 
@@ -315,6 +365,69 @@ export default function OrderStatusPage() {
           <p className="text-slate-800">{order.customerName}</p>
           {order.phone && <p className="text-slate-500 text-sm">{order.phone}</p>}
         </div>
+
+        {/* ── Feedback card — shown once order is DONE ── */}
+        {order.status === "DONE" && !feedbackSubmitted && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            {fbDone ? (
+              <div className="text-center py-4">
+                <div className="text-5xl mb-3">🙏</div>
+                <p className="font-black text-slate-800 text-lg">Thank you for your feedback!</p>
+                <p className="text-slate-500 text-sm mt-1">We&apos;ll use it to make your next visit even better.</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="font-black text-slate-800 text-base mb-1">How was your experience? ⭐</h3>
+                <p className="text-slate-500 text-xs mb-4">Your feedback helps us serve you better!</p>
+
+                {/* Emoji rating */}
+                <div className="flex justify-between mb-5">
+                  {EMOJI_RATINGS.map((r) => (
+                    <button key={r.value} onClick={() => setFbRating(r.value)}
+                      className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all ${
+                        fbRating === r.value ? "bg-amber-50 scale-110" : "opacity-60 hover:opacity-100"
+                      }`}>
+                      <span className="text-3xl">{r.emoji}</span>
+                      <span className={`text-xs font-semibold ${fbRating === r.value ? "text-amber-600" : "text-slate-400"}`}>
+                        {r.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      How was your ordering experience?
+                    </label>
+                    <textarea rows={2} value={fbExperience} onChange={(e) => setFbExperience(e.target.value)}
+                      placeholder="Fast, easy, smooth… or anything else!"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 bg-white placeholder-slate-400 resize-none focus:outline-none focus:border-amber-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      How can we improve?
+                    </label>
+                    <textarea rows={2} value={fbImprovement} onChange={(e) => setFbImprovement(e.target.value)}
+                      placeholder="Faster service, better options, easier ordering…"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 bg-white placeholder-slate-400 resize-none focus:outline-none focus:border-amber-400" />
+                  </div>
+                </div>
+
+                <button
+                  onClick={submitFeedback}
+                  disabled={!fbRating || fbSubmitting}
+                  className="mt-4 w-full bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-3 rounded-xl transition-colors">
+                  {fbSubmitting ? "Submitting…" : "Submit Feedback"}
+                </button>
+                <button onClick={() => setFeedbackSubmitted(true)}
+                  className="mt-2 w-full text-slate-400 text-xs py-1.5">
+                  Skip for now
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Auto-logout countdown */}
         {logoutCountdown !== null && order?.status === "DONE" && (

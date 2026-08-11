@@ -72,6 +72,7 @@ model Organization {
   inventory   InventoryItem[]
   expenses    Expense[]
   discounts   Discount[]
+  feedbacks   Feedback[]
 
   @@map("organizations")
 }
@@ -212,6 +213,21 @@ model Discount {
 enum OrderType {
   TABLE
   PARCEL
+}
+
+model Feedback {
+  id           String       @id @default(cuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orderId      String?      // optional link to the order
+  rating       Int          // 1–5
+  experience   String?      // "How was your ordering experience?"
+  improvement  String?      // "How can we improve?"
+  customerName String?
+  phone        String?
+  createdAt    DateTime     @default(now())
+
+  @@map("feedbacks")
 }
 
 enum OrderStatus {
