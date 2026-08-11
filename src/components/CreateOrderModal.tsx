@@ -123,9 +123,9 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative ml-auto w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full overflow-hidden">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col my-auto" style={{ maxHeight: "calc(100vh - 2rem)", minHeight: 0 }}>
         {/* Header */}
         <div className="bg-amber-500 text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div>
@@ -135,7 +135,7 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
           <button onClick={onClose} className="w-8 h-8 bg-amber-400/50 hover:bg-amber-400 rounded-full flex items-center justify-center text-white font-bold transition-colors">✕</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           <form id="create-order-form" onSubmit={handleSubmit}>
             {/* Customer + Type */}
             <div className="px-6 py-4 border-b border-slate-100 space-y-3">
