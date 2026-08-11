@@ -12,14 +12,14 @@ export interface UpsellSuggestion {
 // Category → what to suggest (item names or category names)
 const PAIRINGS: Record<string, UpsellSuggestion> = {
   "Beverages": {
-    message: "Tea alone? That's just half the story! 😄 Grab a",
-    itemNames: ["Nimki", "Samosa (Bharta)", "Samosa (Cut Aloo)", "Cabbage Pakoda", "Aloo Pakodi"],
-    emoji: "🍵",
+    message: "Tea alone? That's just half the story! 😄 Try our hot Momos —",
+    itemNames: ["Chicken Momos (Steamed, 10 pcs)", "Veg Momos (Steamed, 10 pcs)", "Nimki", "Cabbage Pakoda", "Aloo Pakodi"],
+    emoji: "🥟",
   },
   "Evening Snacks": {
-    message: "Snacks are better with a drink! How about adding",
-    itemNames: ["Lime Soda", "Fresh Lime Water", "Soft Drink (Small)"],
-    emoji: "🥤",
+    message: "🥟 Hot Momos just dropped! 10 pcs, fresh steamed — add",
+    itemNames: ["Chicken Momos (Steamed, 10 pcs)", "Veg Momos (Steamed, 10 pcs)", "Lime Soda", "Soft Drink (Small)"],
+    emoji: "🥟",
   },
   "Breakfast Delights": {
     message: "Make it a complete breakfast! Pair with",
@@ -51,19 +51,19 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Chhena Steam", "Malpua", "Pahala Rasagola"],
     emoji: "🍮",
   },
-  "Soups": {
-    message: "Soup as a starter? Perfect! Follow it with",
-    itemNames: ["Chicken Dum Biryani", "Mutton Biryani", "Paneer Biryani", "Veg Biryani"],
-    emoji: "🍲",
-  },
   "Thali Corner": {
     message: "🍮 Thali without dessert? Not done! Complete it with",
     itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Pahala Rasagola", "Malpua", "Chhena Steam"],
     emoji: "🍮",
   },
   "Rolls & Momos": {
-    message: "Rolls & Momos love company! Add some",
-    itemNames: ["Chicken Manchow", "Hot & Sour Veg", "Lime Soda", "Soft Drink (Small)"],
+    message: "🥟 Momos + Soup = best combo! How about a hot",
+    itemNames: ["Chicken Manchow", "Hot & Sour Chicken", "Veg Manchow", "Lime Soda"],
+    emoji: "🍲",
+  },
+  "Soups": {
+    message: "🥟 Soup + Momos = perfect pair! Add our fresh steamed",
+    itemNames: ["Chicken Momos (Steamed, 10 pcs)", "Veg Momos (Steamed, 10 pcs)", "Chicken Dum Biryani", "Veg Biryani"],
     emoji: "🥟",
   },
   "Fried Rice & Noodles": {
@@ -181,6 +181,10 @@ export const FOOD_TIPS = [
   { text: "🥛 Rasbali + Chhenapoda = the ultimate Odia dessert duo. Both made fresh in-house every day! 🌟", cta: "Rasbali" },
   { text: "🍮 Chhenapoda ke liye jagah hamesha hoti hai ❤️ — There is ALWAYS room for Chhenapoda!", cta: "Chhenapoda (Jaggery)" },
   { text: "🏆 Top 3 must-try sweets: Rasbali · Chhenapoda · Pahala Rasagola — all available right now! 🎉", cta: "Rasbali" },
+  // ── Momos promo ──
+  { text: "🥟 HOT & FRESH! Chicken Momos — 10 juicy steamed dumplings for just ₹100! Add to your order 🔥", cta: "Chicken Momos (Steamed, 10 pcs)" },
+  { text: "🥟 Veg Momos — 10 pcs, soft steamed, served with spicy chutney. Only ₹70! Perfect snack 😍", cta: "Veg Momos (Steamed, 10 pcs)" },
+  { text: "🥟 Momos + Hot & Sour Soup = best combo ever! Both available now — try them together!", cta: "Chicken Momos (Steamed, 10 pcs)" },
   // ── Mains & dishes ──
   { text: "🚀 LAUNCH OFFER! Our Biryani & Chinese items are NOW 20% OFF — newly launched! Try today!", cta: "Chicken Dum Biryani" },
   { text: "🍛 Slow-cooked Mutton Dum Biryani is flying off tables — grab yours at 20% OFF!", cta: "Mutton Biryani" },
