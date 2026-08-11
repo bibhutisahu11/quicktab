@@ -5,7 +5,7 @@ import { MenuItemData } from "@/types";
 
 interface Table { id: string; name: string; }
 
-interface CartRow { item: MenuItemData; qty: number; }
+interface CartRow { item: MenuItemData; qty: number; customGrams?: number; customPrice?: number; }
 
 interface Props {
   orgSlug: string;
@@ -27,6 +27,8 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
   const [parcelCharge, setParcelCharge] = useState<0 | 5 | 10>(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // gram inputs for weight-based (100g unit) items
+  const [gramInputs, setGramInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch("/api/menu")
@@ -76,9 +78,28 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
     return cart.find((r) => r.item.id === itemId)?.qty ?? 0;
   }
 
-  const subtotal = cart.reduce((s, r) => s + r.item.price * r.qty, 0);
+  function addWeightItem(item: MenuItemData) {
+    const grams = parseFloat(gramInputs[item.id] ?? "");
+    if (!grams || grams <= 0) return;
+    const pricePerKg = item.price * 10; // item.price stored as per-100g
+    const calculatedPrice = Math.ceil((grams / 1000) * pricePerKg);
+    setCart((prev) => {
+      const existing = prev.find((r) => r.item.id === item.id);
+      if (existing) {
+        const totalGrams = (existing.customGrams ?? 0) + grams;
+        const newPrice = Math.ceil((totalGrams / 1000) * pricePerKg);
+        return prev.map((r) => r.item.id === item.id
+          ? { ...r, customGrams: totalGrams, customPrice: newPrice }
+          : r);
+      }
+      return [...prev, { item, qty: 1, customGrams: grams, customPrice: calculatedPrice }];
+    });
+    setGramInputs((prev) => ({ ...prev, [item.id]: "" }));
+  }
+
+  const subtotal = cart.reduce((s, r) => s + (r.customPrice ?? r.item.price * r.qty), 0);
   const total = subtotal + (orderType === "PARCEL" ? parcelCharge : 0);
-  const itemCount = cart.reduce((s, r) => s + r.qty, 0);
+  const itemCount = cart.length;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,7 +119,11 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
         paymentMethod,
         parcelCharge: orderType === "PARCEL" ? parcelCharge : 0,
         adminCreated: true,
-        items: cart.map((r) => ({ menuItemId: r.item.id, quantity: r.qty })),
+        items: cart.map((r) => ({
+          menuItemId: r.item.id,
+          quantity: r.qty,
+          ...(r.customGrams ? { customGrams: r.customGrams, notes: `${r.customGrams}g` } : {}),
+        })),
       };
 
       const res = await fetch("/api/orders", {
@@ -281,6 +306,53 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
                   <div className="space-y-1">
                     {items.map((item) => {
                       const qty = getQty(item.id);
+                      const isWeightBased = item.unit === "100g";
+                      const cartRow = cart.find((r) => r.item.id === item.id);
+                      const gramVal = gramInputs[item.id] ?? "";
+                      const gramNum = parseFloat(gramVal);
+                      const previewPrice = gramNum > 0 ? Math.ceil((gramNum / 1000) * (item.price * 10)) : 0;
+
+                      if (isWeightBased) {
+                        return (
+                          <div key={item.id} className={`rounded-xl border px-3 py-2.5 transition-colors ${cartRow ? "bg-amber-50 border-amber-300" : "bg-white border-slate-100"}`}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{item.name}</p>
+                                <p className="text-xs text-slate-500">₹{item.price * 10}/kg</p>
+                              </div>
+                              {cartRow && (
+                                <div className="text-right">
+                                  <p className="text-xs font-bold text-amber-600">⚖️ {cartRow.customGrams}g</p>
+                                  <p className="text-xs text-slate-500">₹{cartRow.customPrice}</p>
+                                  <button type="button" onClick={() => setCart((p) => p.filter((r) => r.item.id !== item.id))}
+                                    className="text-xs text-red-400 hover:text-red-600 mt-0.5">Remove</button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="10"
+                                max="10000"
+                                value={gramVal}
+                                onChange={(e) => setGramInputs((p) => ({ ...p, [item.id]: e.target.value }))}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addWeightItem(item); } }}
+                                placeholder="Enter grams e.g. 1350"
+                                className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder-slate-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => addWeightItem(item)}
+                                disabled={!gramNum || gramNum <= 0}
+                                className="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                              >
+                                {gramNum > 0 ? `Add ${gramVal}g = ₹${previewPrice}` : "⚖️ Add"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div key={item.id} className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-colors ${qty > 0 ? "bg-amber-50 border-amber-300" : "bg-white border-slate-100 hover:border-slate-200"}`}>
                           <div className="flex-1 min-w-0">
@@ -328,8 +400,10 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
             <div className="bg-slate-50 rounded-xl px-4 py-3 space-y-1 max-h-32 overflow-y-auto">
               {cart.map((r) => (
                 <div key={r.item.id} className="flex justify-between text-sm">
-                  <span className="text-slate-700">{r.item.name} × {r.qty}</span>
-                  <span className="text-slate-500 font-medium">₹{(r.item.price * r.qty).toFixed(0)}</span>
+                  <span className="text-slate-700">
+                    {r.item.name} {r.customGrams ? `⚖️ ${r.customGrams}g` : `× ${r.qty}`}
+                  </span>
+                  <span className="text-slate-500 font-medium">₹{(r.customPrice ?? r.item.price * r.qty).toFixed(0)}</span>
                 </div>
               ))}
               {orderType === "PARCEL" && parcelCharge > 0 && (
