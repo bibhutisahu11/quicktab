@@ -342,14 +342,20 @@ export default function OrderStatusPage() {
           </div>
 
           {order.discountAmount > 0 && (
-            <div className="flex justify-between text-sm text-green-700 font-medium">
-              <span>🏷️ Discount Applied</span>
-              <span>−₹{order.discountAmount.toFixed(2)}</span>
+            <div className="my-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🎉</span>
+                <div>
+                  <p className="text-green-700 font-black text-sm">Discount Applied!</p>
+                  <p className="text-green-600 text-xs">You saved ₹{order.discountAmount.toFixed(0)} on this order</p>
+                </div>
+              </div>
+              <span className="text-green-700 font-black text-base">−₹{order.discountAmount.toFixed(0)}</span>
             </div>
           )}
           <div className="border-t border-slate-100 pt-3 flex justify-between font-bold">
             <span className="text-slate-700">Total</span>
-            <span className={order.discountAmount > 0 ? "text-green-600 text-lg" : "text-amber-600 text-lg"}>₹{order.total.toFixed(2)}</span>
+            <span className={order.discountAmount > 0 ? "text-green-600 text-lg" : "text-amber-600 text-lg"}>₹{order.total.toFixed(0)}</span>
           </div>
 
           {order.notes && (
