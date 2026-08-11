@@ -103,15 +103,16 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     const grams = parseFloat(weightGrams);
     if (!grams || grams <= 0) return;
     const item = weightPicker.item;
-    // price per gram = item.price / 100  (item.price is per 100g)
-    const calculatedPrice = Math.ceil((grams / 100) * item.price);
+    // item.price is stored per 100g → rate per kg = item.price × 10
+    // price for N grams = (N / 1000) × (item.price × 10) = (N / 100) × item.price
+    const pricePerKg = item.price * 10;
+    const calculatedPrice = Math.ceil((grams / 1000) * pricePerKg);
     setCart((prev) => {
       const existing = prev.find((c) => c.menuItemId === item.id);
       if (existing) {
-        // accumulate grams: parse existing note, add new grams
         const prevGrams = existing.customGrams ?? 0;
         const totalGrams = prevGrams + grams;
-        const newPrice = Math.ceil((totalGrams / 100) * item.price);
+        const newPrice = Math.ceil((totalGrams / 1000) * pricePerKg);
         return prev.map((c) =>
           c.menuItemId === item.id
             ? { ...c, price: newPrice, quantity: 1, customGrams: totalGrams, notes: `${totalGrams}g` }
@@ -604,18 +605,20 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
             <p className="font-black text-slate-800 text-base mb-0.5">
               ⚖️ How many grams of <span className="text-amber-600">{weightPicker.item.name}</span>?
             </p>
-            <p className="text-slate-500 text-xs mb-4">
-              ₹{weightPicker.item.price} per 100g
-              {weightGrams && parseFloat(weightGrams) > 0 && (
-                <span className="ml-2 font-bold text-amber-600 text-sm">
-                  → ₹{Math.ceil((parseFloat(weightGrams) / 100) * weightPicker.item.price)} for {weightGrams}g
-                </span>
-              )}
+            {/* Rate display: stored as price-per-100g, show as per-kg for clarity */}
+            <p className="text-slate-500 text-xs mb-1">
+              Rate: <span className="font-semibold text-slate-700">₹{weightPicker.item.price * 10}/kg</span>
             </p>
+            {weightGrams && parseFloat(weightGrams) > 0 && (
+              <p className="text-sm font-bold text-amber-600 mb-4">
+                {weightGrams}g × ₹{weightPicker.item.price * 10}/kg = ₹{Math.ceil((parseFloat(weightGrams) / 1000) * (weightPicker.item.price * 10))}
+              </p>
+            )}
+            {(!weightGrams || parseFloat(weightGrams) <= 0) && <div className="mb-4" />}
 
             {/* Quick gram chips */}
             <div className="flex flex-wrap gap-2 mb-4">
-              {[50, 100, 150, 200, 250, 500].map((g) => (
+              {[50, 80, 100, 150, 200, 250, 500].map((g) => (
                 <button key={g} onClick={() => setWeightGrams(String(g))}
                   className={`px-4 py-2 rounded-full border-2 font-semibold text-sm transition-all ${
                     weightGrams === String(g)
@@ -624,7 +627,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
                   }`}>
                   {g}g
                   <span className="ml-1 text-xs text-slate-400">
-                    ₹{Math.ceil((g / 100) * weightPicker.item.price)}
+                    ₹{Math.ceil((g / 1000) * (weightPicker.item.price * 10))}
                   </span>
                 </button>
               ))}
@@ -635,10 +638,10 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               <input
                 type="number"
                 min="10"
-                max="2000"
+                max="5000"
                 value={weightGrams}
                 onChange={(e) => setWeightGrams(e.target.value)}
-                placeholder="Enter grams e.g. 60"
+                placeholder="Enter grams e.g. 80"
                 className="flex-1 border-2 border-slate-200 focus:border-amber-400 rounded-xl px-4 py-3 text-lg font-bold text-slate-800 bg-white focus:outline-none"
                 onKeyDown={(e) => { if (e.key === "Enter") addWeightItemToCart(); }}
                 autoFocus
@@ -651,7 +654,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               disabled={!weightGrams || parseFloat(weightGrams) <= 0}
               className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black py-4 rounded-2xl text-base transition-colors">
               {weightGrams && parseFloat(weightGrams) > 0
-                ? `Add ${weightGrams}g — ₹${Math.ceil((parseFloat(weightGrams) / 100) * weightPicker.item.price)}`
+                ? `Add ${weightGrams}g — ₹${Math.ceil((parseFloat(weightGrams) / 1000) * (weightPicker.item.price * 10))}`
                 : "Enter grams to add"}
             </button>
             <button onClick={() => setWeightPicker(null)} className="mt-2 w-full text-slate-400 text-xs py-1.5">

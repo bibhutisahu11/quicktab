@@ -73,12 +73,18 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
               <span className="text-base font-bold text-teal-600">FREE 🎉</span>
             ) : (
               <>
-                <span className="text-base font-bold text-amber-600">₹{item.price.toFixed(0)}</span>
-                {item.unit && item.unit !== "piece" && (
-                  <span className="text-xs text-slate-400 ml-1">/{item.unit}</span>
-                )}
-                {item.unit === "100g" && (
-                  <p className="text-xs text-slate-400 mt-0.5">₹{(item.price / 100).toFixed(2)}/g · order any grams</p>
+                {item.unit === "100g" ? (
+                  <>
+                    <span className="text-base font-bold text-amber-600">₹{(item.price * 10).toFixed(0)}/kg</span>
+                    <p className="text-xs text-slate-400 mt-0.5">Enter any grams → price auto-calculated</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-base font-bold text-amber-600">₹{item.price.toFixed(0)}</span>
+                    {item.unit && item.unit !== "piece" && (
+                      <span className="text-xs text-slate-400 ml-1">/{item.unit}</span>
+                    )}
+                  </>
                 )}
               </>
             )}
