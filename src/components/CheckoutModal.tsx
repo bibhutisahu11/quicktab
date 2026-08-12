@@ -510,22 +510,27 @@ export default function CheckoutModal({
                     <span>₹{subtotal.toFixed(2)}</span>
                   </div>
                   {appliedDiscounts.map(({ discount, saving }) => (
-                    <div key={discount.id} className="flex justify-between text-sm text-green-700 font-medium">
-                      <span className="flex items-center gap-1">
-                        🏷️ {discount.name}
+                    <div key={discount.id} className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex justify-between text-sm text-green-700 font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        🎉 {discount.name}
                         {discount.daysOfWeek.length > 0 && (
-                          <span className="text-xs text-green-500">({discount.daysOfWeek.map((d) => DAY_NAMES[d]).join(", ")})</span>
+                          <span className="text-xs text-green-500">({discount.daysOfWeek.map((d: number) => DAY_NAMES[d]).join(", ")})</span>
                         )}
                       </span>
-                      <span>−₹{saving.toFixed(2)}</span>
+                      <span className="font-black">−₹{saving.toFixed(0)}</span>
                     </div>
                   ))}
+                  {discountAmount > 0 && (
+                    <p className="text-center text-xs text-green-600 font-bold">
+                      🎉 You&apos;re saving ₹{discountAmount.toFixed(0)} on this order!
+                    </p>
+                  )}
                   {parcelCharge > 0 && (
                     <div className="flex justify-between text-sm text-orange-700 font-medium">
                       <span className="flex items-center gap-1">
                         📦 Parcel Charge
                         <span className="text-xs text-orange-500">
-                          ({parcelCharge === 5 ? "Snacks" : "Food items"})
+                          (not discounted)
                         </span>
                       </span>
                       <span>+₹{parcelCharge.toFixed(0)}</span>
@@ -537,9 +542,7 @@ export default function CheckoutModal({
                 <div className="border-t border-slate-200 pt-2 flex justify-between text-sm text-orange-700 font-medium">
                   <span className="flex items-center gap-1">
                     📦 Parcel Charge
-                    <span className="text-xs text-orange-500">
-                      ({parcelCharge === 5 ? "Snacks" : "Food items"})
-                    </span>
+                    <span className="text-xs text-orange-500">(not discounted)</span>
                   </span>
                   <span>+₹{parcelCharge.toFixed(0)}</span>
                 </div>

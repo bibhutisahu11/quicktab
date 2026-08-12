@@ -134,7 +134,8 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const appliedDiscount = Math.min(Number(discountAmount) || 0, subtotal);
+    // Discount applies to food subtotal only — parcel charge is always full price
+    const appliedDiscount = Math.min(Math.max(Number(discountAmount) || 0, 0), subtotal);
     const appliedParcelCharge = Math.max(0, Number(parcelCharge) || 0);
     const total = Math.max(0, subtotal - appliedDiscount + appliedParcelCharge);
 
