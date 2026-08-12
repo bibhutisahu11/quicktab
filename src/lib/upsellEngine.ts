@@ -67,9 +67,9 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     emoji: "🥟",
   },
   "Fried Rice & Noodles": {
-    message: "🚀 20% OFF! Having Chinese? Add some Biryani to share!",
-    itemNames: ["Chicken Dum Biryani", "Paneer Biryani", "Veg Biryani"],
-    emoji: "🍛",
+    message: "🍮 Chinese done! End on a sweet note with",
+    itemNames: ["Rasabali", "Pahala Rasagola", "Chhenapoda (Sugar)", "Malpua"],
+    emoji: "🍮",
   },
   "Breads": {
     message: "Breads go best with a rich gravy! How about",
@@ -186,9 +186,9 @@ export const FOOD_TIPS = [
   { text: "🥟 Veg Momos — 10 pcs, soft steamed, served with spicy chutney. Only ₹70! Perfect snack 😍", cta: "Veg Momos (Steamed, 10 pcs)" },
   { text: "🥟 Momos + Hot & Sour Soup = best combo ever! Both available now — try them together!", cta: "Chicken Momos (Steamed, 10 pcs)" },
   // ── Mains & dishes ──
-  { text: "🚀 LAUNCH OFFER! Our Biryani & Chinese items are NOW 20% OFF — newly launched! Try today!", cta: "Chicken Dum Biryani" },
-  { text: "🍛 Slow-cooked Mutton Dum Biryani is flying off tables — grab yours at 20% OFF!", cta: "Mutton Biryani" },
-  { text: "🍜 Craving Chinese? Chicken Hakka Noodles, Fried Rice, Manchurian — all 20% OFF right now! 🔥", cta: "Chicken Hakka Noodles" },
+  { text: "🚀 LAUNCH OFFER! Chinese items — Fried Rice & Noodles — 10% OFF auto-applied at checkout! 🔥", cta: "Chicken Fried Rice" },
+  { text: "🍜 Craving Chinese? Chicken Hakka Noodles, Fried Rice, Schezwan — 10% OFF auto-applied! 😍", cta: "Chicken Hakka Noodles" },
+  { text: "🍛 Slow-cooked Mutton Dum Biryani is flying off tables — try it today!", cta: "Mutton Biryani" },
   { text: "🏆 Chef's pick: Chicken Satay — lightly spiced, perfectly grilled! Most ordered starter!", cta: "Chicken Satay (6 pcs)" },
   { text: "🌟 Soul of Odisha in one bowl — Dahibara Aloodum. Try something truly local today!", cta: "Dahibara Aloodum" },
   { text: "🔥 Hot from the tandoor — Garlic Butter Naan pairs perfectly with any Biryani or gravy.", cta: "Garlic Butter Naan" },
