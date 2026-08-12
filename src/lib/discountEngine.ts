@@ -38,7 +38,7 @@ export function applyDiscounts(
           eligibleSubtotal += item.price * item.quantity;
         }
       }
-    } else if (d.scope === "CATEGORIES") {
+    } else if (d.scope === "CATEGORIES" || d.scope === "CATEGORY") {
       for (const item of cart) {
         const cat = categoryMap?.[item.menuItemId];
         if (cat && d.categories.includes(cat)) {

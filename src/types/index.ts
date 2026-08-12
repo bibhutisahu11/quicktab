@@ -55,7 +55,7 @@ export interface OrderItemData {
 }
 
 export type DiscountType = "PERCENTAGE" | "FLAT";
-export type DiscountScope = "ALL" | "DAYS" | "ITEMS" | "CATEGORIES";
+export type DiscountScope = "ALL" | "DAYS" | "ITEMS" | "CATEGORIES" | "CATEGORY";
 
 export interface DiscountData {
   id: string;
