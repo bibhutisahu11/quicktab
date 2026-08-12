@@ -9,6 +9,7 @@ const SCOPE_LABELS: Record<DiscountScope, string> = {
   DAYS:       "Specific Days Only",
   ITEMS:      "Specific Menu Items",
   CATEGORIES: "Specific Categories",
+  CATEGORY:   "Specific Categories",
 };
 
 const EMPTY_FORM = {
