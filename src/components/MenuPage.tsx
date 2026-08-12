@@ -168,10 +168,12 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const [ghugniPrompt, setGhugniPrompt] = useState(false);
   const ghugniTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Dahipani is FREE with Dahibara Aloodum
+  // Dahipani is FREE — only allowed when Dahibara Aloodum is in cart
   const DAHIPANI_TRIGGER_KEYWORDS = ["dahibara", "dahi bara", "dahi-bara", "aloodum", "aloo dum"];
   const [dahipaniPrompt, setDahipaniPrompt] = useState(false);
   const dahipaniTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dahipaniError, setDahipaniError] = useState(false);
+  const dahipaniErrRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Odisha Sweets upsell — triggers after ordering a main course ─────────
   // The 5 star sweets to promote
@@ -333,6 +335,23 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
   function addToCart(item: MenuItemData) {
+    // Dahipani is FREE but only allowed when Dahibara Aloodum is in the cart
+    const isDahipani = item.name.toLowerCase().includes("dahipani");
+    if (isDahipani) {
+      const hasAloodum = cart.some((c) =>
+        c.name.toLowerCase().includes("dahibara") ||
+        c.name.toLowerCase().includes("dahi bara") ||
+        c.name.toLowerCase().includes("aloodum") ||
+        c.name.toLowerCase().includes("aloo dum")
+      );
+      if (!hasAloodum) {
+        if (dahipaniErrRef.current) clearTimeout(dahipaniErrRef.current);
+        setDahipaniError(true);
+        dahipaniErrRef.current = setTimeout(() => setDahipaniError(false), 4000);
+        return;
+      }
+    }
+
     // Weight-based items need a gram entry first
     if (isWeightItem(item)) {
       setWeightPicker({ item });
@@ -732,6 +751,20 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               className="w-full py-3 text-slate-500 text-sm font-medium">
               Skip — no preference
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Dahipani error — blocked unless Dahibara Aloodum is in cart */}
+      {dahipaniError && (
+        <div className="fixed bottom-24 left-0 right-0 z-50 px-4">
+          <div className="max-w-md mx-auto bg-red-600 text-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3">
+            <span className="text-2xl">🚫</span>
+            <div className="flex-1">
+              <p className="font-black text-sm">Dahipani is only free with Dahibara Aloodum</p>
+              <p className="text-red-100 text-xs mt-0.5">Add Dahibara Aloodum first, then Dahipani will be FREE!</p>
+            </div>
+            <button onClick={() => setDahipaniError(false)} className="text-red-200 text-lg font-bold flex-shrink-0">✕</button>
           </div>
         </div>
       )}
