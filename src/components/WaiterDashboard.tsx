@@ -252,25 +252,27 @@ export default function WaiterDashboard() {
   const dayTotal = cashTotal + upiTotal;
 
   const q = search.trim().toLowerCase();
-  const displayed = orders.filter((o) => {
-    // Status filter
-    const statusOk =
-      filter === "PAYMENT_PENDING"
-        ? o.status === "PAYMENT_PENDING"
-        : filter === "ACTIVE"
-        ? ["PENDING", "PREPARING", "READY"].includes(o.status)
-        : o.status !== "PAYMENT_PENDING";
-    if (!statusOk) return false;
-    // Search filter — match order ID suffix, customer name, phone, table name
-    if (!q) return true;
-    return (
-      o.id.slice(-6).toLowerCase().includes(q) ||
-      o.customerName.toLowerCase().includes(q) ||
-      (o.phone ?? "").toLowerCase().includes(q) ||
-      (o.table?.name ?? "").toLowerCase().includes(q) ||
-      o.items.some((i) => i.name.toLowerCase().includes(q))
-    );
-  });
+  const displayed = orders
+    .filter((o) => {
+      // Status filter
+      const statusOk =
+        filter === "PAYMENT_PENDING"
+          ? o.status === "PAYMENT_PENDING"
+          : filter === "ACTIVE"
+          ? ["PENDING", "PREPARING", "READY"].includes(o.status)
+          : o.status !== "PAYMENT_PENDING";
+      if (!statusOk) return false;
+      // Search filter — match order ID suffix, customer name, phone, table name
+      if (!q) return true;
+      return (
+        o.id.slice(-6).toLowerCase().includes(q) ||
+        o.customerName.toLowerCase().includes(q) ||
+        (o.phone ?? "").toLowerCase().includes(q) ||
+        (o.table?.name ?? "").toLowerCase().includes(q) ||
+        o.items.some((i) => i.name.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const readyCount = orders.filter((o) => o.status === "READY").length;
 
