@@ -164,9 +164,81 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
   // ── Ghugni upsell prompt ──────────────────────────────────────────────────
   // Items that pair with Ghugni (bara, samosa, gulgula, aloochop variants)
-  const GHUGNI_TRIGGER_KEYWORDS = ["bara", "samosa", "gulgula", "aloo chop", "aloochop", "aloo-chop"];
+  const GHUGNI_TRIGGER_KEYWORDS = ["bara", "samosa", "gulgula", "aloo chop", "aloochop", "aloo-chop", "singada", "nimki"];
   const [ghugniPrompt, setGhugniPrompt] = useState(false);
   const ghugniTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Generic smart combo prompts ────────────────────────────────────────────
+  // Defined in priority order — first matching combo wins
+  interface ComboRule {
+    triggerKeywords: string[];
+    suggestKeywords: string[];   // looked up via partial match in menu
+    message: string;
+    emoji: string;
+  }
+  const COMBO_RULES: ComboRule[] = [
+    // Tea / Coffee → snacks
+    {
+      triggerKeywords: ["tea", "chai", "masala chai", "filter coffee", "cold coffee", "coffee"],
+      suggestKeywords: ["pakod", "nimki", "samosa", "singada", "bara", "cabbage pakoda"],
+      message: "Chai is better with a snack! Add",
+      emoji: "🍵",
+    },
+    // Soup → Momos
+    {
+      triggerKeywords: ["soup", "manchow", "hot & sour"],
+      suggestKeywords: ["momos"],
+      message: "Soup + Momos = best combo ever! Add fresh steamed",
+      emoji: "🥟",
+    },
+    // Momos → Soup
+    {
+      triggerKeywords: ["momos"],
+      suggestKeywords: ["manchow", "hot & sour"],
+      message: "Momos go best with a hot soup! Try",
+      emoji: "🍲",
+    },
+    // Naan / Paratha / Roti → gravy
+    {
+      triggerKeywords: ["naan", "paratha", "roti", "kulcha"],
+      suggestKeywords: ["dal makhani", "paneer butter", "chicken butter", "chicken curry", "mutton curry", "egg curry"],
+      message: "Bread needs a rich gravy! Pair it with",
+      emoji: "🫓",
+    },
+    // Fried Rice / Noodles → soup or momos
+    {
+      triggerKeywords: ["fried rice", "noodles", "schezwan"],
+      suggestKeywords: ["manchow", "hot & sour", "momos"],
+      message: "Complete your Chinese platter with a hot",
+      emoji: "🍜",
+    },
+    // Biryani → raita or sweet
+    {
+      triggerKeywords: ["biryani"],
+      suggestKeywords: ["mitha dahi", "curd", "raita", "rasabali", "pahala rasagola"],
+      message: "Biryani feels complete with a cool",
+      emoji: "🍛",
+    },
+    // Dosa → curd / sweet
+    {
+      triggerKeywords: ["dosa", "uttapam", "appam"],
+      suggestKeywords: ["mitha dahi", "ghuguni", "coconut chutney"],
+      message: "Make your dosa plate complete with",
+      emoji: "🥞",
+    },
+    // Poori / Puri → aloo dum or ghugni
+    {
+      triggerKeywords: ["poori", "puri"],
+      suggestKeywords: ["aloodum", "aloo dum", "ghuguni", "ghugni"],
+      message: "Poori is incomplete without",
+      emoji: "🫓",
+    },
+  ];
+  const [comboPrompt, setComboPrompt] = useState<{
+    message: string; emoji: string;
+    suggestedItem: MenuItemData;
+  } | null>(null);
+  const comboPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dahipani is FREE — only allowed when Dahibara Aloodum is in cart
   const DAHIPANI_TRIGGER_KEYWORDS = ["dahibara", "dahi bara", "dahi-bara", "aloodum", "aloo dum"];
@@ -391,6 +463,29 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           setGhugniPrompt(true);
           if (ghugniTimeoutRef.current) clearTimeout(ghugniTimeoutRef.current);
           ghugniTimeoutRef.current = setTimeout(() => setGhugniPrompt(false), 12000);
+        }
+
+        // ── Generic smart combo trigger ─────────────────────────────────────
+        if (!isGhugniTrigger) {
+          for (const rule of COMBO_RULES) {
+            const isMatch = rule.triggerKeywords.some((kw) => nameLower.includes(kw));
+            if (!isMatch) continue;
+            // Find first available suggestion not already in cart
+            let foundItem: MenuItemData | null = null;
+            for (const sk of rule.suggestKeywords) {
+              const candidate = menuItems.find(
+                (m) => m.available && m.name.toLowerCase().includes(sk) &&
+                       !newCart.some((c) => c.menuItemId === m.id)
+              );
+              if (candidate) { foundItem = candidate; break; }
+            }
+            if (foundItem) {
+              if (comboPromptTimerRef.current) clearTimeout(comboPromptTimerRef.current);
+              setComboPrompt({ message: rule.message, emoji: rule.emoji, suggestedItem: foundItem });
+              comboPromptTimerRef.current = setTimeout(() => setComboPrompt(null), 12000);
+              break;
+            }
+          }
         }
 
         // Odisha sweets upsell — show after adding any main course item
@@ -817,6 +912,41 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
                 </button>
                 <button
                   onClick={() => setGhugniPrompt(false)}
+                  className="text-slate-400 hover:text-slate-600 text-xs text-center transition-colors"
+                >
+                  No thanks
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Smart combo prompt (Tea→Pakodi, Soup→Momos, Naan→Gravy etc.) ── */}
+      {comboPrompt && (() => {
+        const alreadyInCart = cart.some((c) => c.menuItemId === comboPrompt.suggestedItem.id);
+        if (alreadyInCart) return null;
+        return (
+          <div className="max-w-2xl mx-auto px-4 pt-3">
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-300 rounded-2xl px-5 py-4 flex items-center gap-4 shadow-md">
+              <span className="text-4xl flex-shrink-0">{comboPrompt.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-slate-800 text-sm">{comboPrompt.message}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  <span className="font-semibold text-amber-700">{comboPrompt.suggestedItem.name}</span>
+                  {" "}— only <span className="font-bold text-amber-600">₹{comboPrompt.suggestedItem.price}</span>
+                  {comboPrompt.suggestedItem.price === 0 && <span className="text-green-600 font-bold"> FREE!</span>}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => { addToCart(comboPrompt.suggestedItem); setComboPrompt(null); }}
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors whitespace-nowrap"
+                >
+                  {comboPrompt.suggestedItem.price === 0 ? "Add FREE" : `+ Add ₹${comboPrompt.suggestedItem.price}`}
+                </button>
+                <button
+                  onClick={() => setComboPrompt(null)}
                   className="text-slate-400 hover:text-slate-600 text-xs text-center transition-colors"
                 >
                   No thanks
