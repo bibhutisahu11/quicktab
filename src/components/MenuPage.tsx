@@ -177,7 +177,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
   // ── Odisha Sweets upsell — triggers after ordering a main course ─────────
   // The 5 star sweets to promote
-  const ODIA_STAR_SWEETS = ["Rasbali", "Chhenapoda (Sugar)", "Chhenapoda (Jaggery)", "Pahala Rasagola", "Chhena Steam", "Malpua"];
+  const ODIA_STAR_SWEETS = ["Rasabali", "Chhenapoda (Sugar)", "Chhenapoda (Jaggery)", "Pahala Rasagola", "Chhena Steam", "Malpua"];
   const SWEET_TRIGGER_CATEGORIES = new Set(["Thali Corner", "Odisha Special", "Biryani Zone", "Dum Zone", "Non-Veg Starters", "Egg Zone", "Fried Rice & Noodles"]);
   const [sweetPrompt, setSweetPrompt] = useState(false);
   const sweetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

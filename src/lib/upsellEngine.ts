@@ -9,92 +9,120 @@ export interface UpsellSuggestion {
   emoji: string;
 }
 
-// Category → what to suggest (item names or category names)
+// Category → what to suggest (keywords matched against menu item names)
+// Uses partial/fuzzy matching so minor name differences don't break suggestions.
 const PAIRINGS: Record<string, UpsellSuggestion> = {
   "Beverages": {
     message: "Tea alone? That's just half the story! 😄 Try our hot Momos —",
-    itemNames: ["Chicken Momos (Steamed, 10 pcs)", "Veg Momos (Steamed, 10 pcs)", "Nimki", "Cabbage Pakoda", "Aloo Pakodi"],
+    itemNames: ["momos", "nimki", "cabbage pakoda", "aloo pakod"],
     emoji: "🥟",
   },
   "Evening Snacks": {
     message: "🥟 Hot Momos just dropped! 10 pcs, fresh steamed — add",
-    itemNames: ["Chicken Momos (Steamed, 10 pcs)", "Veg Momos (Steamed, 10 pcs)", "Lime Soda", "Soft Drink (Small)"],
+    itemNames: ["momos", "lime soda", "soft drink"],
+    emoji: "🥟",
+  },
+  "Morning Snacks": {
+    message: "🥟 Complete your snack plate! Try our steamed Momos —",
+    itemNames: ["momos", "lime soda", "ghuguni"],
     emoji: "🥟",
   },
   "Breakfast Delights": {
     message: "Make it a complete breakfast! Pair with",
-    itemNames: ["Kakara Pitha", "Ghuguni", "Mitha Dahibara", "Chakuli Pitha"],
+    itemNames: ["kakara pitha", "ghuguni", "mitha dahibara", "chakuli pitha"],
     emoji: "☀️",
   },
   "Dosa Corner": {
     message: "Dosa and…? Complete the combo with",
-    itemNames: ["Mitha Dahi (Sweet Curd)", "Lime Soda", "Rasmalai", "Pahala Rasagola"],
+    itemNames: ["mitha dahi", "lime soda", "pahala rasagola", "rasabali"],
     emoji: "🥞",
   },
   "Biryani Zone": {
     message: "🍮 No biryani is complete without Odisha sweets! Save room for",
-    itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Pahala Rasagola", "Malpua", "Chhena Steam"],
+    itemNames: ["rasabali", "chhenapoda", "pahala rasagola", "malpua", "chhena steam"],
     emoji: "🍮",
   },
   "Dum Zone": {
     message: "🍮 Meal nearly done? End it sweetly with",
-    itemNames: ["Rasbali", "Chhenapoda (Jaggery)", "Malpua", "Pahala Rasagola"],
+    itemNames: ["rasabali", "chhenapoda", "malpua", "pahala rasagola"],
     emoji: "🍮",
   },
   "Non-Veg Starters": {
-    message: "Great starter! Pair it with a hot",
-    itemNames: ["Hot & Sour Chicken", "Chicken Manchow", "Veg Manchow", "Hot & Sour Veg"],
+    message: "Great starter! Pair it with a hot soup —",
+    itemNames: ["hot & sour chicken", "chicken manchow", "veg manchow", "hot & sour veg"],
     emoji: "🍗",
   },
   "Odisha Special": {
     message: "🍮 Authentic Odia meal calls for authentic Odia sweets! Try",
-    itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Chhena Steam", "Malpua", "Pahala Rasagola"],
+    itemNames: ["rasabali", "chhenapoda", "chhena steam", "malpua", "pahala rasagola"],
     emoji: "🍮",
   },
   "Thali Corner": {
     message: "🍮 Thali without dessert? Not done! Complete it with",
-    itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Pahala Rasagola", "Malpua", "Chhena Steam"],
+    itemNames: ["rasabali", "chhenapoda", "pahala rasagola", "malpua", "chhena steam"],
     emoji: "🍮",
   },
   "Rolls & Momos": {
     message: "🥟 Momos + Soup = best combo! How about a hot",
-    itemNames: ["Chicken Manchow", "Hot & Sour Chicken", "Veg Manchow", "Lime Soda"],
+    itemNames: ["chicken manchow", "hot & sour chicken", "veg manchow", "lime soda"],
     emoji: "🍲",
   },
   "Soups": {
     message: "🥟 Soup + Momos = perfect pair! Add our fresh steamed",
-    itemNames: ["Chicken Momos (Steamed, 10 pcs)", "Veg Momos (Steamed, 10 pcs)", "Chicken Dum Biryani", "Veg Biryani"],
+    itemNames: ["momos", "chicken dum biryani", "veg biryani"],
     emoji: "🥟",
   },
   "Fried Rice & Noodles": {
     message: "🍮 Chinese done! End on a sweet note with",
-    itemNames: ["Rasabali", "Pahala Rasagola", "Chhenapoda (Sugar)", "Malpua"],
+    itemNames: ["rasabali", "pahala rasagola", "chhenapoda", "malpua"],
     emoji: "🍮",
   },
   "Breads": {
     message: "Breads go best with a rich gravy! How about",
-    itemNames: ["Chicken Manchurian Gravy", "Veg Biryani", "Paneer Dum Biryani"],
+    itemNames: ["chicken manchurian gravy", "veg biryani", "paneer dum biryani", "dal makhani"],
     emoji: "🫓",
   },
   "Sweets": {
     message: "Ending on a sweet note? Why not make it a full meal with",
-    itemNames: ["Chicken Dum Biryani", "Mutton Biryani", "Veg Dum Biryani"],
+    itemNames: ["chicken dum biryani", "mutton biryani", "veg dum biryani", "fish thali"],
     emoji: "🍯",
   },
   "Egg Zone": {
     message: "Eggs & Bread — classic! Add",
-    itemNames: ["Butter Naan", "Malabar Paratha", "Butter Roti", "Garlic Butter Naan"],
+    itemNames: ["butter naan", "malabar paratha", "butter roti", "garlic butter naan", "garlic naan"],
     emoji: "🥚",
+  },
+  "North Gravy": {
+    message: "Rich gravy + hot bread = perfect! Pair with",
+    itemNames: ["butter naan", "garlic butter naan", "malabar paratha", "butter roti"],
+    emoji: "🍛",
+  },
+  "North Spl Gravy": {
+    message: "Special gravy deserves special bread! Add",
+    itemNames: ["butter naan", "garlic butter naan", "malabar paratha"],
+    emoji: "🍛",
   },
 };
 
 const DEFAULT_SUGGESTION: UpsellSuggestion = {
   message: "🍮 Don't leave without trying Odisha's finest sweets —",
-  itemNames: ["Rasbali", "Chhenapoda (Sugar)", "Pahala Rasagola", "Chhena Steam", "Malpua"],
+  itemNames: ["rasabali", "chhenapoda", "pahala rasagola", "chhena steam", "malpua"],
   emoji: "🍮",
 };
 
-/** Pick one random item from the suggestion list that is actually in the menu */
+/** Match a keyword against a menu item name (case-insensitive partial match) */
+function fuzzyMatch(
+  keyword: string,
+  menuItems: { id: string; name: string; price: number; available: boolean; category: string }[],
+  cartItemIds: Set<string>,
+) {
+  const kw = keyword.toLowerCase();
+  return menuItems.find(
+    (m) => m.available && !cartItemIds.has(m.id) && m.name.toLowerCase().includes(kw)
+  ) ?? null;
+}
+
+/** Pick one relevant item from the suggestion list that is actually in the menu */
 export function getUpsellSuggestion(
   addedItemCategory: string,
   menuItems: { id: string; name: string; price: number; available: boolean; category: string }[],
@@ -102,22 +130,25 @@ export function getUpsellSuggestion(
 ): { suggestion: UpsellSuggestion; item: { id: string; name: string; price: number } } | null {
   const rule = PAIRINGS[addedItemCategory] ?? DEFAULT_SUGGESTION;
 
-  // Find available menu items matching the suggestion names (not already in cart)
+  // Find available menu items using fuzzy partial matching (not already in cart)
   const candidates = rule.itemNames
-    .map((name) => menuItems.find((m) => m.available && m.name === name && !cartItemIds.has(m.id)))
+    .map((kw) => fuzzyMatch(kw, menuItems, cartItemIds))
     .filter(Boolean) as { id: string; name: string; price: number; category: string }[];
 
-  // Shuffle and pick first
-  if (candidates.length === 0) {
-    // Fallback: suggest a random sweet/expensive item not in cart
+  // Deduplicate by id (multiple keywords can match the same item)
+  const seen = new Set<string>();
+  const unique = candidates.filter((c) => { if (seen.has(c.id)) return false; seen.add(c.id); return true; });
+
+  if (unique.length === 0) {
+    // Fallback: suggest a sweet item not already in cart (never a random main course)
     const fallback = menuItems
-      .filter((m) => m.available && !cartItemIds.has(m.id) && m.price >= 100)
+      .filter((m) => m.available && !cartItemIds.has(m.id) && m.category === "Sweets")
       .sort(() => Math.random() - 0.5)[0];
     if (!fallback) return null;
     return { suggestion: DEFAULT_SUGGESTION, item: fallback };
   }
 
-  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  const picked = unique[Math.floor(Math.random() * unique.length)];
   return { suggestion: rule, item: picked };
 }
 
@@ -172,15 +203,15 @@ export const QUIRKY_DIALOGUES = [
 
 export const FOOD_TIPS = [
   // ── Odisha Sweets — highest priority, shown most often ──
-  { text: "🥛 Rasbali — soft chhena patties soaked in thick condensed milk. Odisha's hidden gem! Must try 🌟", cta: "Rasbali" },
+  { text: "🥛 Rasabali — soft chhena patties soaked in thick condensed milk. Odisha's hidden gem! Must try 🌟", cta: "Rasabali" },
   { text: "🍮 Chhenapoda — the ONLY Indian sweet baked in a fire pit. Odisha's gift to the world! Try it today 🔥", cta: "Chhenapoda (Sugar)" },
   { text: "🍡 Pahala Rasagola — the original! Spongy, juicy, melt-in-mouth. Not the store-bought kind 😍", cta: "Pahala Rasagola" },
   { text: "🍰 Chhena Steam — silky smooth, lightly sweet, melt-in-mouth. A hidden classic of Odisha! ✨", cta: "Chhena Steam" },
   { text: "🥞 Malpua — pan-fried sweet pancake with a crispy golden edge & a soft sweet centre. 100% homemade 🍯", cta: "Malpua" },
   { text: "🍮 \"Rasagola dekhi kie na kahiba?\" 🤤 Who can say no after seeing Pahala Rasagola? We dare you!", cta: "Pahala Rasagola" },
-  { text: "🥛 Rasbali + Chhenapoda = the ultimate Odia dessert duo. Both made fresh in-house every day! 🌟", cta: "Rasbali" },
+  { text: "🥛 Rasabali + Chhenapoda = the ultimate Odia dessert duo. Both made fresh in-house every day! 🌟", cta: "Rasabali" },
   { text: "🍮 Chhenapoda ke liye jagah hamesha hoti hai ❤️ — There is ALWAYS room for Chhenapoda!", cta: "Chhenapoda (Jaggery)" },
-  { text: "🏆 Top 3 must-try sweets: Rasbali · Chhenapoda · Pahala Rasagola — all available right now! 🎉", cta: "Rasbali" },
+  { text: "🏆 Top 3 must-try sweets: Rasabali · Chhenapoda · Pahala Rasagola — all available right now! 🎉", cta: "Rasabali" },
   // ── Momos promo ──
   { text: "🥟 HOT & FRESH! Chicken Momos — 10 juicy steamed dumplings for just ₹100! Add to your order 🔥", cta: "Chicken Momos (Steamed, 10 pcs)" },
   { text: "🥟 Veg Momos — 10 pcs, soft steamed, served with spicy chutney. Only ₹70! Perfect snack 😍", cta: "Veg Momos (Steamed, 10 pcs)" },
