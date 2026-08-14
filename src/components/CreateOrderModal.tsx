@@ -109,6 +109,18 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
     if (cart.length === 0) { setError("Add at least one item"); return; }
     if (orderType === "TABLE" && !tableId) { setError("Select a table"); return; }
 
+    // Dahipani only allowed with Dahibara Aloodum
+    const hasDahipani = cart.some((r) => r.item.name.toLowerCase().includes("dahipani"));
+    const hasAloodum  = cart.some((r) =>
+      r.item.name.toLowerCase().includes("dahibara") ||
+      r.item.name.toLowerCase().includes("aloodum") ||
+      r.item.name.toLowerCase().includes("aloo dum")
+    );
+    if (hasDahipani && !hasAloodum) {
+      setError("🚫 Dahipani can only be added with Dahibara Aloodum. Please add Dahibara Aloodum to the order.");
+      return;
+    }
+
     setError("");
     setSubmitting(true);
     try {

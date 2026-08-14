@@ -121,6 +121,22 @@ export async function POST(req: NextRequest) {
     }
 
     const menuMap = new Map(menuItems.map((m) => [m.id, m]));
+
+    // Dahipani is free but only allowed when Dahibara Aloodum is also in the order
+    const hasDahipani = menuItems.some((m) => m.name.toLowerCase().includes("dahipani"));
+    const hasAloodum  = menuItems.some((m) =>
+      m.name.toLowerCase().includes("dahibara") ||
+      m.name.toLowerCase().includes("dahi bara") ||
+      m.name.toLowerCase().includes("aloodum") ||
+      m.name.toLowerCase().includes("aloo dum")
+    );
+    if (hasDahipani && !hasAloodum) {
+      return NextResponse.json(
+        { error: "🚫 Dahipani can only be ordered with Dahibara Aloodum. Please add Dahibara Aloodum to your order first." },
+        { status: 400 }
+      );
+    }
+
     let subtotal = 0;
     const orderItemsData = items.map((item: { menuItemId: string; quantity: number; notes?: string }) => {
       const menuItem = menuMap.get(item.menuItemId)!;
