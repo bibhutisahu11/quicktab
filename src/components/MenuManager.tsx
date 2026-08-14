@@ -41,9 +41,18 @@ export default function MenuManager() {
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   // BILLER lands directly on availability tab and cannot switch to manage
-  const [tab, setTab] = useState<"manage" | "availability">("manage");
+  const [tab, setTab] = useState<"manage" | "availability" | "move">("manage");
   const [pendingAvail, setPendingAvail] = useState<Record<string, boolean>>({});
   const [savingAvail, setSavingAvail] = useState(false);
+
+  // Move / Copy category state
+  const [moveSource, setMoveSource] = useState<string>("");
+  const [moveTarget, setMoveTarget] = useState<string>("");
+  const [moveNewCategory, setMoveNewCategory] = useState<string>("");
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [moveAction, setMoveAction] = useState<"move" | "copy">("move");
+  const [moveSaving, setMoveSaving] = useState(false);
+  const [moveResult, setMoveResult] = useState<string | null>(null);
 
   // Force BILLER to availability tab
   useEffect(() => {
@@ -341,11 +350,11 @@ export default function MenuManager() {
 
       {/* Tabs — hidden for BILLER (they only see availability) */}
       {!isBiller && (
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-5 w-fit">
-          {(["manage", "availability"] as const).map((t) => (
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-5 w-fit flex-wrap">
+          {(["manage", "availability", "move"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === t ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"}`}>
-              {t === "manage" ? "🍴 Manage Items" : "🔄 Quick Availability"}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === t ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"}`}>
+              {t === "manage" ? "🍴 Manage Items" : t === "availability" ? "🔄 Availability" : "📂 Move / Copy"}
             </button>
           ))}
         </div>
@@ -658,6 +667,219 @@ export default function MenuManager() {
       )}
 
       </>}
+
+      {/* ── Move / Copy Category tab ─────────────────────────────────────────── */}
+      {tab === "move" && (
+        <div className="space-y-6">
+          {/* Step 1 — pick source category */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <h3 className="font-black text-slate-800 mb-1">Step 1 — Pick Source Category</h3>
+            <p className="text-slate-500 text-sm mb-4">Select the category whose items you want to move or copy</p>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => { setMoveSource(cat); setSelectedItemIds(new Set()); setMoveResult(null); }}
+                  className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                    moveSource === cat
+                      ? "bg-amber-500 text-white border-amber-500 shadow"
+                      : "bg-white text-slate-600 border-slate-300 hover:border-amber-400"
+                  }`}
+                >
+                  {cat} <span className="text-xs opacity-70">({items.filter((i) => i.category === cat).length})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Step 2 — select items */}
+          {moveSource && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div>
+                  <h3 className="font-black text-slate-800">Step 2 — Select Items</h3>
+                  <p className="text-slate-500 text-sm">Choose which items to move or copy</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedItemIds(new Set(items.filter((i) => i.category === moveSource).map((i) => i.id)))}
+                    className="text-xs font-bold text-amber-600 hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    onClick={() => setSelectedItemIds(new Set())}
+                    className="text-xs font-bold text-slate-500 hover:underline"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto pr-1">
+                {items.filter((i) => i.category === moveSource).map((item) => {
+                  const checked = selectedItemIds.has(item.id);
+                  return (
+                    <label
+                      key={item.id}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
+                        checked ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelectedItemIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                          return next;
+                        })}
+                        className="w-4 h-4 accent-amber-500 flex-shrink-0"
+                      />
+                      <span className={`w-3.5 h-3.5 rounded-sm border-2 flex-shrink-0 flex items-center justify-center ${item.isVeg ? "border-green-600" : "border-red-600"}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
+                      </span>
+                      <span className="flex-1 font-medium text-slate-800 text-sm">{item.name}</span>
+                      <span className="text-amber-600 font-bold text-sm flex-shrink-0">₹{item.price.toFixed(0)}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {selectedItemIds.size > 0 && (
+                <p className="mt-3 text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  {selectedItemIds.size} item{selectedItemIds.size > 1 ? "s" : ""} selected
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Step 3 — choose action + target */}
+          {moveSource && selectedItemIds.size > 0 && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <h3 className="font-black text-slate-800 mb-1">Step 3 — Choose Action &amp; Target Category</h3>
+              <p className="text-slate-500 text-sm mb-4">Move removes items from source; Copy keeps them in source too</p>
+
+              {/* Move vs Copy toggle */}
+              <div className="flex gap-2 mb-5">
+                <button
+                  onClick={() => setMoveAction("move")}
+                  className={`flex-1 py-2.5 rounded-xl border-2 font-bold text-sm transition-all ${
+                    moveAction === "move"
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-slate-200 text-slate-400"
+                  }`}
+                >
+                  ✂️ Move (remove from source)
+                </button>
+                <button
+                  onClick={() => setMoveAction("copy")}
+                  className={`flex-1 py-2.5 rounded-xl border-2 font-bold text-sm transition-all ${
+                    moveAction === "copy"
+                      ? "border-green-500 bg-green-50 text-green-700"
+                      : "border-slate-200 text-slate-400"
+                  }`}
+                >
+                  📋 Copy (keep in source)
+                </button>
+              </div>
+
+              {/* Target category */}
+              <div className="mb-4">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Target Category</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {categories.filter((c) => c !== moveSource).map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => { setMoveTarget(cat); setMoveNewCategory(""); }}
+                      className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                        moveTarget === cat
+                          ? "bg-blue-500 text-white border-blue-500 shadow"
+                          : "bg-white text-slate-600 border-slate-300 hover:border-blue-400"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-semibold">Or create new:</span>
+                  <input
+                    type="text"
+                    value={moveNewCategory}
+                    onChange={(e) => { setMoveNewCategory(e.target.value); setMoveTarget(""); }}
+                    placeholder="New category name..."
+                    className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+              </div>
+
+              {/* Confirm button */}
+              {(moveTarget || moveNewCategory.trim()) && (
+                <button
+                  disabled={moveSaving}
+                  onClick={async () => {
+                    const target = moveNewCategory.trim() || moveTarget;
+                    if (!target) return;
+                    setMoveSaving(true);
+                    setMoveResult(null);
+                    try {
+                      const ids = Array.from(selectedItemIds);
+                      if (moveAction === "copy") {
+                        // Copy: create new items in target category
+                        const sourceItems = items.filter((i) => ids.includes(i.id));
+                        for (const item of sourceItems) {
+                          await fetch("/api/menu", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              name: item.name, description: item.description,
+                              price: item.price, category: target,
+                              imageUrl: item.imageUrl, available: item.available,
+                              isVeg: item.isVeg, sortOrder: item.sortOrder, unit: item.unit,
+                            }),
+                          });
+                        }
+                        setMoveResult(`✅ Copied ${ids.length} item${ids.length > 1 ? "s" : ""} to "${target}"`);
+                      } else {
+                        // Move: update category for each item
+                        for (const id of ids) {
+                          await fetch(`/api/menu/${id}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ category: target }),
+                          });
+                        }
+                        setMoveResult(`✅ Moved ${ids.length} item${ids.length > 1 ? "s" : ""} to "${target}"`);
+                      }
+                      await fetchItems();
+                      setSelectedItemIds(new Set());
+                      setMoveSource("");
+                      setMoveTarget("");
+                      setMoveNewCategory("");
+                    } catch {
+                      setMoveResult("❌ Something went wrong. Please try again.");
+                    }
+                    setMoveSaving(false);
+                  }}
+                  className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-black py-3 rounded-xl text-sm transition-colors"
+                >
+                  {moveSaving
+                    ? "Processing..."
+                    : `${moveAction === "move" ? "✂️ Move" : "📋 Copy"} ${selectedItemIds.size} item${selectedItemIds.size > 1 ? "s" : ""} → "${moveNewCategory.trim() || moveTarget}"`}
+                </button>
+              )}
+
+              {moveResult && (
+                <p className={`mt-3 text-sm font-bold text-center py-2 px-3 rounded-xl ${
+                  moveResult.startsWith("✅") ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"
+                }`}>
+                  {moveResult}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Scanner modal */}
       {scannerOpen && (
