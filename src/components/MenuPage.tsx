@@ -250,7 +250,12 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   // ── Odisha Sweets upsell — triggers after ordering a main course ─────────
   // The 5 star sweets to promote
   const ODIA_STAR_SWEETS = ["Rasabali", "Chhenapoda (Sugar)", "Chhenapoda (Jaggery)", "Pahala Rasagola", "Chhena Steam", "Malpua"];
-  const SWEET_TRIGGER_CATEGORIES = new Set(["Thali Corner", "Odisha Special", "Biryani Zone", "Dum Zone", "Non-Veg Starters", "Egg Zone", "Fried Rice & Noodles"]);
+  const SWEET_TRIGGER_CATEGORIES = new Set([
+    "Thali Corner", "Odisha Special", "Biryani Zone", "Dum Zone",
+    "Non-Veg Starters", "Egg Zone", "Fried Rice & Noodles",
+    "Dosa Corner", "Soups", "Rolls & Momos", "Breads",
+    "North Gravy", "North Spl Gravy", "Evening Snacks", "Morning Snacks",
+  ]);
   const [sweetPrompt, setSweetPrompt] = useState(false);
   const sweetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1005,27 +1010,33 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
       {/* ── Odisha Star Sweets upsell bottom sheet ── */}
       {sweetPrompt && (() => {
-        const starSweets = menuItems.filter(
+        const allSweets = menuItems.filter(
           (m) => m.available && m.category === "Sweets" &&
           ODIA_STAR_SWEETS.some((s) => m.name.toLowerCase().includes(s.toLowerCase()))
         );
-        if (starSweets.length === 0) return null;
+        if (allSweets.length === 0) return null;
+        // Pin Chhenapoda first — it's Odisha's #1
+        const starSweets = [
+          ...allSweets.filter((m) => m.name.toLowerCase().includes("chhenapoda")),
+          ...allSweets.filter((m) => !m.name.toLowerCase().includes("chhenapoda")),
+        ];
         return (
           <div className="fixed inset-0 z-40 flex items-end" onClick={() => setSweetPrompt(false)}>
             <div className="absolute inset-0 bg-black/30" />
             <div
-              className="relative w-full bg-white rounded-t-3xl shadow-2xl px-4 pt-5 pb-8 max-h-[75vh] overflow-y-auto"
+              className="relative w-full bg-white rounded-t-3xl shadow-2xl px-4 pt-5 pb-8 max-h-[80vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-1" />
               <button onClick={() => setSweetPrompt(false)} className="absolute top-4 right-4 text-slate-400 text-xl font-bold">✕</button>
 
-              {/* Header */}
+              {/* Header — Chhenapoda spotlight */}
               <div className="text-center mb-4">
-                <p className="text-2xl mb-1">🍮</p>
-                <p className="font-black text-slate-800 text-lg leading-tight">End with something sweet?</p>
-                <p className="text-slate-500 text-sm mt-0.5">
-                  Odisha&apos;s finest sweets — baked &amp; made fresh daily 🌟
+                <p className="text-3xl mb-1">🍮</p>
+                <p className="font-black text-slate-800 text-lg leading-tight">Try Chhenapoda!</p>
+                <p className="text-slate-500 text-sm mt-1">
+                  Odisha&apos;s most iconic dessert — baked cottage cheese caramelised to perfection.
+                  The <span className="font-bold text-amber-600">only Indian sweet cooked in fire!</span> 🔥
                 </p>
               </div>
 
@@ -1033,29 +1044,43 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               <div className="flex flex-col gap-3">
                 {starSweets.map((sweet) => {
                   const inCart = cart.some((c) => c.menuItemId === sweet.id);
+                  const isChhenapoda = sweet.name.toLowerCase().includes("chhenapoda");
                   return (
                     <div key={sweet.id}
-                      className={`flex items-center gap-3 rounded-2xl px-4 py-3 border-2 transition-all ${
-                        inCart ? "border-green-400 bg-green-50" : "border-amber-200 bg-amber-50"
+                      className={`relative flex items-center gap-3 rounded-2xl px-4 py-3 border-2 transition-all ${
+                        inCart
+                          ? "border-green-400 bg-green-50"
+                          : isChhenapoda
+                          ? "border-amber-500 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md"
+                          : "border-amber-200 bg-amber-50"
                       }`}>
+                      {/* Crown badge for Chhenapoda */}
+                      {isChhenapoda && !inCart && (
+                        <span className="absolute -top-2 -right-1 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow">
+                          🏆 ODISHA&apos;S #1
+                        </span>
+                      )}
                       <span className="text-3xl flex-shrink-0">
-                        {sweet.name.toLowerCase().includes("chhenapoda") ? "🍮" :
+                        {isChhenapoda ? "🍮" :
                          sweet.name.toLowerCase().includes("rasagola") ? "🍡" :
-                         sweet.name.toLowerCase().includes("rasbali") ? "🥛" :
+                         sweet.name.toLowerCase().includes("rasabali") ? "🥛" :
                          sweet.name.toLowerCase().includes("malpua") ? "🥞" :
                          sweet.name.toLowerCase().includes("chhena") ? "🍰" : "🍯"}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-800 text-sm leading-tight">{sweet.name}</p>
+                        <p className={`font-bold text-sm leading-tight ${isChhenapoda ? "text-amber-800" : "text-slate-800"}`}>
+                          {sweet.name}
+                        </p>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {sweet.name.toLowerCase().includes("rasbali") && "Soft chhena patties soaked in rich condensed milk 🥛"}
-                          {sweet.name.toLowerCase().includes("chhenapoda") && "Baked caramelised cottage cheese — Odisha's signature! 🔥"}
+                          {isChhenapoda && "Baked caramelised chhena — smoky, dense & heavenly. Made fresh daily!"}
+                          {sweet.name.toLowerCase().includes("rasabali") && "Soft chhena patties soaked in rich condensed milk 🥛"}
                           {sweet.name.toLowerCase().includes("rasagola") && "Authentic Pahala-style — spongy & lightly sweet 🌸"}
                           {sweet.name.toLowerCase().includes("chhena steam") && "Steamed chhena — melt-in-mouth, light & delicate ✨"}
                           {sweet.name.toLowerCase().includes("malpua") && "Pan-fried sweet pancake with a crispy golden edge 🍯"}
                         </p>
-                        <p className="text-amber-600 font-black text-sm mt-1">
+                        <p className={`font-black text-sm mt-1 ${isChhenapoda ? "text-amber-600" : "text-amber-600"}`}>
                           {sweet.unit === "100g" ? `₹${sweet.price * 10}/kg` : `₹${sweet.price}`}
+                          {isChhenapoda && <span className="ml-1 text-xs text-orange-500">Enter any grams</span>}
                         </p>
                       </div>
                       {inCart ? (
@@ -1063,8 +1088,10 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
                       ) : (
                         <button
                           onClick={() => { addToCart(sweet); }}
-                          className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2 rounded-xl transition-colors whitespace-nowrap">
-                          {sweet.unit === "100g" ? "⚖️ Choose g" : `+ Add`}
+                          className={`flex-shrink-0 font-black text-xs px-4 py-2 rounded-xl transition-colors whitespace-nowrap text-white ${
+                            isChhenapoda ? "bg-amber-600 hover:bg-amber-700 shadow" : "bg-amber-500 hover:bg-amber-600"
+                          }`}>
+                          {sweet.unit === "100g" ? "⚖️ Try it!" : "+ Add"}
                         </button>
                       )}
                     </div>

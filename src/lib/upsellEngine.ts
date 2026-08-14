@@ -38,13 +38,13 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     emoji: "🥞",
   },
   "Biryani Zone": {
-    message: "🍮 No biryani is complete without Odisha sweets! Save room for",
-    itemNames: ["rasabali", "chhenapoda", "pahala rasagola", "malpua", "chhena steam"],
+    message: "🍮 Biryani + Chhenapoda = the perfect Odia meal! Try",
+    itemNames: ["chhenapoda", "rasabali", "pahala rasagola", "malpua", "chhena steam"],
     emoji: "🍮",
   },
   "Dum Zone": {
-    message: "🍮 Meal nearly done? End it sweetly with",
-    itemNames: ["rasabali", "chhenapoda", "malpua", "pahala rasagola"],
+    message: "🍮 Meal nearly done? Odisha's #1 sweet awaits — try",
+    itemNames: ["chhenapoda", "rasabali", "malpua", "pahala rasagola"],
     emoji: "🍮",
   },
   "Non-Veg Starters": {
@@ -53,13 +53,13 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     emoji: "🍗",
   },
   "Odisha Special": {
-    message: "🍮 Authentic Odia meal calls for authentic Odia sweets! Try",
-    itemNames: ["rasabali", "chhenapoda", "chhena steam", "malpua", "pahala rasagola"],
+    message: "🍮 Real Odia meal ends with Chhenapoda! Try Odisha's #1 —",
+    itemNames: ["chhenapoda", "rasabali", "chhena steam", "malpua", "pahala rasagola"],
     emoji: "🍮",
   },
   "Thali Corner": {
-    message: "🍮 Thali without dessert? Not done! Complete it with",
-    itemNames: ["rasabali", "chhenapoda", "pahala rasagola", "malpua", "chhena steam"],
+    message: "🍮 Thali without Chhenapoda? Not done! Add Odisha's crown jewel —",
+    itemNames: ["chhenapoda", "rasabali", "pahala rasagola", "malpua", "chhena steam"],
     emoji: "🍮",
   },
   "Rolls & Momos": {
@@ -73,8 +73,8 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
     emoji: "🥟",
   },
   "Fried Rice & Noodles": {
-    message: "🍮 Chinese done! End on a sweet note with",
-    itemNames: ["rasabali", "pahala rasagola", "chhenapoda", "malpua"],
+    message: "🍮 Chinese done! End with Odisha's finest — try",
+    itemNames: ["chhenapoda", "rasabali", "pahala rasagola", "malpua"],
     emoji: "🍮",
   },
   "Breads": {
@@ -105,8 +105,8 @@ const PAIRINGS: Record<string, UpsellSuggestion> = {
 };
 
 const DEFAULT_SUGGESTION: UpsellSuggestion = {
-  message: "🍮 Don't leave without trying Odisha's finest sweets —",
-  itemNames: ["rasabali", "chhenapoda", "pahala rasagola", "chhena steam", "malpua"],
+  message: "🍮 Don't leave without trying Chhenapoda — Odisha's #1 sweet!",
+  itemNames: ["chhenapoda", "rasabali", "pahala rasagola", "chhena steam", "malpua"],
   emoji: "🍮",
 };
 
@@ -202,16 +202,21 @@ export const QUIRKY_DIALOGUES = [
 ];
 
 export const FOOD_TIPS = [
-  // ── Odisha Sweets — highest priority, shown most often ──
+  // ── Chhenapoda — Odisha's #1, shown most aggressively ──
+  { text: "🍮 CHHENAPODA — Odisha's most iconic sweet! Baked cottage cheese, caramelised to perfection. The ONLY Indian sweet cooked in fire 🔥 Must try!", cta: "Chhenapoda (Sugar)" },
+  { text: "🍮 \"Chhenapoda khaile mana khusi!\" — Try Chhenapoda, Odisha's crown jewel of sweets. Made fresh daily here at Kalinga Bites! 🌟", cta: "Chhenapoda (Sugar)" },
+  { text: "🏆 Odisha's #1 dessert is HERE — Chhenapoda! Dense, caramelised, smoky & heavenly. Enter any grams & we'll price it for you!", cta: "Chhenapoda (Jaggery)" },
+  { text: "🍮 Chhenapoda is NOT available everywhere. We make it fresh, in-house, every single day. Don't miss it! 🔥", cta: "Chhenapoda (Sugar)" },
+  { text: "🍮 Chhenapoda ke liye jagah hamesha hoti hai ❤️ — There is ALWAYS room for Chhenapoda!", cta: "Chhenapoda (Jaggery)" },
+  { text: "🍮 Sugar Chhenapoda vs Jaggery Chhenapoda — can't decide? Add both! Try the authentic taste of Odisha 😋", cta: "Chhenapoda (Sugar)" },
+  // ── Other Odisha Sweets ──
   { text: "🥛 Rasabali — soft chhena patties soaked in thick condensed milk. Odisha's hidden gem! Must try 🌟", cta: "Rasabali" },
-  { text: "🍮 Chhenapoda — the ONLY Indian sweet baked in a fire pit. Odisha's gift to the world! Try it today 🔥", cta: "Chhenapoda (Sugar)" },
   { text: "🍡 Pahala Rasagola — the original! Spongy, juicy, melt-in-mouth. Not the store-bought kind 😍", cta: "Pahala Rasagola" },
   { text: "🍰 Chhena Steam — silky smooth, lightly sweet, melt-in-mouth. A hidden classic of Odisha! ✨", cta: "Chhena Steam" },
   { text: "🥞 Malpua — pan-fried sweet pancake with a crispy golden edge & a soft sweet centre. 100% homemade 🍯", cta: "Malpua" },
   { text: "🍮 \"Rasagola dekhi kie na kahiba?\" 🤤 Who can say no after seeing Pahala Rasagola? We dare you!", cta: "Pahala Rasagola" },
   { text: "🥛 Rasabali + Chhenapoda = the ultimate Odia dessert duo. Both made fresh in-house every day! 🌟", cta: "Rasabali" },
-  { text: "🍮 Chhenapoda ke liye jagah hamesha hoti hai ❤️ — There is ALWAYS room for Chhenapoda!", cta: "Chhenapoda (Jaggery)" },
-  { text: "🏆 Top 3 must-try sweets: Rasabali · Chhenapoda · Pahala Rasagola — all available right now! 🎉", cta: "Rasabali" },
+  { text: "🏆 Top 3 must-try sweets: Chhenapoda · Rasabali · Pahala Rasagola — all available right now! 🎉", cta: "Chhenapoda (Sugar)" },
   // ── Momos promo ──
   { text: "🥟 HOT & FRESH! Chicken Momos — 10 juicy steamed dumplings for just ₹100! Add to your order 🔥", cta: "Chicken Momos (Steamed, 10 pcs)" },
   { text: "🥟 Veg Momos — 10 pcs, soft steamed, served with spicy chutney. Only ₹70! Perfect snack 😍", cta: "Veg Momos (Steamed, 10 pcs)" },
