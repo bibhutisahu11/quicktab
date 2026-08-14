@@ -14,7 +14,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, description, price, category, imageUrl, available, sortOrder, unit } = body;
+    const { name, description, price, category, imageUrl, available, isVeg, sortOrder, unit } = body;
 
     const data = {
       ...(name && { name }),
@@ -23,6 +23,7 @@ export async function PUT(
       ...(category && { category }),
       ...(imageUrl !== undefined && { imageUrl }),
       ...(available !== undefined && { available }),
+      ...(isVeg !== undefined && { isVeg: Boolean(isVeg) }),
       ...(sortOrder !== undefined && { sortOrder }),
       ...(unit !== undefined && { unit: unit || null }),
     };

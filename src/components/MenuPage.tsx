@@ -351,6 +351,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   }, [categories, timeCtx]);
 
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [vegFilter, setVegFilter] = useState<"all" | "veg" | "nonveg">("all");
 
   // Apply time-based default once categories are known
   useEffect(() => {
@@ -378,7 +379,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   // When a search query is active, search across ALL items (ignore category filter)
   const filtered = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
-    const pool = q
+    let pool = q
       ? menuItems.filter((i) =>
           i.name.toLowerCase().includes(q) ||
           i.category.toLowerCase().includes(q) ||
@@ -387,6 +388,11 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       : (activeCategory === "All"
           ? menuItems
           : menuItems.filter((i) => i.category === activeCategory));
+
+    // Apply veg/non-veg filter
+    if (vegFilter === "veg")    pool = pool.filter((i) => i.isVeg);
+    if (vegFilter === "nonveg") pool = pool.filter((i) => !i.isVeg);
+
     // When searching, rank Thali items first (they are the most-ordered combos)
     const thaliFirst = (a: MenuItemData, b: MenuItemData) => {
       if (!q) return 0;
@@ -401,7 +407,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     const unavail = pool.filter((i) => !isItemAvailableNow(i)).sort(thaliFirst);
     return [...avail, ...unavail];
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuItems, activeCategory, customerSearch]);
+  }, [menuItems, activeCategory, customerSearch, vegFilter]);
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -641,6 +647,46 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               </button>
             )}
           </div>
+        </div>
+
+        {/* Veg / Non-Veg filter — Swiggy/Zomato style */}
+        <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center gap-2">
+          <button
+            onClick={() => setVegFilter("all")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+              vegFilter === "all"
+                ? "bg-white text-slate-700 border-white shadow"
+                : "bg-transparent text-amber-100 border-amber-300/50 hover:border-white"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setVegFilter(vegFilter === "veg" ? "all" : "veg")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+              vegFilter === "veg"
+                ? "bg-white text-green-700 border-white shadow"
+                : "bg-transparent text-amber-100 border-amber-300/50 hover:border-white"
+            }`}
+          >
+            <span className="inline-flex w-3.5 h-3.5 rounded-sm border-2 border-green-500 items-center justify-center flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            </span>
+            Pure Veg
+          </button>
+          <button
+            onClick={() => setVegFilter(vegFilter === "nonveg" ? "all" : "nonveg")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+              vegFilter === "nonveg"
+                ? "bg-white text-red-700 border-white shadow"
+                : "bg-transparent text-amber-100 border-amber-300/50 hover:border-white"
+            }`}
+          >
+            <span className="inline-flex w-3.5 h-3.5 rounded-sm border-2 border-red-500 items-center justify-center flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            </span>
+            Non-Veg
+          </button>
         </div>
 
         {/* Category tabs */}

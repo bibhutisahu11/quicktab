@@ -54,7 +54,18 @@ export default function MenuCard({ item, cart, onAdd, onRemove, orderCount = 0 }
       )}
 
       <div className="p-3 flex flex-col flex-1">
-        <h3 className="font-semibold text-slate-800 leading-tight text-sm">{item.name}</h3>
+        <div className="flex items-start gap-1.5 mb-0.5">
+          {/* Veg / Non-veg indicator dot — Swiggy/Zomato style */}
+          <span
+            title={item.isVeg ? "Veg" : "Non-Veg"}
+            className={`flex-shrink-0 mt-0.5 inline-flex w-4 h-4 rounded-sm border-2 items-center justify-center ${
+              item.isVeg ? "border-green-600" : "border-red-600"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
+          </span>
+          <h3 className="font-semibold text-slate-800 leading-tight text-sm">{item.name}</h3>
+        </div>
         {item.description && (
           <p className="text-slate-500 text-xs mt-0.5 flex-1 line-clamp-2">{item.description}</p>
         )}

@@ -12,6 +12,7 @@ const EMPTY_FORM = {
   category: "",
   imageUrl: "",
   available: true,
+  isVeg: true,
   sortOrder: "0",
   unit: "",
 };
@@ -72,6 +73,7 @@ export default function MenuManager() {
       category: item.category,
       imageUrl: item.imageUrl ?? "",
       available: item.available,
+      isVeg: item.isVeg,
       sortOrder: String(item.sortOrder),
       unit: item.unit ?? "",
     });
@@ -89,6 +91,7 @@ export default function MenuManager() {
         category: form.category,
         imageUrl: form.imageUrl || null,
         available: form.available,
+        isVeg: form.isVeg,
         sortOrder: parseInt(form.sortOrder),
         unit: form.unit || null,
       };
@@ -605,7 +608,17 @@ export default function MenuManager() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-800">{item.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          title={item.isVeg ? "Veg" : "Non-Veg"}
+                          className={`flex-shrink-0 inline-flex w-3.5 h-3.5 rounded-sm border-2 items-center justify-center ${
+                            item.isVeg ? "border-green-600" : "border-red-600"
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} />
+                        </span>
+                        <p className="font-semibold text-slate-800">{item.name}</p>
+                      </div>
                       {item.description && (
                         <p className="text-slate-500 text-sm truncate">{item.description}</p>
                       )}
@@ -810,6 +823,41 @@ export default function MenuManager() {
                 <label htmlFor="available" className="text-sm font-medium text-slate-700">
                   Available for ordering
                 </label>
+              </div>
+
+              {/* Veg / Non-Veg toggle */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Food Type</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, isVeg: true }))}
+                    className={`flex items-center gap-2 flex-1 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all ${
+                      form.isVeg
+                        ? "border-green-500 bg-green-50 text-green-700"
+                        : "border-slate-200 bg-white text-slate-400"
+                    }`}
+                  >
+                    <span className="inline-flex w-4 h-4 rounded-sm border-2 border-green-500 items-center justify-center mx-auto">
+                      <span className="w-2 h-2 rounded-full bg-green-500" />
+                    </span>
+                    Veg
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, isVeg: false }))}
+                    className={`flex items-center gap-2 flex-1 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all ${
+                      !form.isVeg
+                        ? "border-red-500 bg-red-50 text-red-700"
+                        : "border-slate-200 bg-white text-slate-400"
+                    }`}
+                  >
+                    <span className="inline-flex w-4 h-4 rounded-sm border-2 border-red-500 items-center justify-center mx-auto">
+                      <span className="w-2 h-2 rounded-full bg-red-500" />
+                    </span>
+                    Non-Veg
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">

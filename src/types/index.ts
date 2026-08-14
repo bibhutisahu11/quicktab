@@ -19,6 +19,7 @@ export interface MenuItemData {
   category: string;
   imageUrl: string | null;
   available: boolean;
+  isVeg: boolean;
   sortOrder: number;
   unit: string | null;  // e.g. "100g" — each +1 in cart = 1 unit
 }

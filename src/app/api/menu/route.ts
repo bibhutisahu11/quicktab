@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ created, count: created.length }, { status: 201 });
     }
 
-    const { name, description, price, category, imageUrl, available, sortOrder, unit } = body;
+    const { name, description, price, category, imageUrl, available, isVeg, sortOrder, unit } = body;
     if (!name || !price || !category) {
       return NextResponse.json(
         { error: "name, price, and category are required" },
@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
         category,
         imageUrl: imageUrl ?? null,
         available: available ?? true,
+        isVeg: isVeg !== undefined ? Boolean(isVeg) : true,
         sortOrder: sortOrder ?? 0,
         unit: unit || null,
         orgId: ctx.orgId,
