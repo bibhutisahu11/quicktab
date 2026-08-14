@@ -73,6 +73,7 @@ model Organization {
   expenses    Expense[]
   discounts   Discount[]
   feedbacks   Feedback[]
+  attendance  Attendance[]
 
   @@map("organizations")
 }
@@ -86,6 +87,7 @@ model Admin {
   orgId        String?
   org          Organization? @relation(fields: [orgId], references: [id])
   createdAt    DateTime      @default(now())
+  attendance   Attendance[]
 
   @@map("admins")
 }
@@ -238,4 +240,30 @@ enum OrderStatus {
   READY
   DONE
   CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  adminId   String
+  admin     Admin            @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  orgId     String?
+  org       Organization?    @relation(fields: [orgId], references: [id])
+  date      String           // YYYY-MM-DD
+  status    AttendanceStatus @default(PRESENT)
+  checkIn   String?          // HH:MM (stored as string for simplicity)
+  checkOut  String?          // HH:MM
+  notes     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([adminId, date])
+  @@map("attendance")
 }
