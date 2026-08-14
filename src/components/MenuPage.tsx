@@ -324,7 +324,16 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     if (!lastOrder) return;
     // Only add items that are still available on the current menu
     const availableIds = new Set(menuItems.filter((m) => m.available).map((m) => m.id));
-    const validItems = lastOrder.items.filter((i) => availableIds.has(i.menuItemId));
+    let validItems = lastOrder.items.filter((i) => availableIds.has(i.menuItemId));
+    // Enforce Dahipani rule: remove Dahipani if Dahibara Aloodum is not in the reorder
+    const reorderHasAloodum = validItems.some((i) =>
+      i.name.toLowerCase().includes("dahibara") ||
+      i.name.toLowerCase().includes("aloodum") ||
+      i.name.toLowerCase().includes("aloo dum")
+    );
+    if (!reorderHasAloodum) {
+      validItems = validItems.filter((i) => !i.name.toLowerCase().includes("dahipani"));
+    }
     if (validItems.length > 0) setCart(validItems);
     setShowReorderBanner(false);
     setCartOpen(true);
