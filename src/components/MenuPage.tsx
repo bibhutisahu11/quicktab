@@ -249,7 +249,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
   // ── Odisha Sweets upsell — triggers after ordering a main course ─────────
   // The 5 star sweets to promote
-  const ODIA_STAR_SWEETS = ["Rasabali", "Chhenapoda (Sugar)", "Chhenapoda (Jaggery)", "Pahala Rasagola", "Chhena Steam", "Malpua"];
+  const ODIA_STAR_SWEETS = ["Chhenapoda (Sugar)", "Chhenapoda (Jaggery)", "Rasabali", "Pahala Rasagola", "Rasmalai", "Chhena Steam", "Malpua"];
   const SWEET_TRIGGER_CATEGORIES = new Set([
     "Thali Corner", "Odisha Special", "Biryani Zone", "Dum Zone",
     "Non-Veg Starters", "Egg Zone", "Fried Rice & Noodles",
@@ -1015,11 +1015,13 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           ODIA_STAR_SWEETS.some((s) => m.name.toLowerCase().includes(s.toLowerCase()))
         );
         if (allSweets.length === 0) return null;
-        // Pin Chhenapoda first — it's Odisha's #1
-        const starSweets = [
-          ...allSweets.filter((m) => m.name.toLowerCase().includes("chhenapoda")),
-          ...allSweets.filter((m) => !m.name.toLowerCase().includes("chhenapoda")),
-        ];
+        // Sort in defined priority order: Chhenapoda, Rasabali, Rasagola, Rasmalai, then rest
+        const SWEET_ORDER = ["chhenapoda", "rasabali", "rasagola", "rasmalai", "chhena steam", "malpua"];
+        const starSweets = [...allSweets].sort((a, b) => {
+          const ai = SWEET_ORDER.findIndex((k) => a.name.toLowerCase().includes(k));
+          const bi = SWEET_ORDER.findIndex((k) => b.name.toLowerCase().includes(k));
+          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+        });
         return (
           <div className="fixed inset-0 z-40 flex items-end" onClick={() => setSweetPrompt(false)}>
             <div className="absolute inset-0 bg-black/30" />
@@ -1030,57 +1032,44 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-1" />
               <button onClick={() => setSweetPrompt(false)} className="absolute top-4 right-4 text-slate-400 text-xl font-bold">✕</button>
 
-              {/* Header — Chhenapoda spotlight */}
+              {/* Header */}
               <div className="text-center mb-4">
                 <p className="text-3xl mb-1">🍮</p>
-                <p className="font-black text-slate-800 text-lg leading-tight">Try Chhenapoda!</p>
-                <p className="text-slate-500 text-sm mt-1">
-                  Odisha&apos;s most iconic dessert — baked cottage cheese caramelised to perfection.
-                  The <span className="font-bold text-amber-600">only Indian sweet cooked in fire!</span> 🔥
-                </p>
+                <p className="font-black text-slate-800 text-lg leading-tight">End with Odisha&apos;s finest sweets!</p>
+                <p className="text-slate-500 text-sm mt-1">All made fresh in-house daily 🌟</p>
               </div>
 
               {/* Sweet cards */}
               <div className="flex flex-col gap-3">
                 {starSweets.map((sweet) => {
                   const inCart = cart.some((c) => c.menuItemId === sweet.id);
-                  const isChhenapoda = sweet.name.toLowerCase().includes("chhenapoda");
+                  const nameLow = sweet.name.toLowerCase();
+                  const emoji =
+                    nameLow.includes("chhenapoda") ? "🍮" :
+                    nameLow.includes("rasagola")   ? "🍡" :
+                    nameLow.includes("rasabali")   ? "🥛" :
+                    nameLow.includes("rasmalai")   ? "🍮" :
+                    nameLow.includes("malpua")     ? "🥞" :
+                    nameLow.includes("chhena")     ? "🍰" : "🍯";
+                  const desc =
+                    nameLow.includes("chhenapoda") ? "Baked caramelised chhena — smoky, dense & heavenly 🔥" :
+                    nameLow.includes("rasabali")   ? "Soft chhena patties soaked in rich condensed milk 🥛" :
+                    nameLow.includes("rasagola")   ? "Authentic Pahala-style — spongy & lightly sweet 🌸" :
+                    nameLow.includes("rasmalai")   ? "Silky chhena discs in chilled saffron milk ✨" :
+                    nameLow.includes("chhena steam") ? "Steamed chhena — melt-in-mouth, light & delicate ✨" :
+                    nameLow.includes("malpua")     ? "Pan-fried sweet pancake with a crispy golden edge 🍯" : "";
                   return (
                     <div key={sweet.id}
-                      className={`relative flex items-center gap-3 rounded-2xl px-4 py-3 border-2 transition-all ${
-                        inCart
-                          ? "border-green-400 bg-green-50"
-                          : isChhenapoda
-                          ? "border-amber-500 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md"
-                          : "border-amber-200 bg-amber-50"
+                      className={`flex items-center gap-3 rounded-2xl px-4 py-3 border-2 transition-all ${
+                        inCart ? "border-green-400 bg-green-50" : "border-amber-200 bg-amber-50"
                       }`}>
-                      {/* Crown badge for Chhenapoda */}
-                      {isChhenapoda && !inCart && (
-                        <span className="absolute -top-2 -right-1 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow">
-                          🏆 ODISHA&apos;S #1
-                        </span>
-                      )}
-                      <span className="text-3xl flex-shrink-0">
-                        {isChhenapoda ? "🍮" :
-                         sweet.name.toLowerCase().includes("rasagola") ? "🍡" :
-                         sweet.name.toLowerCase().includes("rasabali") ? "🥛" :
-                         sweet.name.toLowerCase().includes("malpua") ? "🥞" :
-                         sweet.name.toLowerCase().includes("chhena") ? "🍰" : "🍯"}
-                      </span>
+                      <span className="text-3xl flex-shrink-0">{emoji}</span>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-bold text-sm leading-tight ${isChhenapoda ? "text-amber-800" : "text-slate-800"}`}>
-                          {sweet.name}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {isChhenapoda && "Baked caramelised chhena — smoky, dense & heavenly. Made fresh daily!"}
-                          {sweet.name.toLowerCase().includes("rasabali") && "Soft chhena patties soaked in rich condensed milk 🥛"}
-                          {sweet.name.toLowerCase().includes("rasagola") && "Authentic Pahala-style — spongy & lightly sweet 🌸"}
-                          {sweet.name.toLowerCase().includes("chhena steam") && "Steamed chhena — melt-in-mouth, light & delicate ✨"}
-                          {sweet.name.toLowerCase().includes("malpua") && "Pan-fried sweet pancake with a crispy golden edge 🍯"}
-                        </p>
-                        <p className={`font-black text-sm mt-1 ${isChhenapoda ? "text-amber-600" : "text-amber-600"}`}>
+                        <p className="font-bold text-slate-800 text-sm leading-tight">{sweet.name}</p>
+                        {desc && <p className="text-xs text-slate-500 mt-0.5">{desc}</p>}
+                        <p className="text-amber-600 font-black text-sm mt-1">
                           {sweet.unit === "100g" ? `₹${sweet.price * 10}/kg` : `₹${sweet.price}`}
-                          {isChhenapoda && <span className="ml-1 text-xs text-orange-500">Enter any grams</span>}
+                          {sweet.unit === "100g" && <span className="ml-1 text-xs text-orange-500 font-normal">· enter any grams</span>}
                         </p>
                       </div>
                       {inCart ? (
@@ -1088,10 +1077,8 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
                       ) : (
                         <button
                           onClick={() => { addToCart(sweet); }}
-                          className={`flex-shrink-0 font-black text-xs px-4 py-2 rounded-xl transition-colors whitespace-nowrap text-white ${
-                            isChhenapoda ? "bg-amber-600 hover:bg-amber-700 shadow" : "bg-amber-500 hover:bg-amber-600"
-                          }`}>
-                          {sweet.unit === "100g" ? "⚖️ Try it!" : "+ Add"}
+                          className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2 rounded-xl transition-colors whitespace-nowrap">
+                          {sweet.unit === "100g" ? "⚖️ Add" : "+ Add"}
                         </button>
                       )}
                     </div>
