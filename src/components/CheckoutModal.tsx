@@ -463,6 +463,25 @@ export default function CheckoutModal({
                   </button>
                 ))}
               </div>
+              {/* Contextual payment nudges */}
+              {paymentMethod === "UPI" && (
+                <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">📲</span>
+                  <p className="text-xs text-indigo-700 leading-snug">
+                    <span className="font-bold">Don&apos;t have your phone handy?</span> No worries —
+                    ask the waiter to bring the QR scanner to your table and pay instantly!
+                  </p>
+                </div>
+              )}
+              {paymentMethod === "CASH" && (
+                <div className="mt-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">⚠️</span>
+                  <p className="text-xs text-amber-800 leading-snug">
+                    <span className="font-bold">Prefer UPI!</span> We may not always have exact change ready.
+                    UPI is faster, safer &amp; no change hassle — ask the waiter for the QR if needed.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
@@ -699,6 +718,25 @@ export default function CheckoutModal({
                   </button>
                 ))}
               </div>
+              {/* Contextual payment nudges */}
+              {paymentMethod === "UPI" && (
+                <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">📲</span>
+                  <p className="text-xs text-indigo-700 leading-snug">
+                    <span className="font-bold">Don&apos;t have your phone handy?</span> No worries —
+                    ask the waiter to bring the QR scanner to your table and pay instantly!
+                  </p>
+                </div>
+              )}
+              {paymentMethod === "CASH" && (
+                <div className="mt-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">⚠️</span>
+                  <p className="text-xs text-amber-800 leading-snug">
+                    <span className="font-bold">Prefer UPI!</span> We may not always have exact change ready.
+                    UPI is faster, safer &amp; no change hassle — ask the waiter for the QR if needed.
+                  </p>
+                </div>
+              )}
             </div>
 
             <button
@@ -733,6 +771,13 @@ export default function CheckoutModal({
         {/* ── STEP 2: UPI Payment ── */}
         {step === 2 && orgUpiId && (
           <form onSubmit={handleStep2Submit} className="px-5 py-5 space-y-5">
+            {/* Waiter scanner nudge */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              <span className="text-xl flex-shrink-0">🙋</span>
+              <p className="text-xs text-blue-700 leading-snug">
+                <span className="font-bold">No UPI app on this phone?</span> Ask your waiter to bring the QR scanner to your table — we&apos;ll handle it for you!
+              </p>
+            </div>
             {/* UPI QR + instructions */}
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5 text-center space-y-4">
               <p className="text-sm font-semibold text-indigo-700 uppercase tracking-wide">Scan &amp; Pay via UPI</p>
