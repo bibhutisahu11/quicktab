@@ -468,17 +468,16 @@ export default function CheckoutModal({
                 <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2">
                   <span className="text-lg flex-shrink-0">📲</span>
                   <p className="text-xs text-indigo-700 leading-snug">
-                    <span className="font-bold">Don&apos;t have your phone handy?</span> No worries —
-                    ask the waiter to bring the QR scanner to your table and pay instantly!
+                    <span className="font-bold">Phone not nearby?</span> Just wave at the waiter — they&apos;ll bring the QR scanner right to your table! 🙌
                   </p>
                 </div>
               )}
               {paymentMethod === "CASH" && (
-                <div className="mt-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-start gap-2">
-                  <span className="text-lg flex-shrink-0">⚠️</span>
-                  <p className="text-xs text-amber-800 leading-snug">
-                    <span className="font-bold">Prefer UPI!</span> We may not always have exact change ready.
-                    UPI is faster, safer &amp; no change hassle — ask the waiter for the QR if needed.
+                <div className="mt-3 bg-red-50 border border-red-300 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">🙏</span>
+                  <p className="text-xs text-red-700 leading-snug">
+                    <span className="font-bold">We strongly prefer UPI!</span> 😅 Exact change is rarer than a full stomach here.
+                    Switch to UPI — it&apos;s instant, no drama. Ask the waiter for the scanner! 📲
                   </p>
                 </div>
               )}
@@ -723,17 +722,16 @@ export default function CheckoutModal({
                 <div className="mt-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2">
                   <span className="text-lg flex-shrink-0">📲</span>
                   <p className="text-xs text-indigo-700 leading-snug">
-                    <span className="font-bold">Don&apos;t have your phone handy?</span> No worries —
-                    ask the waiter to bring the QR scanner to your table and pay instantly!
+                    <span className="font-bold">Phone not nearby?</span> Just wave at the waiter — they&apos;ll bring the QR scanner right to your table! 🙌
                   </p>
                 </div>
               )}
               {paymentMethod === "CASH" && (
-                <div className="mt-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-start gap-2">
-                  <span className="text-lg flex-shrink-0">⚠️</span>
-                  <p className="text-xs text-amber-800 leading-snug">
-                    <span className="font-bold">Prefer UPI!</span> We may not always have exact change ready.
-                    UPI is faster, safer &amp; no change hassle — ask the waiter for the QR if needed.
+                <div className="mt-3 bg-red-50 border border-red-300 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <span className="text-lg flex-shrink-0">🙏</span>
+                  <p className="text-xs text-red-700 leading-snug">
+                    <span className="font-bold">We strongly prefer UPI!</span> 😅 Exact change is rarer than a full stomach here.
+                    Switch to UPI — it&apos;s instant, no drama. Ask the waiter for the scanner! 📲
                   </p>
                 </div>
               )}
@@ -772,10 +770,10 @@ export default function CheckoutModal({
         {step === 2 && orgUpiId && (
           <form onSubmit={handleStep2Submit} className="px-5 py-5 space-y-5">
             {/* Waiter scanner nudge */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-center gap-3">
               <span className="text-xl flex-shrink-0">🙋</span>
-              <p className="text-xs text-blue-700 leading-snug">
-                <span className="font-bold">No UPI app on this phone?</span> Ask your waiter to bring the QR scanner to your table — we&apos;ll handle it for you!
+              <p className="text-xs text-indigo-700 leading-snug">
+                <span className="font-bold">Psst — no UPI app?</span> No stress! Just call the waiter &amp; say &quot;scanner please&quot; — they&apos;ll sort it out in seconds 😄
               </p>
             </div>
             {/* UPI QR + instructions */}
