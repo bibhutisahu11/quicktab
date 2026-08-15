@@ -81,6 +81,18 @@ export default function WaiterDashboard() {
   const [tick, setTick] = useState(0);
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const adminSearchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (adminSearchRef.current && !adminSearchRef.current.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   const [diningPopup, setDiningPopup] = useState<OrderData | null>(null);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -469,24 +481,119 @@ export default function WaiterDashboard() {
         );
       })()}
 
-      {/* Search bar */}
-      <div className="relative mb-4">
+      {/* Search bar with suggestions */}
+      <div className="relative mb-4" ref={adminSearchRef}>
         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onFocus={() => setSearchFocused(true)}
           placeholder="Search by order ID, customer name, phone, table…"
           className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder-slate-400"
         />
         {search && (
           <button
-            onClick={() => setSearch("")}
+            onClick={() => { setSearch(""); setSearchFocused(false); }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg"
           >
             ×
           </button>
         )}
+
+        {/* Suggestions dropdown */}
+        {searchFocused && search.trim().length >= 1 && (() => {
+          const q = search.trim().toLowerCase();
+
+          // Unique customer names that match
+          const names = [...new Set(
+            orders.filter((o) => o.customerName.toLowerCase().includes(q)).map((o) => o.customerName)
+          )].slice(0, 4);
+
+          // Unique phone numbers that match
+          const phones = [...new Set(
+            orders.filter((o) => o.phone && o.phone.includes(q)).map((o) => o.phone as string)
+          )].slice(0, 3);
+
+          // Unique table names that match
+          const tables = [...new Set(
+            orders.filter((o) => o.table?.name && o.table.name.toLowerCase().includes(q)).map((o) => o.table!.name)
+          )].slice(0, 3);
+
+          // Order ID suffix matches
+          const orderIds = orders
+            .filter((o) => o.id.slice(-6).toLowerCase().includes(q))
+            .map((o) => ({ id: o.id, short: o.id.slice(-6).toUpperCase(), name: o.customerName }))
+            .slice(0, 3);
+
+          if (names.length === 0 && phones.length === 0 && tables.length === 0 && orderIds.length === 0) return null;
+
+          return (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden">
+              {names.length > 0 && (
+                <div className="px-3 pt-3 pb-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Customers</p>
+                  {names.map((name) => (
+                    <button
+                      key={name}
+                      onMouseDown={(e) => { e.preventDefault(); setSearch(name); setSearchFocused(false); }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
+                    >
+                      <span className="text-base">👤</span> {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {phones.length > 0 && (
+                <div className="px-3 pb-2">
+                  {names.length > 0 && <div className="border-t border-slate-100 mb-2" />}
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Phone Numbers</p>
+                  {phones.map((phone) => (
+                    <button
+                      key={phone}
+                      onMouseDown={(e) => { e.preventDefault(); setSearch(phone); setSearchFocused(false); }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
+                    >
+                      <span className="text-base">📱</span> {phone}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {tables.length > 0 && (
+                <div className="px-3 pb-2">
+                  {(names.length > 0 || phones.length > 0) && <div className="border-t border-slate-100 mb-2" />}
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Tables</p>
+                  {tables.map((tbl) => (
+                    <button
+                      key={tbl}
+                      onMouseDown={(e) => { e.preventDefault(); setSearch(tbl); setSearchFocused(false); }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
+                    >
+                      <span className="text-base">🍽️</span> {tbl}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {orderIds.length > 0 && (
+                <div className="px-3 pb-3">
+                  {(names.length > 0 || phones.length > 0 || tables.length > 0) && <div className="border-t border-slate-100 mb-2" />}
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Order IDs</p>
+                  {orderIds.map(({ short, name }) => (
+                    <button
+                      key={short}
+                      onMouseDown={(e) => { e.preventDefault(); setSearch(short); setSearchFocused(false); }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
+                    >
+                      <span className="text-base">🧾</span>
+                      <span className="font-mono font-bold text-slate-800">#{short}</span>
+                      <span className="text-slate-400 text-xs">{name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="flex gap-2 mb-5 flex-wrap">
