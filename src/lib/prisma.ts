@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -10,8 +10,9 @@ function createPrismaClient() {
   if (!connectionString) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
-  // Neon serverless HTTP adapter — no TCP handshake, no cold-start latency
-  const adapter = new PrismaNeon({ connectionString });
+  // Strip channel_binding param — not supported by the pg driver
+  const cleanUrl = connectionString.replace(/[&?]channel_binding=[^&]*/g, "");
+  const adapter = new PrismaPg({ connectionString: cleanUrl });
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
