@@ -10,8 +10,21 @@ function createPrismaClient() {
   if (!connectionString) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
-  // Strip channel_binding param — not supported by the pg driver
-  const cleanUrl = connectionString.replace(/[&?]channel_binding=[^&]*/g, "");
+
+  // Use URL API to cleanly remove channel_binding — the pg driver doesn't support it.
+  // Simple regex replacement can produce malformed URLs (e.g. "...db&sslmode=require").
+  let cleanUrl = connectionString;
+  try {
+    const u = new URL(connectionString);
+    u.searchParams.delete("channel_binding");
+    cleanUrl = u.toString();
+  } catch {
+    // Fallback: strip manually if URL parsing fails
+    cleanUrl = connectionString
+      .replace(/[?&]channel_binding=[^&]*/g, "")
+      .replace(/\?&/, "?");
+  }
+
   const adapter = new PrismaPg({ connectionString: cleanUrl });
   return new PrismaClient({
     adapter,
