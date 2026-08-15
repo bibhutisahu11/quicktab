@@ -77,6 +77,7 @@ export default function WaiterDashboard() {
   const [filter, setFilter] = useState<"PAYMENT_PENDING" | "ACTIVE" | "ALL">("ACTIVE");
   const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
   const [categoryMap, setCategoryMap] = useState<Record<string, string>>({});
+  const [menuStats, setMenuStats] = useState({ veg: 0, nonVeg: 0, total: 0 });
   const [tick, setTick] = useState(0);
   const [expandedScreenshot, setExpandedScreenshot] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -117,6 +118,9 @@ export default function WaiterDashboard() {
         const map: Record<string, string> = {};
         items.forEach((m) => { map[m.id] = m.category; });
         setCategoryMap(map);
+        const veg = items.filter((m) => m.isVeg).length;
+        const nonVeg = items.filter((m) => !m.isVeg).length;
+        setMenuStats({ veg, nonVeg, total: items.length });
       })
       .catch(() => {});
     const t = setInterval(() => setTick((n) => n + 1), 30_000);
@@ -370,21 +374,37 @@ export default function WaiterDashboard() {
         />
       )}
 
-      {/* ── Today's Payment Summary (admins only) ────────────────────────── */}
-      {isAdmin && dayTotal > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
-            <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">💵 Cash Today</p>
-            <p className="text-xl font-black text-green-700">₹{cashTotal.toFixed(0)}</p>
+      {/* ── Today's Stats row (admins only) ──────────────────────────────── */}
+      {isAdmin && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {/* Customers today */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">👥 Customers</p>
+            <p className="text-2xl font-black text-blue-700">{new Set(confirmedToday.map((o) => o.phone ?? o.id)).size}</p>
+            <p className="text-xs text-blue-400 mt-0.5">{confirmedToday.length} orders today</p>
           </div>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 text-center">
-            <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">📲 UPI Today</p>
-            <p className="text-xl font-black text-indigo-700">₹{upiTotal.toFixed(0)}</p>
-          </div>
+          {/* Total today */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
-            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">🧾 Total Today</p>
-            <p className="text-xl font-black text-amber-700">₹{dayTotal.toFixed(0)}</p>
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">🧾 Revenue</p>
+            <p className="text-2xl font-black text-amber-700">₹{dayTotal.toFixed(0)}</p>
+            <p className="text-xs text-amber-400 mt-0.5">💵 ₹{cashTotal.toFixed(0)} &nbsp;📲 ₹{upiTotal.toFixed(0)}</p>
           </div>
+          {/* Veg items */}
+          {menuStats.total > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
+              <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">🟢 Veg Items</p>
+              <p className="text-2xl font-black text-green-700">{menuStats.veg}</p>
+              <p className="text-xs text-green-400 mt-0.5">{menuStats.total > 0 ? Math.round((menuStats.veg / menuStats.total) * 100) : 0}% of menu</p>
+            </div>
+          )}
+          {/* Non-veg items */}
+          {menuStats.total > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-center">
+              <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">🔴 Non-Veg</p>
+              <p className="text-2xl font-black text-red-700">{menuStats.nonVeg}</p>
+              <p className="text-xs text-red-400 mt-0.5">{menuStats.total > 0 ? Math.round((menuStats.nonVeg / menuStats.total) * 100) : 0}% of menu</p>
+            </div>
+          )}
         </div>
       )}
 
