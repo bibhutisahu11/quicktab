@@ -1,4 +1,5 @@
 {
+  "alias": ["ordertab.vercel.app"],
   "crons": [
     {
       "path": "/api/cron/cleanup-screenshots",
