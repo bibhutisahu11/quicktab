@@ -10,14 +10,29 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const type = searchParams.get("type");
+    // Default: only last 7 days. Pass ?days=30 for longer range (e.g. reports).
+    const days = Math.min(parseInt(searchParams.get("days") ?? "7", 10), 90);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const orders = await prisma.order.findMany({
       where: {
         ...(ctx.orgId ? { orgId: ctx.orgId } : {}),
         ...(status && { status: status as never }),
         ...(type && { type: type as never }),
+        createdAt: { gte: since },
       },
-      include: { items: true, table: true },
+      // Exclude paymentScreenshot (large base64 blob) from list queries
+      select: {
+        id: true, type: true, tableId: true, customerName: true, phone: true,
+        email: true, birthday: true, deliveryAddress: true, notes: true,
+        status: true, discountAmount: true, total: true, paymentId: true,
+        paymentMethod: true, upiUtr: true, screenshotExpiry: true,
+        parcelCharge: true, paymentVerified: true, nudgeCount: true,
+        nudgedAt: true, isRepeatDiner: true, orgId: true,
+        createdAt: true, updatedAt: true,
+        items: true,
+        table: true,
+      },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(orders);

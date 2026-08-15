@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -122,6 +123,8 @@ model MenuItem {
   updatedAt   DateTime      @updatedAt
   orderItems  OrderItem[]
 
+  @@index([orgId])
+  @@index([orgId, available])
   @@map("menu_items")
 }
 
@@ -155,6 +158,9 @@ model Order {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  @@index([orgId])
+  @@index([orgId, status])
+  @@index([orgId, createdAt(sort: Desc)])
   @@map("orders")
 }
 
@@ -169,6 +175,7 @@ model OrderItem {
   quantity   Int
   notes      String?   // per-item spice/instruction note from customer
 
+  @@index([orderId])
   @@map("order_items")
 }
 
