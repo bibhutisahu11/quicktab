@@ -41,7 +41,7 @@ export default function MenuManager() {
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   // BILLER lands directly on availability tab and cannot switch to manage
-  const [tab, setTab] = useState<"manage" | "availability" | "move">("manage");
+  const [tab, setTab] = useState<"manage" | "availability" | "move" | "vegnonveg">("manage");
   const [pendingAvail, setPendingAvail] = useState<Record<string, boolean>>({});
   const [savingAvail, setSavingAvail] = useState(false);
 
@@ -278,9 +278,60 @@ export default function MenuManager() {
     return acc;
   }, {} as Record<string, MenuItemData[]>);
 
-  // ── Multi-select state ───────────────────────────────────────────────────
+  // ── Multi-select state (availability tab) ───────────────────────────────
   const [selectMode, setSelectMode]   = useState(false);
   const [selected, setSelected]       = useState<Set<string>>(new Set());
+
+  // ── Veg / Non-Veg tab state ──────────────────────────────────────────────
+  const [vegFilter, setVegFilter]         = useState<"all" | "veg" | "nonveg">("all");
+  const [vegSelected, setVegSelected]     = useState<Set<string>>(new Set());
+  const [pendingVeg, setPendingVeg]       = useState<Record<string, boolean>>({});
+  const [savingVeg, setSavingVeg]         = useState(false);
+  const vegChanged = Object.keys(pendingVeg).length > 0;
+
+  function toggleVegSelect(id: string) {
+    setVegSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function applyVegToSelected(isVeg: boolean) {
+    if (vegSelected.size === 0) return;
+    setPendingVeg((prev) => {
+      const next = { ...prev };
+      vegSelected.forEach((id) => { next[id] = isVeg; });
+      return next;
+    });
+    setVegSelected(new Set());
+  }
+
+  async function saveVegChanges() {
+    if (!vegChanged) return;
+    setSavingVeg(true);
+    try {
+      const updates = Object.entries(pendingVeg).map(([id, isVeg]) => ({ id, isVeg }));
+      const res = await fetch("/api/menu", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+      });
+      if (res.ok) {
+        setItems((prev) => prev.map((item) =>
+          pendingVeg[item.id] !== undefined ? { ...item, isVeg: pendingVeg[item.id] } : item
+        ));
+        setPendingVeg({});
+      } else {
+        const data = await res.json();
+        alert(data.error ?? "Failed to save. Please try again.");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    } finally {
+      setSavingVeg(false);
+    }
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -351,10 +402,10 @@ export default function MenuManager() {
       {/* Tabs — hidden for BILLER (they only see availability) */}
       {!isBiller && (
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-5 w-fit flex-wrap">
-          {(["manage", "availability", "move"] as const).map((t) => (
+          {(["manage", "availability", "vegnonveg", "move"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === t ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"}`}>
-              {t === "manage" ? "🍴 Manage Items" : t === "availability" ? "🔄 Availability" : "📂 Move / Copy"}
+              {t === "manage" ? "🍴 Manage Items" : t === "availability" ? "🔄 Availability" : t === "vegnonveg" ? "🥦 Veg / Non-Veg" : "📂 Move / Copy"}
             </button>
           ))}
         </div>
@@ -667,6 +718,193 @@ export default function MenuManager() {
       )}
 
       </>}
+
+      {/* ── Veg / Non-Veg tab ────────────────────────────────────────────────── */}
+      {tab === "vegnonveg" && (() => {
+        const byCategory = items.reduce<Record<string, MenuItemData[]>>((acc, item) => {
+          (acc[item.category] ??= []).push(item);
+          return acc;
+        }, {});
+
+        const getEffectiveVeg = (item: MenuItemData) =>
+          pendingVeg[item.id] !== undefined ? pendingVeg[item.id] : item.isVeg;
+
+        const filteredByCategory = Object.entries(byCategory).reduce<Record<string, MenuItemData[]>>(
+          (acc, [cat, catItems]) => {
+            const filtered = catItems.filter((i) => {
+              if (vegFilter === "veg") return getEffectiveVeg(i);
+              if (vegFilter === "nonveg") return !getEffectiveVeg(i);
+              return true;
+            });
+            if (filtered.length > 0) acc[cat] = filtered;
+            return acc;
+          },
+          {}
+        );
+
+        const vegCount   = items.filter((i) => getEffectiveVeg(i)).length;
+        const nonVegCount = items.filter((i) => !getEffectiveVeg(i)).length;
+
+        return (
+          <div className="space-y-4">
+            {/* Stats + toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex gap-2 flex-wrap items-center">
+                {/* Veg/Non-Veg filter pills */}
+                {(["all", "veg", "nonveg"] as const).map((f) => (
+                  <button key={f} onClick={() => setVegFilter(f)}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                      vegFilter === f
+                        ? f === "veg" ? "bg-green-500 text-white border-green-500"
+                          : f === "nonveg" ? "bg-red-500 text-white border-red-500"
+                          : "bg-slate-800 text-white border-slate-800"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                    }`}>
+                    {f === "all" ? `All (${items.length})` : f === "veg" ? `🟢 Veg (${vegCount})` : `🔴 Non-Veg (${nonVegCount})`}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 items-center">
+                {vegSelected.size > 0 && (
+                  <>
+                    <span className="text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl">
+                      ☑️ {vegSelected.size} selected
+                    </span>
+                    <button
+                      onClick={() => applyVegToSelected(true)}
+                      className="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5"
+                    >
+                      🟢 Mark Veg
+                    </button>
+                    <button
+                      onClick={() => applyVegToSelected(false)}
+                      className="bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5"
+                    >
+                      🔴 Mark Non-Veg
+                    </button>
+                    <button
+                      onClick={() => setVegSelected(new Set())}
+                      className="text-slate-500 hover:text-slate-700 font-semibold px-3 py-2 rounded-xl text-sm border border-slate-200 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={saveVegChanges}
+                  disabled={!vegChanged || savingVeg}
+                  className="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold px-6 py-2 rounded-xl text-sm transition-colors"
+                >
+                  {savingVeg ? "Saving…" : vegChanged ? `Save Changes (${Object.keys(pendingVeg).length})` : "No Changes"}
+                </button>
+              </div>
+            </div>
+
+            {vegChanged && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+                ⚠️ You have {Object.keys(pendingVeg).length} unsaved change{Object.keys(pendingVeg).length !== 1 ? "s" : ""}. Click <strong>Save Changes</strong> to apply.
+              </div>
+            )}
+
+            {/* Category groups */}
+            {Object.entries(filteredByCategory).map(([cat, catItems]) => {
+              const catIds = catItems.map((i) => i.id);
+              const allCatSelected = catIds.length > 0 && catIds.every((id) => vegSelected.has(id));
+              return (
+                <div key={cat} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="bg-slate-50 border-b border-slate-100 px-5 py-3 flex items-center justify-between">
+                    <button
+                      onClick={() => {
+                        setVegSelected((prev) => {
+                          const next = new Set(prev);
+                          if (allCatSelected) catIds.forEach((id) => next.delete(id));
+                          else catIds.forEach((id) => next.add(id));
+                          return next;
+                        });
+                      }}
+                      className={`font-bold text-sm flex items-center gap-2 transition-colors ${allCatSelected ? "text-blue-600" : "text-slate-700 hover:text-blue-600"}`}
+                    >
+                      <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${allCatSelected ? "bg-blue-500 border-blue-500" : "border-slate-400"}`}>
+                        {allCatSelected && <span className="text-white text-xs leading-none">✓</span>}
+                      </span>
+                      {cat}
+                      <span className="text-slate-400 font-normal">({catItems.length})</span>
+                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setPendingVeg((prev) => {
+                            const next = { ...prev };
+                            catIds.forEach((id) => { next[id] = true; });
+                            return next;
+                          });
+                        }}
+                        className="text-xs bg-green-100 hover:bg-green-200 text-green-700 font-semibold px-3 py-1.5 rounded-lg"
+                      >
+                        All Veg
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPendingVeg((prev) => {
+                            const next = { ...prev };
+                            catIds.forEach((id) => { next[id] = false; });
+                            return next;
+                          });
+                        }}
+                        className="text-xs bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-3 py-1.5 rounded-lg"
+                      >
+                        All Non-Veg
+                      </button>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-slate-50">
+                    {catItems.map((item) => {
+                      const isVeg = getEffectiveVeg(item);
+                      const isSelected = vegSelected.has(item.id);
+                      const isPending = pendingVeg[item.id] !== undefined;
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => toggleVegSelect(item.id)}
+                          className={`flex items-center justify-between px-5 py-3 cursor-pointer transition-colors ${isSelected ? "bg-blue-50" : "hover:bg-slate-50"}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* Checkbox */}
+                            <span className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? "bg-blue-500 border-blue-500" : "border-slate-300"}`}>
+                              {isSelected && <span className="text-white text-xs leading-none">✓</span>}
+                            </span>
+                            {/* Veg indicator dot */}
+                            <span
+                              title={isVeg ? "Veg" : "Non-Veg"}
+                              className={`flex-shrink-0 inline-flex w-4 h-4 rounded-sm border-2 items-center justify-center ${isVeg ? "border-green-600" : "border-red-600"}`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? "bg-green-600" : "bg-red-600"}`} />
+                            </span>
+                            <span className="font-medium text-slate-800 text-sm">{item.name}</span>
+                            {isPending && (
+                              <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">modified</span>
+                            )}
+                          </div>
+                          {/* Quick individual toggle */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingVeg((prev) => ({ ...prev, [item.id]: !isVeg }));
+                            }}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${isVeg ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100" : "bg-red-50 border-red-300 text-red-700 hover:bg-red-100"}`}
+                          >
+                            {isVeg ? "🟢 Veg" : "🔴 Non-Veg"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* ── Move / Copy Category tab ─────────────────────────────────────────── */}
       {tab === "move" && (
