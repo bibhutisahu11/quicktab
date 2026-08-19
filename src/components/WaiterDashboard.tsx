@@ -48,6 +48,7 @@ function playBeep(type: "order" | "nudge") {
 import { printOrder } from "@/lib/printOrder";
 import { sendWhatsAppBill } from "@/lib/whatsappBill";
 import CreateOrderModal from "./CreateOrderModal";
+import AddItemsModal from "./AddItemsModal";
 import { estimateWaitMins, formatWait, getOrderUrgency, overdueByMins } from "@/lib/waitingTime";
 
 const STATUS_COLORS: Record<string, { bg: string; border: string; badge: string }> = {
@@ -71,6 +72,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 export default function WaiterDashboard() {
   const { data: session } = useSession();
   const isAdmin = ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"].includes(session?.user?.role ?? "");
+  const canAddItems = ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER", "BILLER"].includes(session?.user?.role ?? "");
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -95,6 +97,7 @@ export default function WaiterDashboard() {
   }, []);
   const [diningPopup, setDiningPopup] = useState<OrderData | null>(null);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
+  const [addItemsOrder, setAddItemsOrder] = useState<OrderData | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const seenRepeatDinerIds = useState(() => new Set<string>())[0];
   const seenOrderIds    = useRef(new Set<string>());
@@ -383,6 +386,18 @@ export default function WaiterDashboard() {
           orgSlug={orgSettings.slug}
           onClose={() => setCreateOrderOpen(false)}
           onCreated={() => { fetchOrders(); }}
+        />
+      )}
+
+      {/* Add items to existing order modal */}
+      {addItemsOrder && (
+        <AddItemsModal
+          order={addItemsOrder}
+          onClose={() => setAddItemsOrder(null)}
+          onAdded={(updated) => {
+            setOrders((prev) => prev.map((o) => o.id === updated.id ? updated : o));
+            setAddItemsOrder(null);
+          }}
         />
       )}
 
@@ -801,6 +816,16 @@ export default function WaiterDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-800">₹{order.total.toFixed(0)}</span>
                   <div className="flex gap-2 items-center">
+                    {/* Add more items — admin & biller only, not on DONE/CANCELLED */}
+                    {canAddItems && !["DONE", "CANCELLED"].includes(order.status) && (
+                      <button
+                        onClick={() => setAddItemsOrder(order)}
+                        title="Add more items to this order"
+                        className="flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-full transition-colors"
+                      >
+                        + Items
+                      </button>
+                    )}
                     <button
                       onClick={() => printOrder(order, orgSettings)}
                       title="Print receipt"

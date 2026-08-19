@@ -17,6 +17,7 @@ interface MenuPageProps {
   orgSlug?: string;
   orgName?: string;
   orgUpiId?: string | null;
+  isAdmin?: boolean;  // hide customer-only UI when staff is previewing
 }
 
 // Map hour ranges to suggested category keywords and greeting info
@@ -38,7 +39,7 @@ function suggestedCategory(categories: string[], keywords: string[]): string | n
 
 interface LastOrder { items: CartItem[]; phone: string | null; savedAt: string; }
 
-export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, orgName, orgUpiId }: MenuPageProps) {
+export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, orgName, orgUpiId, isAdmin = false }: MenuPageProps) {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -378,7 +379,12 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   }, [categories, timeCtx]);
 
   const [activeCategory, setActiveCategory] = useState<string>("All");
-  const [vegFilter, setVegFilter] = useState<"all" | "veg" | "nonveg">("all");
+  // Zomato-style: two independent toggles — both off = show all
+  const [vegOn, setVegOn]       = useState(false);
+  const [nonVegOn, setNonVegOn] = useState(false);
+  // derived for existing filter logic
+  const vegFilter: "all" | "veg" | "nonveg" =
+    vegOn && !nonVegOn ? "veg" : !vegOn && nonVegOn ? "nonveg" : "all";
 
   // Apply time-based default once categories are known
   useEffect(() => {
@@ -388,11 +394,20 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const allCategories = useMemo(() => ["All", ...categories], [categories]);
 
   // ── Time-based availability ──────────────────────────────────────────────
-  // Before 12:00 PM only Breakfast Delights, Sweets & Beverages are served.
+  // Before 12:00 PM only breakfast, snack & beverage categories are served.
   // Admin's explicit available=false always takes priority.
   // After noon everything follows the admin's available flag normally.
   const MORNING_CATEGORIES = new Set([
-    "Breakfast Delights", "Sweets", "Beverages",
+    // legacy name kept for safety
+    "Breakfast Delights",
+    // current menu category names
+    "Odia Breakfast",
+    "North Indian Breakfast",
+    "Dosa & Idli",
+    "Savoury Bites",
+    "Paratha Corner",
+    "Sweets",
+    "Beverages",
   ]);
   const isBeforeNoon = new Date().getHours() < 12;
 
@@ -742,45 +757,50 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           </div>
         </div>
 
-        {/* Veg / Non-Veg filter — Swiggy/Zomato style */}
-        <div className="max-w-2xl mx-auto px-4 pb-2 flex items-center gap-2">
+        {/* ── Zomato-style Veg / Non-Veg toggles — customer only ── */}
+        {!isAdmin && <div className="max-w-2xl mx-auto px-4 pb-3 flex items-center gap-3">
+          {/* Pure Veg toggle */}
           <button
-            onClick={() => setVegFilter("all")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-              vegFilter === "all"
-                ? "bg-white text-slate-700 border-white shadow"
-                : "bg-transparent text-amber-100 border-amber-300/50 hover:border-white"
+            onClick={() => { setVegOn((v) => { if (!v) setActiveCategory("All"); return !v; }); }}
+            className={`relative flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 select-none ${
+              vegOn
+                ? "bg-green-600 text-white shadow-lg shadow-green-900/30"
+                : "bg-white/15 text-white border border-white/30 hover:bg-white/25"
             }`}
           >
-            All
-          </button>
-          <button
-            onClick={() => setVegFilter(vegFilter === "veg" ? "all" : "veg")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-              vegFilter === "veg"
-                ? "bg-white text-green-700 border-white shadow"
-                : "bg-transparent text-amber-100 border-amber-300/50 hover:border-white"
-            }`}
-          >
-            <span className="inline-flex w-3.5 h-3.5 rounded-sm border-2 border-green-500 items-center justify-center flex-shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            {/* Veg icon — green square with circle inside */}
+            <span className={`inline-flex w-4 h-4 rounded-sm border-2 items-center justify-center flex-shrink-0 transition-colors ${vegOn ? "border-white" : "border-green-400"}`}>
+              <span className={`w-2 h-2 rounded-full transition-colors ${vegOn ? "bg-white" : "bg-green-400"}`} />
             </span>
             Pure Veg
           </button>
+
+          {/* Non-Veg toggle */}
           <button
-            onClick={() => setVegFilter(vegFilter === "nonveg" ? "all" : "nonveg")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-              vegFilter === "nonveg"
-                ? "bg-white text-red-700 border-white shadow"
-                : "bg-transparent text-amber-100 border-amber-300/50 hover:border-white"
+            onClick={() => { setNonVegOn((v) => { if (!v) setActiveCategory("All"); return !v; }); }}
+            className={`relative flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 select-none ${
+              nonVegOn
+                ? "bg-red-600 text-white shadow-lg shadow-red-900/30"
+                : "bg-white/15 text-white border border-white/30 hover:bg-white/25"
             }`}
           >
-            <span className="inline-flex w-3.5 h-3.5 rounded-sm border-2 border-red-500 items-center justify-center flex-shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            {/* Non-veg icon — red square with red triangle / circle */}
+            <span className={`inline-flex w-4 h-4 rounded-sm border-2 items-center justify-center flex-shrink-0 transition-colors ${nonVegOn ? "border-white" : "border-red-400"}`}>
+              <span className={`w-2 h-2 rounded-full transition-colors ${nonVegOn ? "bg-white" : "bg-red-400"}`} />
             </span>
             Non-Veg
           </button>
-        </div>
+
+          {/* Active filter badge */}
+          {(vegOn || nonVegOn) && (
+            <button
+              onClick={() => { setVegOn(false); setNonVegOn(false); }}
+              className="ml-auto flex items-center gap-1 text-xs text-amber-200 hover:text-white transition-colors"
+            >
+              <span>✕</span> Clear
+            </button>
+          )}
+        </div>}
 
         {/* Category tabs */}
         <div className="max-w-2xl mx-auto px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
@@ -1233,7 +1253,11 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         >
           <p className="text-slate-700 text-sm leading-snug">{FOOD_TIPS[tipIndex].text}</p>
           {FOOD_TIPS[tipIndex].cta && (() => {
-            const ctaItem = menuItems.find((m) => m.available && m.name === FOOD_TIPS[tipIndex].cta);
+            const ctaQ = FOOD_TIPS[tipIndex].cta!.toLowerCase();
+            // partial / fuzzy match so long item names with suffixes still resolve
+            const ctaItem = menuItems.find(
+              (m) => m.available && m.name.toLowerCase().includes(ctaQ)
+            );
             return ctaItem ? (
               <button
                 onClick={() => addToCart(ctaItem)}

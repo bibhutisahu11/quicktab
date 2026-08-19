@@ -74,6 +74,7 @@ model Organization {
   discounts   Discount[]
   feedbacks   Feedback[]
   attendance  Attendance[]
+  advances    AdvancePayment[]
 
   @@map("organizations")
 }
@@ -246,6 +247,28 @@ enum OrderStatus {
   READY
   DONE
   CANCELLED
+}
+
+model AdvancePayment {
+  id          String        @id @default(cuid())
+  orgId       String
+  org         Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  partyType   String        @default("Customer") // Customer | Staff
+  customerName String
+  phone       String?
+  amount      Float
+  paymentMode String        @default("Cash") // Cash | UPI | Card | Cheque | Other
+  purpose     String?       // reason / note
+  date        String        // YYYY-MM-DD
+  receivedBy  String?       // admin name who recorded it
+  settled     Boolean       @default(false)
+  settledOn   String?       // YYYY-MM-DD when settled
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([orgId])
+  @@index([orgId, date])
+  @@map("advance_payments")
 }
 
 enum AttendanceStatus {
