@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (ctx.error) return ctx.error;
 
   const body = await req.json();
-  const { customerName, phone, amount, paymentMode, purpose, date, receivedBy, partyType } = body;
+  const { customerName, phone, amount, paymentMode, purpose, date, receivedBy, partyType, monthlySalary } = body;
 
   if (!customerName || !amount || !date) {
     return NextResponse.json({ error: "customerName, amount, date are required" }, { status: 400 });
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       purpose: purpose || null,
       date,
       receivedBy: receivedBy || null,
+      monthlySalary: monthlySalary ? parseFloat(monthlySalary) : null,
     },
   });
 

@@ -28,6 +28,7 @@ export async function PATCH(
       ...(body.receivedBy !== undefined && { receivedBy: body.receivedBy }),
       ...(body.settled !== undefined && { settled: body.settled }),
       ...(body.settledOn !== undefined && { settledOn: body.settledOn }),
+      ...(body.monthlySalary !== undefined && { monthlySalary: body.monthlySalary ? parseFloat(body.monthlySalary) : null }),
     },
   });
 

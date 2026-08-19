@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 
 interface AdvancePayment {
   id: string;
-  partyType: string;   // "Customer" | "Staff"
+  partyType: string;
   customerName: string;
   phone?: string | null;
   amount: number;
+  monthlySalary?: number | null;
   paymentMode: string;
   purpose?: string | null;
   date: string;
@@ -17,7 +18,19 @@ interface AdvancePayment {
   createdAt: string;
 }
 
+interface StaffMember {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+}
+
 const PAYMENT_MODES = ["Cash", "UPI", "Card", "Cheque", "Other"];
+
+const INPUT_CLS =
+  "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400";
+const SELECT_CLS =
+  "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400";
 
 function fmt(d: string) {
   const [y, m, dd] = d.split("-");
@@ -33,6 +46,7 @@ const EMPTY_FORM = {
   customerName: "",
   phone: "",
   amount: "",
+  monthlySalary: "",
   paymentMode: "Cash",
   purpose: "",
   date: todayStr(),
@@ -41,6 +55,7 @@ const EMPTY_FORM = {
 
 export default function AdvanceManager() {
   const [advances, setAdvances] = useState<AdvancePayment[]>([]);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(currentMonthStr());
   const [showForm, setShowForm] = useState(false);
@@ -66,23 +81,36 @@ export default function AdvanceManager() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Fetch staff list once on mount
+  useEffect(() => {
+    fetch("/api/admin/staff")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: StaffMember[]) => setStaffList(data))
+      .catch(() => {});
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.customerName.trim() || !form.amount || !form.date) return;
     setSaving(true);
     try {
+      const payload = {
+        ...form,
+        amount: parseFloat(form.amount),
+        monthlySalary: form.monthlySalary ? parseFloat(form.monthlySalary) : null,
+      };
       if (editId) {
         await fetch(`/api/advance/${editId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, amount: parseFloat(form.amount) }),
+          body: JSON.stringify(payload),
         });
         setEditId(null);
       } else {
         await fetch("/api/advance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
       }
       setForm(EMPTY_FORM);
@@ -115,6 +143,7 @@ export default function AdvanceManager() {
       customerName: a.customerName,
       phone: a.phone ?? "",
       amount: String(a.amount),
+      monthlySalary: a.monthlySalary ? String(a.monthlySalary) : "",
       paymentMode: a.paymentMode,
       purpose: a.purpose ?? "",
       date: a.date,
@@ -123,8 +152,8 @@ export default function AdvanceManager() {
     setShowForm(true);
   }
 
-  // ── Filtered list ─────────────────────────────────────────────────────────
-  const filtered = advances.filter((a) => {
+  // Filtered list
+  const filtered = useMemo(() => advances.filter((a) => {
     if (statusFilter === "pending" && a.settled) return false;
     if (statusFilter === "settled" && !a.settled) return false;
     if (typeFilter !== "all" && a.partyType !== typeFilter) return false;
@@ -138,7 +167,7 @@ export default function AdvanceManager() {
       );
     }
     return true;
-  });
+  }), [advances, statusFilter, typeFilter, modeFilter, searchQ]);
 
   const totalAmount   = filtered.reduce((s, a) => s + a.amount, 0);
   const pendingAmount = filtered.filter((a) => !a.settled).reduce((s, a) => s + a.amount, 0);
@@ -148,24 +177,33 @@ export default function AdvanceManager() {
   const cashTotal     = filtered.filter((a) => a.paymentMode === "Cash").reduce((s, a) => s + a.amount, 0);
   const upiTotal      = filtered.filter((a) => a.paymentMode === "UPI").reduce((s, a) => s + a.amount, 0);
 
+  // Net payable calc (shown in form when salary entered)
+  const advanceAmt   = parseFloat(form.amount) || 0;
+  const salaryAmt    = parseFloat(form.monthlySalary) || 0;
+  const netPayable   = salaryAmt > 0 ? salaryAmt - advanceAmt : null;
+
   function exportCSV() {
     const rows = [
-      ["Date","Type","Name","Phone","Amount","Mode","Purpose","Received By","Settled","Settled On"],
-      ...filtered.map((a) => [
-        a.date, a.partyType, a.customerName, a.phone ?? "", a.amount, a.paymentMode,
-        a.purpose ?? "", a.receivedBy ?? "", a.settled ? "Yes" : "No", a.settledOn ?? "",
-      ]),
+      ["Date","Type","Name","Phone","Amount","Monthly Salary","Net Payable","Mode","Purpose","Received By","Settled","Settled On"],
+      ...filtered.map((a) => {
+        const net = a.monthlySalary ? a.monthlySalary - a.amount : "";
+        return [
+          a.date, a.partyType, a.customerName, a.phone ?? "", a.amount,
+          a.monthlySalary ?? "", net,
+          a.paymentMode, a.purpose ?? "", a.receivedBy ?? "",
+          a.settled ? "Yes" : "No", a.settledOn ?? "",
+        ];
+      }),
     ];
     const csv  = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url  = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url; link.download = `advances-${month}.csv`; link.click();
+    const a    = document.createElement("a");
+    a.href = url; a.download = `advances-${month}.csv`; a.click();
     URL.revokeObjectURL(url);
   }
 
-  const nameLabel    = form.partyType === "Staff" ? "Staff Member Name" : "Customer Name";
-  const namePlaceholder = form.partyType === "Staff" ? "e.g. Ravi Kumar" : "e.g. Ramesh Kumar";
+  const isStaff = form.partyType === "Staff";
 
   return (
     <div className="max-w-5xl mx-auto py-6 px-4">
@@ -174,14 +212,14 @@ export default function AdvanceManager() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-black text-slate-800">💰 Advance Payments</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Track customer & staff advances by month</p>
+          <p className="text-sm text-slate-500 mt-0.5">Track customer &amp; staff advances by month</p>
         </div>
         <div className="flex items-center gap-2">
           <input
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className={SELECT_CLS + " w-auto"}
           />
           <button
             onClick={exportCSV}
@@ -239,9 +277,8 @@ export default function AdvanceManager() {
           value={searchQ}
           onChange={(e) => setSearchQ(e.target.value)}
           placeholder="Search name, phone, purpose…"
-          className="flex-1 min-w-[180px] border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className={INPUT_CLS + " flex-1 min-w-[180px]"}
         />
-        {/* Type filter */}
         <div className="flex rounded-lg overflow-hidden border border-slate-200">
           {(["all", "Customer", "Staff"] as const).map((t) => (
             <button
@@ -253,7 +290,6 @@ export default function AdvanceManager() {
             </button>
           ))}
         </div>
-        {/* Status filter */}
         <div className="flex rounded-lg overflow-hidden border border-slate-200">
           {(["all", "pending", "settled"] as const).map((f) => (
             <button
@@ -268,7 +304,7 @@ export default function AdvanceManager() {
         <select
           value={modeFilter}
           onChange={(e) => setModeFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className={SELECT_CLS + " w-auto"}
         >
           <option value="all">All Modes</option>
           {PAYMENT_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -277,16 +313,16 @@ export default function AdvanceManager() {
 
       {/* Add / Edit Form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
           <form
             onSubmit={handleSubmit}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 my-4"
           >
             <h2 className="text-lg font-black text-slate-800 mb-5">
               {editId ? "Edit Advance" : "Record New Advance"}
             </h2>
 
-            {/* Party type selector */}
+            {/* Party type toggle */}
             <div className="mb-5">
               <label className="block text-xs font-semibold text-slate-600 mb-2">Advance For *</label>
               <div className="flex gap-3">
@@ -294,7 +330,7 @@ export default function AdvanceManager() {
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setForm({ ...form, partyType: t })}
+                    onClick={() => setForm({ ...form, partyType: t, customerName: "" })}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all ${
                       form.partyType === t
                         ? t === "Customer"
@@ -310,31 +346,62 @@ export default function AdvanceManager() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {/* Name */}
+
+              {/* Name — dropdown for Staff, text for Customer */}
               <div className="col-span-2">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">{nameLabel} *</label>
-                <input
-                  required
-                  value={form.customerName}
-                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  placeholder={namePlaceholder}
-                />
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  {isStaff ? "Staff Member *" : "Customer Name *"}
+                </label>
+                {isStaff ? (
+                  <select
+                    required
+                    value={form.customerName}
+                    onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                    className={SELECT_CLS}
+                  >
+                    <option value="">— Select staff member —</option>
+                    {staffList.map((s) => (
+                      <option key={s.id} value={s.name ?? s.email}>
+                        {s.name ?? s.email} ({s.role.replace("_", " ")})
+                      </option>
+                    ))}
+                    <option value="__other__">Other (enter manually)</option>
+                  </select>
+                ) : (
+                  <input
+                    required
+                    value={form.customerName}
+                    onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                    className={INPUT_CLS}
+                    placeholder="e.g. Ramesh Kumar"
+                  />
+                )}
+                {/* Manual entry fallback when "Other" is selected */}
+                {isStaff && form.customerName === "__other__" && (
+                  <input
+                    required
+                    className={INPUT_CLS + " mt-2"}
+                    placeholder="Enter staff name manually"
+                    onChange={(e) => setForm({ ...form, customerName: e.target.value === "" ? "__other__" : e.target.value })}
+                  />
+                )}
               </div>
+
               {/* Phone */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Phone</label>
                 <input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className={INPUT_CLS}
                   placeholder="10-digit"
                   maxLength={10}
                 />
               </div>
-              {/* Amount */}
+
+              {/* Advance Amount */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Amount (₹) *</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Advance Amount (₹) *</label>
                 <input
                   required
                   type="number"
@@ -342,21 +409,57 @@ export default function AdvanceManager() {
                   step="0.01"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className={INPUT_CLS}
                   placeholder="e.g. 500"
                 />
               </div>
+
+              {/* Monthly Salary — only for Staff */}
+              {isStaff && (
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Monthly Salary (₹) <span className="text-slate-400 font-normal">— optional, for net payable calc</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.monthlySalary}
+                    onChange={(e) => setForm({ ...form, monthlySalary: e.target.value })}
+                    className={INPUT_CLS}
+                    placeholder="e.g. 12000"
+                  />
+                  {/* Live calculation */}
+                  {netPayable !== null && (
+                    <div className={`mt-2 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold ${
+                      netPayable >= 0
+                        ? "bg-green-50 border border-green-200 text-green-700"
+                        : "bg-red-50 border border-red-200 text-red-700"
+                    }`}>
+                      <span>Salary ₹{salaryAmt.toFixed(0)}</span>
+                      <span className="text-slate-400">−</span>
+                      <span>Advance ₹{advanceAmt.toFixed(0)}</span>
+                      <span className="text-slate-400">=</span>
+                      <span className="font-black text-lg">
+                        Net Payable: ₹{netPayable.toFixed(0)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Payment Mode */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Payment Mode *</label>
                 <select
                   value={form.paymentMode}
                   onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className={SELECT_CLS}
                 >
                   {PAYMENT_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
+
               {/* Date */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Date *</label>
@@ -365,28 +468,30 @@ export default function AdvanceManager() {
                   type="date"
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className={INPUT_CLS}
                 />
               </div>
+
               {/* Received By */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Received By</label>
                 <input
                   value={form.receivedBy}
                   onChange={(e) => setForm({ ...form, receivedBy: e.target.value })}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  placeholder="Staff name"
+                  className={INPUT_CLS}
+                  placeholder="Admin / manager name"
                 />
               </div>
+
               {/* Purpose */}
-              <div className="col-span-2">
+              <div className={isStaff ? "col-span-1" : "col-span-2"}>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Purpose / Notes</label>
                 <textarea
                   value={form.purpose}
                   onChange={(e) => setForm({ ...form, purpose: e.target.value })}
                   rows={2}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-                  placeholder={form.partyType === "Staff" ? "e.g. Salary advance, emergency loan…" : "e.g. Advance for catering, event booking…"}
+                  className={INPUT_CLS + " resize-none"}
+                  placeholder={isStaff ? "e.g. Salary advance, emergency loan…" : "e.g. Event booking, catering deposit…"}
                 />
               </div>
             </div>
@@ -418,7 +523,7 @@ export default function AdvanceManager() {
         <div className="text-center py-16 text-slate-400">
           <p className="text-4xl mb-3">💸</p>
           <p className="font-semibold text-slate-500">No advance records for this period</p>
-          <p className="text-sm">Click "+ Add Advance" to record one</p>
+          <p className="text-sm">Click &ldquo;+ Add Advance&rdquo; to record one</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
@@ -429,69 +534,82 @@ export default function AdvanceManager() {
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Type</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Name</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Phone</th>
-                <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Amount</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Advance</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Salary</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Net Pay</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Mode</th>
                 <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Purpose</th>
-                <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Received By</th>
                 <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Status</th>
                 <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((a) => (
-                <tr key={a.id} className={`hover:bg-slate-50 transition-colors ${a.settled ? "opacity-60" : ""}`}>
-                  <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmt(a.date)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      a.partyType === "Staff"
-                        ? "bg-violet-100 text-violet-700"
-                        : "bg-sky-100 text-sky-700"
-                    }`}>
-                      {a.partyType === "Staff" ? "👔" : "👤"} {a.partyType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-slate-800">{a.customerName}</td>
-                  <td className="px-4 py-3 text-slate-500">{a.phone ?? "—"}</td>
-                  <td className="px-4 py-3 text-right font-bold text-slate-800">₹{a.amount.toFixed(0)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      a.paymentMode === "Cash"   ? "bg-blue-100 text-blue-700"
-                      : a.paymentMode === "UPI"  ? "bg-purple-100 text-purple-700"
-                      : a.paymentMode === "Card" ? "bg-green-100 text-green-700"
-                      : "bg-slate-100 text-slate-600"
-                    }`}>
-                      {a.paymentMode === "Cash" ? "💵" : a.paymentMode === "UPI" ? "📲" : a.paymentMode === "Card" ? "💳" : "📄"} {a.paymentMode}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500 max-w-[180px] truncate">{a.purpose ?? "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">{a.receivedBy ?? "—"}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => toggleSettle(a)}
-                      title={a.settled ? `Settled on ${a.settledOn ?? ""}` : "Mark as settled"}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
-                        a.settled
-                          ? "bg-green-100 text-green-700 hover:bg-green-200"
-                          : "bg-red-100 text-red-700 hover:bg-red-200"
-                      }`}
-                    >
-                      {a.settled ? "✅ Settled" : "⏳ Pending"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => startEdit(a)} className="text-slate-400 hover:text-amber-600 transition-colors" title="Edit">✏️</button>
-                      <button onClick={() => handleDelete(a.id)} className="text-slate-400 hover:text-red-600 transition-colors" title="Delete">🗑️</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((a) => {
+                const net = a.monthlySalary ? a.monthlySalary - a.amount : null;
+                return (
+                  <tr key={a.id} className={`hover:bg-slate-50 transition-colors ${a.settled ? "opacity-60" : ""}`}>
+                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmt(a.date)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        a.partyType === "Staff" ? "bg-violet-100 text-violet-700" : "bg-sky-100 text-sky-700"
+                      }`}>
+                        {a.partyType === "Staff" ? "👔" : "👤"} {a.partyType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-800">{a.customerName}</td>
+                    <td className="px-4 py-3 text-slate-500">{a.phone ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-bold text-slate-800">₹{a.amount.toFixed(0)}</td>
+                    <td className="px-4 py-3 text-right text-slate-500">
+                      {a.monthlySalary ? `₹${a.monthlySalary.toFixed(0)}` : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {net !== null ? (
+                        <span className={`font-bold ${net >= 0 ? "text-green-700" : "text-red-600"}`}>
+                          ₹{net.toFixed(0)}
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        a.paymentMode === "Cash"   ? "bg-blue-100 text-blue-700"
+                        : a.paymentMode === "UPI"  ? "bg-purple-100 text-purple-700"
+                        : a.paymentMode === "Card" ? "bg-green-100 text-green-700"
+                        : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {a.paymentMode === "Cash" ? "💵" : a.paymentMode === "UPI" ? "📲" : a.paymentMode === "Card" ? "💳" : "📄"} {a.paymentMode}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 max-w-[160px] truncate">{a.purpose ?? "—"}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => toggleSettle(a)}
+                        title={a.settled ? `Settled on ${a.settledOn ?? ""}` : "Mark as settled"}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
+                          a.settled
+                            ? "bg-green-100 text-green-700 hover:bg-green-200"
+                            : "bg-red-100 text-red-700 hover:bg-red-200"
+                        }`}
+                      >
+                        {a.settled ? "✅ Settled" : "⏳ Pending"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => startEdit(a)} className="text-slate-400 hover:text-amber-600 transition-colors" title="Edit">✏️</button>
+                        <button onClick={() => handleDelete(a.id)} className="text-slate-400 hover:text-red-600 transition-colors" title="Delete">🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot className="bg-slate-50 border-t-2 border-slate-200">
               <tr>
-                <td colSpan={4} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Total ({filtered.length} records)</td>
+                <td colSpan={4} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">
+                  Total ({filtered.length} records)
+                </td>
                 <td className="px-4 py-3 text-right font-black text-slate-800">₹{totalAmount.toFixed(0)}</td>
-                <td colSpan={5} className="px-4 py-3 text-xs text-slate-500 space-x-3">
+                <td colSpan={6} className="px-4 py-3 text-xs text-slate-500 space-x-3">
                   <span>👤 Customers: <span className="font-bold text-sky-700">₹{custTotal.toFixed(0)}</span></span>
                   <span>·</span>
                   <span>👔 Staff: <span className="font-bold text-violet-700">₹{staffTotal.toFixed(0)}</span></span>

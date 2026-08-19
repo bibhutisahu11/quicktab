@@ -261,6 +261,7 @@ model AdvancePayment {
   purpose     String?       // reason / note
   date        String        // YYYY-MM-DD
   receivedBy  String?       // admin name who recorded it
+  monthlySalary Float?       // optional — used to compute net payable for staff
   settled     Boolean       @default(false)
   settledOn   String?       // YYYY-MM-DD when settled
   createdAt   DateTime      @default(now())
