@@ -628,7 +628,13 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       parcelCharge: parcelCharge ?? 0,
       paymentMethod: paymentMethod ?? "UPI",
       paidAmount: paidAmount ?? undefined,
-      items: cart.map((c) => ({ menuItemId: c.menuItemId, quantity: c.quantity, ...(c.notes ? { notes: c.notes } : {}) })),
+      items: cart.map((c) => ({
+        menuItemId: c.menuItemId,
+        quantity: c.quantity,
+        ...(c.notes ? { notes: c.notes } : {}),
+        // Send customGrams so the server can calculate the correct price for weight-based items
+        ...(c.customGrams ? { customGrams: c.customGrams } : {}),
+      })),
     };
 
     const res = await fetch("/api/orders", {

@@ -153,13 +153,22 @@ export async function POST(req: NextRequest) {
     }
 
     let subtotal = 0;
-    const orderItemsData = items.map((item: { menuItemId: string; quantity: number; notes?: string }) => {
+    const orderItemsData = items.map((item: { menuItemId: string; quantity: number; notes?: string; customGrams?: number }) => {
       const menuItem = menuMap.get(item.menuItemId)!;
-      subtotal += menuItem.price * item.quantity;
+      let linePrice: number;
+      if (menuItem.unit === "100g" && typeof item.customGrams === "number" && item.customGrams > 0) {
+        // Weight-based item: price is stored per 100g in the DB.
+        // Convert to per-kg (× 10), then scale by the customer's actual gram entry.
+        // e.g. 210g of Chhenapoda at ₹65/100g → (210/1000) × 650 = ₹136.5 → ₹137
+        linePrice = Math.ceil((item.customGrams / 1000) * (menuItem.price * 10));
+      } else {
+        linePrice = menuItem.price * item.quantity;
+      }
+      subtotal += linePrice;
       return {
         menuItemId: item.menuItemId,
         name: menuItem.name,
-        price: menuItem.price,
+        price: linePrice,
         quantity: item.quantity,
         ...(item.notes ? { notes: item.notes } : {}),
       };
