@@ -177,6 +177,59 @@ export default function AdvanceManager() {
   const cashTotal     = filtered.filter((a) => a.paymentMode === "Cash").reduce((s, a) => s + a.amount, 0);
   const upiTotal      = filtered.filter((a) => a.paymentMode === "UPI").reduce((s, a) => s + a.amount, 0);
 
+  // Month label for display (e.g. "August 2026")
+  const monthLabel = useMemo(() => {
+    const [y, m] = month.split("-");
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    return `${months[parseInt(m) - 1]} ${y}`;
+  }, [month]);
+
+  // Per-staff monthly advance summary
+  const staffSalarySummary = useMemo(() => {
+    if (typeFilter === "Customer") return [];
+
+    const staffAdvances = advances.filter((a) => a.partyType === "Staff");
+
+    // Seed map from staffList so members with zero advances still appear
+    const map = new Map<string, {
+      displayName: string;
+      totalAdvances: number;
+      salary: number | null;
+      role: string | null;
+    }>();
+
+    for (const s of staffList) {
+      const key = (s.name ?? s.email).toLowerCase();
+      map.set(key, {
+        displayName: s.name ?? s.email,
+        totalAdvances: 0,
+        salary: null,
+        role: s.role,
+      });
+    }
+
+    for (const a of staffAdvances) {
+      const key = a.customerName.toLowerCase();
+      if (map.has(key)) {
+        const entry = map.get(key)!;
+        entry.totalAdvances += a.amount;
+        if (entry.salary === null && a.monthlySalary) entry.salary = a.monthlySalary;
+      } else {
+        // Staff member not in staffList — still track them
+        map.set(key, {
+          displayName: a.customerName,
+          totalAdvances: a.amount,
+          salary: a.monthlySalary ?? null,
+          role: null,
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.displayName.localeCompare(b.displayName)
+    );
+  }, [advances, staffList, typeFilter]);
+
   // Net payable calc (shown in form when salary entered)
   const advanceAmt   = parseFloat(form.amount) || 0;
   const salaryAmt    = parseFloat(form.monthlySalary) || 0;
@@ -513,6 +566,73 @@ export default function AdvanceManager() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Staff Salary Summary */}
+      {typeFilter !== "Customer" && staffSalarySummary.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-base font-black text-slate-800 mb-3">
+            👔 Staff Salary Summary — {monthLabel}
+          </h2>
+          <div className="overflow-x-auto rounded-2xl border border-violet-200 shadow-sm">
+            <table className="min-w-full text-sm">
+              <thead className="bg-violet-50 border-b border-violet-200">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-violet-600 uppercase tracking-wide">Name / Role</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-violet-600 uppercase tracking-wide">Salary</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-violet-600 uppercase tracking-wide">Advances</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-violet-600 uppercase tracking-wide">Net Payable</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-violet-100">
+                {staffSalarySummary.map((s) => {
+                  const net = s.salary !== null ? s.salary - s.totalAdvances : null;
+                  const roleLabel = s.role ? s.role.replace(/_/g, " ") : "—";
+                  return (
+                    <tr key={s.displayName} className="hover:bg-violet-50/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-semibold text-slate-800">{s.displayName}</span>
+                        <span className="ml-1.5 text-xs text-slate-500">({roleLabel})</span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-700">
+                        {s.salary !== null ? `₹${s.salary.toLocaleString("en-IN")}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-slate-800">
+                        {s.totalAdvances > 0 ? `₹${s.totalAdvances.toLocaleString("en-IN")}` : "₹0"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {net !== null ? (
+                          <span className={`font-black ${net >= 0 ? "text-green-700" : "text-red-600"}`}>
+                            {net < 0 ? "-" : ""}₹{Math.abs(net).toLocaleString("en-IN")}
+                            {" "}{net >= 0 ? "✅" : "🔴"}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-violet-50 border-t-2 border-violet-200">
+                <tr>
+                  <td className="px-4 py-3 text-xs font-bold text-violet-600 uppercase">
+                    {staffSalarySummary.length} staff member{staffSalarySummary.length !== 1 ? "s" : ""}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs font-bold text-slate-600">
+                    {staffSalarySummary.some((s) => s.salary !== null)
+                      ? `₹${staffSalarySummary.reduce((sum, s) => sum + (s.salary ?? 0), 0).toLocaleString("en-IN")}`
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-black text-slate-800">
+                    ₹{staffSalarySummary.reduce((sum, s) => sum + s.totalAdvances, 0).toLocaleString("en-IN")}
+                  </td>
+                  <td className="px-4 py-3" />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 
