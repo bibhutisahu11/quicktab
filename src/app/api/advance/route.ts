@@ -48,7 +48,6 @@ export async function POST(req: NextRequest) {
       purpose: purpose || null,
       date,
       receivedBy: receivedBy || null,
-      monthlySalary: monthlySalary ? parseFloat(monthlySalary) : null,
     },
   });
 

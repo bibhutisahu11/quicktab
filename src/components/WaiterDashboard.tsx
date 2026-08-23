@@ -335,7 +335,7 @@ export default function WaiterDashboard() {
             </span>
           )}
           <button
-            onClick={() => setCreateOrderOpen(true)}
+            onClick={() => window.open("/admin/new-order", "_blank")}
             className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
           >
             ➕ New Order
