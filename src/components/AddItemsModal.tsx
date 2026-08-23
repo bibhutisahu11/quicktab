@@ -158,7 +158,9 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search items or categories…"
               autoFocus
-              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              autoComplete="off"
+              style={{ colorScheme: "light" }}
+              className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
         </div>
@@ -196,7 +198,7 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
                             value={notesInputs[item.id] ?? ""}
                             onChange={(e) => setNotesInputs((prev) => ({ ...prev, [item.id]: e.target.value }))}
                             placeholder="Note (e.g. spicy, less oil)"
-                            className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 bg-white"
+                            className="mt-1.5 w-full text-xs text-slate-800 bg-white placeholder-slate-400 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400"
                           />
                         )}
                       </div>
@@ -211,7 +213,7 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
                             value={gramInputs[item.id] ?? ""}
                             onChange={(e) => setGramInputs((prev) => ({ ...prev, [item.id]: e.target.value }))}
                             placeholder="gm"
-                            className="w-16 text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 text-center"
+                            className="w-16 text-xs text-slate-800 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 text-center"
                           />
                           <button
                             onClick={() => addWeightItem(item)}
@@ -257,24 +259,38 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
           ))}
         </div>
 
-        {/* Footer — cart summary + confirm */}
-        <div className="px-5 py-4 border-t border-slate-100 bg-white flex-shrink-0">
+        {/* Footer — cart summary + confirm (sticky so always visible) */}
+        <div className="sticky bottom-0 px-5 py-4 border-t border-slate-100 bg-white flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
           {error && (
             <p className="text-sm text-red-600 font-medium mb-3 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
 
+          {/* Cart summary — always visible regardless of search query */}
           {cart.length > 0 && (
             <div className="mb-3 bg-amber-50 rounded-xl px-4 py-3">
               <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Adding to order</p>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {cart.map((r) => (
-                  <div key={r.item.id} className="flex justify-between text-sm">
-                    <span className="text-slate-700">
+                  <div key={r.item.id} className="flex items-center gap-2 text-sm">
+                    <span className="flex-1 text-slate-700 truncate">
                       {r.item.unit === "100g" && r.customGrams
                         ? `${r.item.name} (${r.customGrams}g)`
-                        : `${r.item.name} ×${r.qty}`}
+                        : r.item.name}
                     </span>
-                    <span className="font-semibold text-slate-800">
+                    {r.item.unit !== "100g" && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => setQty(r.item, r.qty - 1)}
+                          className="w-6 h-6 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm flex items-center justify-center transition-colors"
+                        >−</button>
+                        <span className="w-5 text-center font-bold text-slate-800">{r.qty}</span>
+                        <button
+                          onClick={() => setQty(r.item, r.qty + 1)}
+                          className="w-6 h-6 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm flex items-center justify-center transition-colors"
+                        >+</button>
+                      </div>
+                    )}
+                    <span className="font-semibold text-slate-800 flex-shrink-0 w-14 text-right">
                       ₹{(r.customPrice ?? r.item.price * r.qty).toFixed(0)}
                     </span>
                   </div>

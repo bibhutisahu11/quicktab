@@ -421,11 +421,14 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   // When a search query is active, search across ALL items (ignore category filter)
   const filtered = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
-    let pool = q
+    const words = q.split(/\s+/).filter(Boolean);
+    let pool = words.length > 0
       ? menuItems.filter((i) =>
-          i.name.toLowerCase().includes(q) ||
-          i.category.toLowerCase().includes(q) ||
-          (i.description ?? "").toLowerCase().includes(q)
+          words.every((w) =>
+            i.name.toLowerCase().includes(w) ||
+            i.category.toLowerCase().includes(w) ||
+            (i.description ?? "").toLowerCase().includes(w)
+          )
         )
       : (activeCategory === "All"
           ? menuItems
@@ -685,7 +688,9 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               onChange={(e) => setCustomerSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               placeholder="Search items, categories…"
-              className="w-full bg-white/20 placeholder-amber-200 text-white rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:bg-white/30 transition-colors"
+              autoComplete="off"
+              style={{ colorScheme: "light" }}
+              className="w-full bg-white text-gray-900 placeholder-gray-400 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 transition-colors"
             />
             {customerSearch && (
               <button
@@ -699,16 +704,17 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
             {/* Suggestions dropdown */}
             {searchFocused && customerSearch.trim().length >= 1 && (() => {
               const q = customerSearch.trim().toLowerCase();
-              // Match items by name or category
+              const qWords = q.split(/\s+/).filter(Boolean);
+              // Match items by name or category (multi-word)
               const matched = menuItems
-                .filter((m) => m.available && (
-                  m.name.toLowerCase().includes(q) ||
-                  m.category.toLowerCase().includes(q)
+                .filter((m) => m.available && qWords.every((w) =>
+                  m.name.toLowerCase().includes(w) ||
+                  m.category.toLowerCase().includes(w)
                 ))
                 .slice(0, 6);
               // Unique matching categories
               const matchedCats = [...new Set(
-                menuItems.filter((m) => m.category.toLowerCase().includes(q)).map((m) => m.category)
+                menuItems.filter((m) => qWords.every((w) => m.category.toLowerCase().includes(w))).map((m) => m.category)
               )].slice(0, 3);
               if (matched.length === 0 && matchedCats.length === 0) return null;
               return (
