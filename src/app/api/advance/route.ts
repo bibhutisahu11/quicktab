@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (ctx.error) return ctx.error;
 
   const body = await req.json();
-  const { customerName, phone, amount, paymentMode, purpose, date, receivedBy, partyType, monthlySalary } = body;
+  const { customerName, phone, amount, paymentMode, purpose, date, receivedBy, partyType } = body;
 
   if (!customerName || !amount || !date) {
     return NextResponse.json({ error: "customerName, amount, date are required" }, { status: 400 });

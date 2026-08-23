@@ -331,7 +331,7 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
       </div>
 
       {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 space-y-2 max-w-2xl mx-auto" style={{ left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: "672px" }}>
+      <div className="fixed bottom-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 space-y-2 w-full max-w-2xl" style={{ left: "50%", transform: "translateX(-50%)" }}>
         {error && <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
         {cart.length > 0 && (
