@@ -683,14 +683,14 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-300 text-base pointer-events-none">🔍</span>
             <input
-              type="search"
+              type="text"
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               placeholder="Search items, categories…"
               autoComplete="off"
-              style={{ colorScheme: "light" }}
-              className="w-full bg-white text-gray-900 placeholder-gray-400 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 transition-colors"
+              style={{ colorScheme: "light", WebkitTextFillColor: "#111827", color: "#111827" }}
+              className="w-full bg-white rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 transition-colors placeholder-gray-400"
             />
             {customerSearch && (
               <button
