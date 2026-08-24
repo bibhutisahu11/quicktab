@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
       where: { ...(resolvedOrgId ? { orgId: resolvedOrgId } : {}) },
       orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
     });
-    return NextResponse.json(items);
+    const res = NextResponse.json(items);
+    res.headers.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    return res;
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

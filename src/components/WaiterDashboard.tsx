@@ -326,7 +326,7 @@ export default function WaiterDashboard() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">My Orders</h1>
-          <p className="text-slate-500 text-sm">Auto-refreshes every 15 seconds {soundEnabled ? "🔔" : "🔕"}</p>
+          <p className="text-slate-500 text-sm">Auto-refreshes every 30 seconds {soundEnabled ? "🔔" : "🔕"}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {readyCount > 0 && (

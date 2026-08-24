@@ -60,7 +60,7 @@ function SidebarInner({
             width={40}
             height={40}
             className="rounded-xl object-contain bg-white p-0.5 flex-shrink-0"
-            unoptimized
+            unoptimized={orgLogo.startsWith("data:")}
           />
         ) : (
           <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-md">
@@ -151,7 +151,7 @@ export default function AdminNav({
               width={32}
               height={32}
               className="rounded-lg object-contain bg-white p-0.5"
-              unoptimized
+              unoptimized={orgLogo.startsWith("data:")}
             />
           ) : (
             <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
