@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import MenuPage from "@/components/MenuPage";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { unstable_cache } from "next/cache";
 
 interface Props {
   params: Promise<{ orgSlug: string; tableId: string }>;
@@ -12,11 +13,36 @@ interface Props {
 
 const STAFF_ROLES = new Set(["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER", "BILLER", "WAITER", "KITCHEN"]);
 
+const getMenuItems = unstable_cache(
+  async (orgId: string) =>
+    prisma.menuItem.findMany({
+      where: { orgId },
+      orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
+      select: {
+        id: true, name: true, price: true, category: true,
+        available: true, unit: true, isVeg: true, sortOrder: true,
+        description: true, imageUrl: true,
+      },
+    }),
+  ["menu-items"],
+  { revalidate: 60, tags: ["menu"] }
+);
+
+const getOrg = unstable_cache(
+  async (slug: string) =>
+    prisma.organization.findUnique({
+      where: { slug },
+      select: { id: true, name: true, slug: true, active: true, upiId: true },
+    }),
+  ["org-by-slug"],
+  { revalidate: 300, tags: ["org"] }
+);
+
 export default async function TableMenuPage({ params }: Props) {
   const { orgSlug, tableId } = await params;
 
   const [org, session] = await Promise.all([
-    prisma.organization.findUnique({ where: { slug: orgSlug } }),
+    getOrg(orgSlug),
     getServerSession(authOptions),
   ]);
   if (!org || !org.active) notFound();
@@ -27,10 +53,7 @@ export default async function TableMenuPage({ params }: Props) {
     prisma.table.findUnique({
       where: { qrToken: tableId, orgId: org.id },
     }),
-    prisma.menuItem.findMany({
-      where: { orgId: org.id },
-      orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
-    }),
+    getMenuItems(org.id),
   ]);
 
   if (!table || !table.active) notFound();
@@ -42,6 +65,7 @@ export default async function TableMenuPage({ params }: Props) {
       tableName={table.name}
       orgSlug={orgSlug}
       orgName={org.name}
+      orgLogo={org.logo ?? null}
       orgUpiId={org.upiId ?? null}
       isAdmin={isAdmin}
     />

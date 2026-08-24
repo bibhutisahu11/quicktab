@@ -16,6 +16,7 @@ interface MenuPageProps {
   tableName?: string;
   orgSlug?: string;
   orgName?: string;
+  orgLogo?: string | null;
   orgUpiId?: string | null;
   isAdmin?: boolean;  // hide customer-only UI when staff is previewing
 }
@@ -39,7 +40,7 @@ function suggestedCategory(categories: string[], keywords: string[]): string | n
 
 interface LastOrder { items: CartItem[]; phone: string | null; savedAt: string; }
 
-export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, orgName, orgUpiId, isAdmin = false }: MenuPageProps) {
+export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, orgName, orgLogo, orgUpiId, isAdmin = false }: MenuPageProps) {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -856,7 +857,12 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         <div className="max-w-2xl mx-auto px-4 pt-4">
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">{timeCtx.emoji}</span>
+              {orgLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={orgLogo} alt={orgName ?? "logo"} className="w-12 h-12 rounded-xl object-contain bg-white p-0.5 shadow-sm flex-shrink-0" />
+              ) : (
+                <span className="text-3xl flex-shrink-0">{timeCtx.emoji}</span>
+              )}
               <div>
                 <p className="font-bold text-slate-800">{timeCtx.greeting}! 👋</p>
                 <p className="text-sm text-slate-500">
