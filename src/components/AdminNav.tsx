@@ -10,6 +10,7 @@ const ALL_LINKS = [
   { href: "/admin/dashboard",    label: "Dashboard",    icon: "📋", roles: ["HOTEL_ADMIN", "MANAGER"] },
   { href: "/admin/kitchen",      label: "Kitchen",      icon: "🍳", roles: ["KITCHEN", "HOTEL_ADMIN", "MANAGER"] },
   { href: "/admin/orders",       label: "Orders",       icon: "🤵", roles: ["WAITER", "HOTEL_ADMIN", "MANAGER"] },
+  { href: "/admin/pre-orders",   label: "Pre-Orders",   icon: "🎁", roles: ["HOTEL_ADMIN", "MANAGER"] },
   { href: "/admin/orders",       label: "Transactions", icon: "🧾", roles: ["BILLER"] },
   { href: "/admin/table-view",   label: "Table View",   icon: "🪑", roles: ["HOTEL_ADMIN", "MANAGER", "WAITER", "BILLER"] },
   { href: "/admin/analytics",    label: "Analytics",    icon: "📊", roles: ["HOTEL_ADMIN", "MANAGER"] },

@@ -66,18 +66,55 @@ model Organization {
   active      Boolean    @default(true)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  admins      Admin[]
-  tables      Table[]
-  menuItems   MenuItem[]
-  orders      Order[]
-  inventory   InventoryItem[]
-  expenses    Expense[]
-  discounts   Discount[]
-  feedbacks   Feedback[]
-  attendance  Attendance[]
-  advances    AdvancePayment[]
+  admins          Admin[]
+  tables          Table[]
+  menuItems       MenuItem[]
+  orders          Order[]
+  inventory       InventoryItem[]
+  expenses        Expense[]
+  discounts       Discount[]
+  feedbacks       Feedback[]
+  attendance      Attendance[]
+  advances        AdvancePayment[]
+  preOrderSweets  PreOrderSweet[]
+  preOrders       PreOrder[]
 
   @@map("organizations")
+}
+
+model PreOrderSweet {
+  id           String       @id @default(cuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name         String
+  pricePerUnit Float
+  unit         String       @default("piece")
+  available    Boolean      @default(true)
+  sortOrder    Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  @@index([orgId])
+  @@map("pre_order_sweets")
+}
+
+model PreOrder {
+  id              String       @id @default(cuid())
+  orgId           String
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerName    String
+  phone           String
+  items           Json
+  totalAmount     Float
+  status          String       @default("PLACED")
+  notes           String?
+  adminNotes      String?
+  paymentDeadline DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([orgId])
+  @@index([orgId, status])
+  @@map("pre_orders")
 }
 
 model Admin {

@@ -32,7 +32,7 @@ const getOrg = unstable_cache(
   async (slug: string) =>
     prisma.organization.findUnique({
       where: { slug },
-      select: { id: true, name: true, slug: true, active: true, upiId: true },
+      select: { id: true, name: true, slug: true, active: true, upiId: true, logoUrl: true },
     }),
   ["org-by-slug"],
   { revalidate: 300, tags: ["org"] }
@@ -65,7 +65,7 @@ export default async function TableMenuPage({ params }: Props) {
       tableName={table.name}
       orgSlug={orgSlug}
       orgName={org.name}
-      orgLogo={org.logo ?? null}
+      orgLogo={org.logoUrl ?? null}
       orgUpiId={org.upiId ?? null}
       isAdmin={isAdmin}
     />
