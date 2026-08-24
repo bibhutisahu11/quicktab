@@ -661,13 +661,21 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md sticky top-0 z-30">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {orgLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={orgLogo} alt={orgName ?? "logo"} className="w-10 h-10 rounded-xl object-contain bg-white/20 p-0.5 shadow-sm flex-shrink-0" />
+            ) : (
+              <span className="text-2xl">🍽️</span>
+            )}
           <div>
-            <h1 className="text-xl font-bold">🍽️ Our Menu</h1>
+            <h1 className="text-xl font-bold">{orgName ?? "Our Menu"}</h1>
             {tableName ? (
               <p className="text-amber-100 text-sm">Dine-in — {tableName}</p>
             ) : (
               <p className="text-amber-100 text-sm">Parcel / Takeaway Order</p>
             )}
+          </div>
           </div>
           {cartCount > 0 && (
             <button
