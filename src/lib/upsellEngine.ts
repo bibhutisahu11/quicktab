@@ -383,6 +383,11 @@ export const FOOD_TIPS = [
   { text: "🍵 Nimki + Chai = most satisfying snack combo. Add Nimki to your order! ₹25 only", cta: "Nimki" },
   { text: "🦐 BALI PRAWN — coastal Odia flavour, cooked with love. A must-try Odia classic!", cta: "Bali Prawn" },
 
+  // ── 🎁 RAKSHA BANDHAN PRE-ORDER BANNER ───────────────────────────────────
+  { text: "🎀 PSA: Our sweets are SO popular this Raksha Bandhan, even the Rasagolas are nervous. Pre-book yours before they vanish — we're running at FULL capacity! 🔥", cta: null },
+  { text: "🚨 BREAKING: Kalinga Bites sweets for Raksha Bandhan are selling faster than excuses on a diet day. Pre-order NOW or explain to your sibling why there's no Chhenapoda 😅", cta: null },
+  { text: "🎁 Raksha Bandhan Sweet Pre-Order is LIVE! Reserve Chhenapoda, Rasabali & more before they're gone. First come, first served — last year we ran out in 2 hours 😬", cta: null },
+
   // ── 🌟 BRAND / TRUST TIPS ─────────────────────────────────────────────────
   { text: "🌿 Fresh every day · Sunflower & Mustard Oil only · No compromise on quality ❤️ — Kalinga Bites", cta: null },
   { text: "✨ Tip: The more you order, the more authentic it feels! Why not add one more dish? 😋", cta: null },
