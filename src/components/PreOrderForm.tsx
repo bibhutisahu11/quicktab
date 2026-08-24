@@ -12,6 +12,7 @@ interface Sweet {
 interface Props {
   orgSlug: string;
   orgName: string;
+  orgLogo?: string | null;
   sweets: Sweet[];
 }
 
@@ -26,7 +27,7 @@ interface SuccessData {
   paymentDeadline: string;
 }
 
-export default function PreOrderForm({ orgSlug, orgName, sweets }: Props) {
+export default function PreOrderForm({ orgSlug, orgName, orgLogo, sweets }: Props) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
@@ -145,13 +146,19 @@ export default function PreOrderForm({ orgSlug, orgName, sweets }: Props) {
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-6 text-white shadow-lg">
-        <div className="max-w-lg mx-auto">
-          <h1 className="text-xl font-bold leading-snug">
-            🎁 Raksha Bandhan Sweet Pre-Order — {orgName}
-          </h1>
-          <p className="mt-2 text-amber-100 text-sm">
-            Reserve your sweets now! ⚠️ Payment required 1 day before pickup to confirm your order.
-          </p>
+        <div className="max-w-lg mx-auto flex items-center gap-4">
+          {orgLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={orgLogo} alt={orgName} className="w-14 h-14 rounded-xl object-contain bg-white/20 p-1 flex-shrink-0 shadow-md" />
+          )}
+          <div>
+            <h1 className="text-xl font-bold leading-snug">
+              🎁 Raksha Bandhan Sweet Pre-Order — {orgName}
+            </h1>
+            <p className="mt-1 text-amber-100 text-sm">
+              Reserve your sweets now! ⚠️ Payment required 1 day before pickup to confirm your order.
+            </p>
+          </div>
         </div>
       </div>
 

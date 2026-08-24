@@ -23,6 +23,7 @@ export default async function PreOrderPage({ params }: Props) {
     <PreOrderForm
       orgSlug={orgSlug}
       orgName={org.name}
+      orgLogo={org.logoUrl ?? null}
       sweets={sweets.map((s) => ({
         id: s.id,
         name: s.name,
