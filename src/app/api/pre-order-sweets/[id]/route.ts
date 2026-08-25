@@ -14,7 +14,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, pricePerUnit, unit, available, sortOrder } = body;
+    const { name, pricePerUnit, unit, available, sortOrder, imageUrl } = body;
 
     const sweet = await prisma.preOrderSweet.updateMany({
       where: {
@@ -27,6 +27,7 @@ export async function PATCH(
         ...(unit !== undefined ? { unit } : {}),
         ...(available !== undefined ? { available } : {}),
         ...(sortOrder !== undefined ? { sortOrder } : {}),
+        ...(imageUrl !== undefined ? { imageUrl } : {}),
       },
     });
 

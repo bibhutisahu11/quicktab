@@ -29,6 +29,7 @@ export default async function PreOrderPage({ params }: Props) {
         name: s.name,
         pricePerUnit: s.pricePerUnit,
         unit: s.unit,
+        imageUrl: s.imageUrl ?? null,
       }))}
     />
   );

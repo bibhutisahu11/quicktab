@@ -7,6 +7,7 @@ interface Sweet {
   name: string;
   pricePerUnit: number;
   unit: string;
+  imageUrl?: string | null;
 }
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
 interface OrderedItem {
   sweetId: string;
   quantity: number;
+  customGrams?: number;
 }
 
 interface SuccessData {
@@ -29,6 +31,7 @@ interface SuccessData {
 
 export default function PreOrderForm({ orgSlug, orgName, orgLogo, sweets }: Props) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [customGrams, setCustomGrams] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -44,11 +47,33 @@ export default function PreOrderForm({ orgSlug, orgName, orgLogo, sweets }: Prop
     });
   };
 
+  const adjustGrams = (id: string, delta: number) => {
+    setCustomGrams((prev) => {
+      const cur = prev[id] ?? 0;
+      const next = Math.max(0, cur + delta);
+      return { ...prev, [id]: next };
+    });
+  };
+
+  const setGramsDirect = (id: string, value: string) => {
+    const num = parseInt(value.replace(/\D/g, ""), 10);
+    setCustomGrams((prev) => ({ ...prev, [id]: isNaN(num) ? 0 : Math.max(0, num) }));
+  };
+
   const total = sweets.reduce((sum, s) => {
+    if (s.unit === "kg") {
+      const grams = customGrams[s.id] ?? 0;
+      return sum + (grams / 1000) * s.pricePerUnit;
+    }
     return sum + (quantities[s.id] ?? 0) * s.pricePerUnit;
   }, 0);
 
-  const itemCount = Object.values(quantities).reduce((s, q) => s + q, 0);
+  const itemCount = sweets.reduce((count, s) => {
+    if (s.unit === "kg") {
+      return count + ((customGrams[s.id] ?? 0) > 0 ? 1 : 0);
+    }
+    return count + (quantities[s.id] ?? 0);
+  }, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,8 +93,16 @@ export default function PreOrderForm({ orgSlug, orgName, orgLogo, sweets }: Prop
     }
 
     const items: OrderedItem[] = sweets
-      .filter((s) => (quantities[s.id] ?? 0) > 0)
-      .map((s) => ({ sweetId: s.id, quantity: quantities[s.id] }));
+      .filter((s) => {
+        if (s.unit === "kg") return (customGrams[s.id] ?? 0) > 0;
+        return (quantities[s.id] ?? 0) > 0;
+      })
+      .map((s) => {
+        if (s.unit === "kg") {
+          return { sweetId: s.id, quantity: 1, customGrams: customGrams[s.id] };
+        }
+        return { sweetId: s.id, quantity: quantities[s.id] };
+      });
 
     setLoading(true);
     try {
@@ -174,42 +207,101 @@ export default function PreOrderForm({ orgSlug, orgName, orgLogo, sweets }: Prop
               Select Sweets
             </h2>
             {sweets.map((sweet) => {
+              const isKg = sweet.unit === "kg";
               const qty = quantities[sweet.id] ?? 0;
+              const grams = customGrams[sweet.id] ?? 0;
+              const linePrice = isKg
+                ? (grams / 1000) * sweet.pricePerUnit
+                : qty * sweet.pricePerUnit;
+              const hasSelection = isKg ? grams > 0 : qty > 0;
+
               return (
                 <div
                   key={sweet.id}
-                  className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between"
+                  className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-3"
                 >
+                  {/* Sweet image */}
+                  {sweet.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={sweet.imageUrl}
+                      alt={sweet.name}
+                      className="w-14 h-14 rounded-lg object-cover flex-shrink-0 border border-slate-100"
+                    />
+                  )}
                   <div className="flex-1 min-w-0 pr-3">
                     <p className="font-semibold text-slate-800 truncate">{sweet.name}</p>
                     <p className="text-sm text-slate-500">
                       ₹{sweet.pricePerUnit.toFixed(2)} / {sweet.unit}
                     </p>
-                    {qty > 0 && (
+                    {hasSelection && (
                       <p className="text-xs text-amber-600 font-medium mt-0.5">
-                        ₹{(qty * sweet.pricePerUnit).toFixed(2)} total
+                        ₹{linePrice.toFixed(2)} total
+                      </p>
+                    )}
+                    {isKg && grams > 0 && (
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {grams}g = ₹{linePrice.toFixed(2)}
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setQty(sweet.id, -1)}
-                      disabled={qty === 0}
-                      className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 font-bold text-lg flex items-center justify-center disabled:opacity-30 hover:bg-amber-200 transition-colors"
-                    >
-                      −
-                    </button>
-                    <span className="w-6 text-center font-bold text-slate-800 text-sm">{qty}</span>
-                    <button
-                      type="button"
-                      onClick={() => setQty(sweet.id, 1)}
-                      disabled={qty === 20}
-                      className="w-8 h-8 rounded-full bg-amber-500 text-white font-bold text-lg flex items-center justify-center disabled:opacity-50 hover:bg-amber-600 transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
+
+                  {isKg ? (
+                    /* Gram input for kg-unit sweets */
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => adjustGrams(sweet.id, -50)}
+                          disabled={grams < 50}
+                          className="w-9 h-8 rounded-lg bg-amber-100 text-amber-700 font-bold text-xs flex items-center justify-center disabled:opacity-30 hover:bg-amber-200 transition-colors"
+                        >
+                          −50
+                        </button>
+                        <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={grams === 0 ? "" : grams}
+                            onChange={(e) => setGramsDirect(sweet.id, e.target.value)}
+                            placeholder="0"
+                            className="w-14 text-center text-sm font-bold text-slate-800 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                          />
+                          <span className="pr-2 text-xs text-slate-400 font-medium">g</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => adjustGrams(sweet.id, 50)}
+                          className="w-9 h-8 rounded-lg bg-amber-500 text-white font-bold text-xs flex items-center justify-center hover:bg-amber-600 transition-colors"
+                        >
+                          +50
+                        </button>
+                      </div>
+                      <span className="text-xs text-slate-400">grams</span>
+                    </div>
+                  ) : (
+                    /* Standard +/- stepper for piece / 100g sweets */
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setQty(sweet.id, -1)}
+                        disabled={qty === 0}
+                        className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 font-bold text-lg flex items-center justify-center disabled:opacity-30 hover:bg-amber-200 transition-colors"
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center font-bold text-slate-800 text-sm">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQty(sweet.id, 1)}
+                        disabled={qty === 20}
+                        className="w-8 h-8 rounded-full bg-amber-500 text-white font-bold text-lg flex items-center justify-center disabled:opacity-50 hover:bg-amber-600 transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

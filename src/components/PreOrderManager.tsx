@@ -34,6 +34,7 @@ interface Sweet {
   unit: string;
   available: boolean;
   sortOrder: number;
+  imageUrl?: string | null;
 }
 
 /* ─── Constants ─────────────────────────────────────────── */
@@ -313,10 +314,12 @@ function PreOrderQR({ orgSlug }: { orgSlug: string }) {
 function SweetCatalog() {
   const [sweets, setSweets] = useState<Sweet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", pricePerUnit: "", unit: "piece" });
+  const [form, setForm] = useState({ name: "", pricePerUnit: "", unit: "piece", imageUrl: "" });
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", pricePerUnit: "", unit: "piece" });
+  const [editForm, setEditForm] = useState({ name: "", pricePerUnit: "", unit: "piece", imageUrl: "" });
+  const addFileRef = useRef<HTMLInputElement>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -338,9 +341,18 @@ function SweetCatalog() {
       const res = await fetch("/api/pre-order-sweets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name.trim(), pricePerUnit: parseFloat(form.pricePerUnit), unit: form.unit }),
+        body: JSON.stringify({
+          name: form.name.trim(),
+          pricePerUnit: parseFloat(form.pricePerUnit),
+          unit: form.unit,
+          imageUrl: form.imageUrl || undefined,
+        }),
       });
-      if (res.ok) { setForm({ name: "", pricePerUnit: "", unit: "piece" }); await load(); }
+      if (res.ok) {
+        setForm({ name: "", pricePerUnit: "", unit: "piece", imageUrl: "" });
+        if (addFileRef.current) addFileRef.current.value = "";
+        await load();
+      }
     } finally { setSaving(false); }
   };
 
@@ -350,7 +362,12 @@ function SweetCatalog() {
       await fetch(`/api/pre-order-sweets/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editForm.name.trim(), pricePerUnit: parseFloat(editForm.pricePerUnit), unit: editForm.unit }),
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          pricePerUnit: parseFloat(editForm.pricePerUnit),
+          unit: editForm.unit,
+          imageUrl: editForm.imageUrl || undefined,
+        }),
       });
       setEditId(null);
       await load();
@@ -370,6 +387,28 @@ function SweetCatalog() {
       body: JSON.stringify({ available: !sweet.available }),
     });
     await load();
+  };
+
+  const readFileAsBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleAddFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const base64 = await readFileAsBase64(file);
+    setForm((f) => ({ ...f, imageUrl: base64 }));
+  };
+
+  const handleEditFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const base64 = await readFileAsBase64(file);
+    setEditForm((f) => ({ ...f, imageUrl: base64 }));
   };
 
   return (
@@ -399,6 +438,22 @@ function SweetCatalog() {
               <option value="kg">kg</option>
             </select>
           </div>
+          <div className="flex-1 min-w-36">
+            <label className="block text-xs text-slate-500 mb-1">Photo (optional)</label>
+            <div className="flex items-center gap-2">
+              <input
+                ref={addFileRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAddFileChange}
+                className="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
+              />
+              {form.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.imageUrl} alt="preview" className="w-10 h-10 rounded object-cover flex-shrink-0 border border-slate-200" />
+              )}
+            </div>
+          </div>
           <button type="submit" disabled={saving}
             className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50">
             {saving ? "Adding…" : "Add"}
@@ -427,6 +482,19 @@ function SweetCatalog() {
                     <option value="100g">100g</option>
                     <option value="kg">kg</option>
                   </select>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={editFileRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditFileChange}
+                      className="text-xs text-slate-600 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
+                    />
+                    {editForm.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={editForm.imageUrl} alt="preview" className="w-10 h-10 rounded object-cover flex-shrink-0 border border-slate-200" />
+                    )}
+                  </div>
                   <button onClick={() => handleEdit(sweet.id)} disabled={saving}
                     className="px-3 py-1.5 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50">Save</button>
                   <button onClick={() => setEditId(null)}
@@ -434,6 +502,10 @@ function SweetCatalog() {
                 </div>
               ) : (
                 <>
+                  {sweet.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={sweet.imageUrl} alt={sweet.name} className="w-10 h-10 rounded object-cover flex-shrink-0 border border-slate-100" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className={`font-semibold ${sweet.available ? "text-slate-800" : "text-slate-400 line-through"}`}>{sweet.name}</p>
                     <p className="text-sm text-slate-500">₹{sweet.pricePerUnit.toFixed(2)} / {sweet.unit}</p>
@@ -442,7 +514,7 @@ function SweetCatalog() {
                     className={`text-xs px-2 py-1 rounded-full font-medium ${sweet.available ? "bg-green-50 text-green-600" : "bg-slate-100 text-slate-500"}`}>
                     {sweet.available ? "Available" : "Hidden"}
                   </button>
-                  <button onClick={() => { setEditId(sweet.id); setEditForm({ name: sweet.name, pricePerUnit: String(sweet.pricePerUnit), unit: sweet.unit }); }}
+                  <button onClick={() => { setEditId(sweet.id); setEditForm({ name: sweet.name, pricePerUnit: String(sweet.pricePerUnit), unit: sweet.unit, imageUrl: sweet.imageUrl ?? "" }); if (editFileRef.current) editFileRef.current.value = ""; }}
                     className="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100">Edit</button>
                   <button onClick={() => handleDelete(sweet.id)}
                     className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">Delete</button>

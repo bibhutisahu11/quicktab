@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, pricePerUnit, unit, available, sortOrder } = body;
+    const { name, pricePerUnit, unit, available, sortOrder, imageUrl } = body;
 
     if (!name || pricePerUnit === undefined) {
       return NextResponse.json({ error: "name and pricePerUnit are required" }, { status: 400 });
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
         unit: unit ?? "piece",
         available: available ?? true,
         sortOrder: sortOrder ?? 0,
+        imageUrl: imageUrl ?? null,
       },
     });
 

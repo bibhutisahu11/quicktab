@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       orgSlug: string;
       customerName: string;
       phone: string;
-      items: { sweetId: string; quantity: number }[];
+      items: { sweetId: string; quantity: number; customGrams?: number }[];
       notes?: string;
     };
 
@@ -83,7 +83,10 @@ export async function POST(req: NextRequest) {
     let totalAmount = 0;
     const orderItems = items.map((item) => {
       const sweet = sweetMap.get(item.sweetId)!;
-      const lineTotal = sweet.pricePerUnit * item.quantity;
+      const lineTotal =
+        item.customGrams !== undefined && sweet.unit === "kg"
+          ? (item.customGrams / 1000) * sweet.pricePerUnit
+          : sweet.pricePerUnit * item.quantity;
       totalAmount += lineTotal;
       return {
         sweetId: item.sweetId,
