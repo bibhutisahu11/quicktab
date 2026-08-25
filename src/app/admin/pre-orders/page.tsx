@@ -12,5 +12,5 @@ export default async function PreOrdersPage() {
   if (!session?.user) redirect("/admin");
   if (!ALLOWED_ROLES.has(session.user.role ?? "")) redirect("/admin/dashboard");
 
-  return <PreOrderManager />;
+  return <PreOrderManager orgSlug={session.user.orgSlug ?? ""} />;
 }

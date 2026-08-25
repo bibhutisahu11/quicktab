@@ -10,12 +10,17 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status");
+    const statusParam = searchParams.get("status");
+    const statuses = statusParam ? statusParam.split(",").map((s) => s.trim()).filter(Boolean) : [];
 
     const orders = await prisma.preOrder.findMany({
       where: {
         ...(ctx.orgId ? { orgId: ctx.orgId } : {}),
-        ...(status ? { status } : {}),
+        ...(statuses.length === 1
+          ? { status: statuses[0] }
+          : statuses.length > 1
+          ? { status: { in: statuses } }
+          : {}),
       },
       orderBy: { createdAt: "desc" },
     });
