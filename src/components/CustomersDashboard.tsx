@@ -374,7 +374,7 @@ export default function CustomersDashboard() {
                     <div className="space-y-0.5">
                       {order.items.map((item, i) => (
                         <p key={i} className="text-xs text-slate-600">
-                          {item.name} × {item.quantity} — ₹{(item.price * item.quantity).toFixed(0)}
+                          {item.name} × {item.quantity} — ₹{item.price.toFixed(0)}
                         </p>
                       ))}
                     </div>

@@ -696,7 +696,7 @@ export default function WaiterDashboard() {
                           <p className="text-xs text-amber-600 font-medium">🌶 {item.notes}</p>
                         )}
                       </div>
-                      <span className="text-slate-500">₹{(item.price * item.quantity).toFixed(0)}</span>
+                      <span className="text-slate-500">₹{item.price.toFixed(0)}</span>
                     </div>
                   ))}
                 </div>

@@ -512,7 +512,7 @@ export default function KitchenDashboard() {
                           <p className="text-xs font-bold text-amber-600 mt-0.5">🌶 {item.notes}</p>
                         )}
                       </div>
-                      <span className="text-slate-500">₹{(item.price * item.quantity).toFixed(0)}</span>
+                      <span className="text-slate-500">₹{item.price.toFixed(0)}</span>
                     </div>
                   ))}
                 </div>

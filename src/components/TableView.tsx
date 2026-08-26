@@ -353,7 +353,7 @@ export default function TableView() {
                             <span className="text-slate-700">
                               <span className="font-medium">{item.quantity}×</span> {item.name}
                             </span>
-                            <span className="text-slate-600 font-medium">₹{(item.price * item.quantity).toFixed(0)}</span>
+                            <span className="text-slate-600 font-medium">₹{item.price.toFixed(0)}</span>
                           </div>
                         ))}
                         <div className="border-t border-slate-200 pt-1 mt-1 flex justify-between font-semibold text-slate-800">

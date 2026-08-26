@@ -336,7 +336,7 @@ export default function OrderStatusPage() {
             {order.items.map((item) => (
               <div key={item.id} className="flex justify-between text-sm">
                 <span className="text-slate-600">{item.name} × {item.quantity}</span>
-                <span className="font-medium text-slate-800">₹{(item.price * item.quantity).toFixed(2)}</span>
+                <span className="font-medium text-slate-800">₹{item.price.toFixed(2)}</span>
               </div>
             ))}
           </div>
