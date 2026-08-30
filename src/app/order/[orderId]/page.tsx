@@ -371,9 +371,15 @@ export default function OrderStatusPage() {
               const orderId = `#${order.id.slice(-6).toUpperCase()}`;
               const tableName = order.type === "TABLE" ? (order.table?.name ?? "Table") : "Parcel";
               const itemLines = order.items
-                .map((i) => `${i.name} × ${i.quantity} — ₹${(i.price * i.quantity).toFixed(0)}`)
+                .map((i) => `${i.name} × ${i.quantity} — ₹${i.price.toFixed(0)}`)
                 .join("\n");
-              const message = `🧾 *Order ${orderId}* — ${orgName}\nTable: ${tableName}\n\n${itemLines}\n\n*Total: ₹${order.total.toFixed(0)}*\nThank you! 🙏`;
+              const subtotal = order.items.reduce((sum, i) => sum + i.price, 0);
+              const discountAmt = order.discountType === "PERCENTAGE"
+                ? subtotal * ((order.discount ?? 0) / 100)
+                : (order.discount ?? 0);
+              const amountToPay = Math.max(0, subtotal - discountAmt);
+              const discountLine = discountAmt > 0 ? `\nDiscount: -₹${discountAmt.toFixed(0)}` : "";
+              const message = `🧾 *Order ${orderId}* — ${orgName}\nTable: ${tableName}\n\n${itemLines}\n\nSubtotal: ₹${subtotal.toFixed(0)}${discountLine}\n*Amount to Pay: ₹${amountToPay.toFixed(0)}*\nThank you! 🙏`;
               const rawPhone = order.phone?.replace(/\D/g, "") ?? "";
               const to = rawPhone ? `91${rawPhone.replace(/^91/, "")}` : "";
               const url = to

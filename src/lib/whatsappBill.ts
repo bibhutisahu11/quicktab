@@ -24,12 +24,19 @@ export function sendWhatsAppBill(order: OrderData, org: OrgSettings | null) {
   const itemLines = order.items
     .map((i) => {
       const notes = i.notes ? ` (${i.notes})` : "";
-      return `  • ${i.name}${notes} ×${i.quantity} — ₹${(i.price * i.quantity).toFixed(0)}`;
+      return `  • ${i.name}${notes} ×${i.quantity} — ₹${i.price.toFixed(0)}`;
     })
     .join("\n");
 
   const parcelCharge = (order as unknown as { parcelCharge?: number }).parcelCharge ?? 0;
-  const discount = order.discountAmount > 0 ? `\n  Discount: -₹${order.discountAmount.toFixed(0)}` : "";
+
+  const subtotal = order.items.reduce((sum, item) => sum + item.price, 0);
+  const discountAmt = order.discountType === "PERCENTAGE"
+    ? subtotal * ((order.discount ?? 0) / 100)
+    : (order.discount ?? 0);
+  const amountToPay = Math.max(0, subtotal - discountAmt + parcelCharge);
+
+  const discountLine = discountAmt > 0 ? `\n  Discount: -₹${discountAmt.toFixed(0)}` : "";
   const parcelLine = parcelCharge > 0 ? `\n  Parcel charge: +₹${parcelCharge}` : "";
 
   const lines = [
@@ -44,7 +51,8 @@ export function sendWhatsAppBill(order: OrderData, org: OrgSettings | null) {
     itemLines,
     ``,
     `──────────────────`,
-    `*Total: ₹${order.total.toFixed(0)}*${discount}${parcelLine}`,
+    `Subtotal: ₹${subtotal.toFixed(0)}${discountLine}${parcelLine}`,
+    `*Amount to Pay: ₹${amountToPay.toFixed(0)}*`,
     `──────────────────`,
     ``,
     `Thank you for visiting us! 🙏`,
