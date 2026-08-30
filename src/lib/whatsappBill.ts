@@ -30,6 +30,7 @@ export function sendWhatsAppBill(order: OrderData, org: OrgSettings | null) {
 
   const parcelCharge = (order as unknown as { parcelCharge?: number }).parcelCharge ?? 0;
 
+  // item.price is stored as line total (unit × qty already), so sum directly
   const subtotal = order.items.reduce((sum, item) => sum + item.price, 0);
   const discountAmt = order.discountType === "PERCENTAGE"
     ? subtotal * ((order.discount ?? 0) / 100)
