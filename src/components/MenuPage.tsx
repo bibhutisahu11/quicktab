@@ -21,6 +21,31 @@ interface MenuPageProps {
   isAdmin?: boolean;  // hide customer-only UI when staff is previewing
 }
 
+// Category emoji mapping (case-insensitive partial match, priority order)
+function getCategoryEmoji(category: string): string {
+  const c = category.toLowerCase();
+  if (c.includes("dosa") || c.includes("idli"))       return "🥞";
+  if (c.includes("breakfast"))                         return "🥞";
+  if (c.includes("chinese"))                           return "🥡";
+  if (c.includes("odia") || c.includes("odisha"))     return "🍛";
+  if (c.includes("snack"))                             return "🍟";
+  if (c.includes("tea") || c.includes("coffee") || c.includes("beverage")) return "☕";
+  if (c.includes("sweet"))                             return "🍮";
+  if (c.includes("thali") || c.includes("meal"))      return "🍱";
+  if (c.includes("biryani"))                           return "🍚";
+  if (c.includes("roll"))                              return "🌯";
+  if (c.includes("momo"))                              return "🥟";
+  if (c.includes("soup"))                              return "🍜";
+  if (c.includes("starter"))                           return "🍢";
+  if (c.includes("noodle"))                            return "🍝";
+  if (c.includes("rice"))                              return "🍚";
+  if (c.includes("bread") || c.includes("paratha"))   return "🫓";
+  if (c.includes("egg"))                               return "🍳";
+  if (c.includes("gravy") || c.includes("curry"))     return "🍲";
+  if (c.includes("dum"))                               return "🫕";
+  return "🍽️";
+}
+
 // Map hour ranges to suggested category keywords and greeting info
 function getTimeContext() {
   const h = new Date().getHours();
@@ -823,21 +848,22 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
           )}
         </div>}
 
-        {/* Category tabs */}
+        {/* Category quick-nav pills */}
         <div className="max-w-2xl mx-auto px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
           {allCategories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 whitespace-nowrap ${
                 activeCategory === cat
-                  ? "bg-white text-amber-600 shadow font-bold"
-                  : "bg-amber-400/40 text-white"
+                  ? "bg-amber-500 text-white shadow-md font-bold"
+                  : "bg-white/90 text-slate-700 border border-white/50 hover:bg-white hover:shadow-sm"
               }`}
             >
-              {cat}
+              <span className="text-base leading-none">{cat === "All" ? "🍽️" : getCategoryEmoji(cat)}</span>
+              <span>{cat}</span>
               {cat === defaultCategory && cat !== "All" && (
-                <span className="ml-1 text-xs opacity-75">✦</span>
+                <span className="text-xs leading-none">✨</span>
               )}
             </button>
           ))}
