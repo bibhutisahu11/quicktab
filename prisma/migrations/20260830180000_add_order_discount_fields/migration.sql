@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "discount" DOUBLE PRECISION;
+ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "discountType" TEXT;

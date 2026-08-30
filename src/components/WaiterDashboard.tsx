@@ -98,6 +98,10 @@ export default function WaiterDashboard() {
   const [diningPopup, setDiningPopup] = useState<OrderData | null>(null);
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
   const [addItemsOrder, setAddItemsOrder] = useState<OrderData | null>(null);
+  const [discountPanel, setDiscountPanel] = useState<string | null>(null);
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountType, setDiscountType] = useState<"FLAT" | "PERCENTAGE">("FLAT");
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const seenRepeatDinerIds = useState(() => new Set<string>())[0];
   const seenOrderIds    = useRef(new Set<string>());
@@ -250,6 +254,27 @@ export default function WaiterDashboard() {
       }
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function applyDiscount(order: OrderData) {
+    const val = parseFloat(discountValue);
+    if (isNaN(val) || val < 0) return;
+    setApplyingDiscount(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discount: val, discountType }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOrders((prev) => prev.map((o) => o.id === updated.id ? updated : o));
+        setDiscountPanel(null);
+        setDiscountValue("");
+      }
+    } finally {
+      setApplyingDiscount(false);
     }
   }
 
@@ -813,8 +838,70 @@ export default function WaiterDashboard() {
                   </div>
                 )}
 
+                {/* Discount inline panel */}
+                {discountPanel === order.id && (() => {
+                  const subtotal = order.items.reduce((s, i) => s + i.price, 0);
+                  const val = parseFloat(discountValue) || 0;
+                  const discAmt = discountType === "PERCENTAGE" ? subtotal * (val / 100) : val;
+                  const previewTotal = Math.max(0, subtotal + ((order as { parcelCharge?: number }).parcelCharge ?? 0) - discAmt);
+                  return (
+                    <div className="mb-3 bg-white border border-indigo-200 rounded-xl p-3 space-y-2">
+                      <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Apply Discount</p>
+                      <div className="flex gap-2">
+                        <div className="flex rounded-lg overflow-hidden border border-slate-200 text-xs font-bold">
+                          <button
+                            onClick={() => setDiscountType("FLAT")}
+                            className={`px-3 py-1.5 transition-colors ${discountType === "FLAT" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                          >Flat ₹</button>
+                          <button
+                            onClick={() => setDiscountType("PERCENTAGE")}
+                            className={`px-3 py-1.5 transition-colors ${discountType === "PERCENTAGE" ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                          >% Off</button>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={discountValue}
+                          onChange={(e) => setDiscountValue(e.target.value)}
+                          placeholder={discountType === "FLAT" ? "₹ amount" : "% value"}
+                          className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        />
+                      </div>
+                      {val > 0 && (
+                        <p className="text-xs text-slate-500">
+                          Discount: <span className="font-bold text-red-600">−₹{discAmt.toFixed(0)}</span>
+                          {" · "}New total: <span className="font-bold text-green-700">₹{previewTotal.toFixed(0)}</span>
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => applyDiscount(order)}
+                          disabled={applyingDiscount || !discountValue}
+                          className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-2 rounded-lg text-xs transition-colors"
+                        >
+                          {applyingDiscount ? "Applying…" : "✓ Apply"}
+                        </button>
+                        <button
+                          onClick={() => { setDiscountPanel(null); setDiscountValue(""); }}
+                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium rounded-lg text-xs transition-colors"
+                        >Cancel</button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800">₹{order.total.toFixed(0)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800">₹{order.total.toFixed(0)}</span>
+                    {order.discountAmount > 0 && (
+                      <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">
+                        {order.discountType === "PERCENTAGE"
+                          ? `${order.discount}% off`
+                          : `−₹${order.discountAmount.toFixed(0)}`}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-2 items-center">
                     {/* Add more items — admin & biller only, not on DONE/CANCELLED */}
                     {canAddItems && !["DONE", "CANCELLED"].includes(order.status) && (
@@ -833,6 +920,25 @@ export default function WaiterDashboard() {
                     >
                       🖨️
                     </button>
+                    {/* Discount — admin & biller only */}
+                    {canAddItems && (
+                      <button
+                        onClick={() => {
+                          if (discountPanel === order.id) {
+                            setDiscountPanel(null);
+                            setDiscountValue("");
+                          } else {
+                            setDiscountValue(order.discount != null ? String(order.discount) : "");
+                            setDiscountType((order.discountType as "FLAT" | "PERCENTAGE") ?? "FLAT");
+                            setDiscountPanel(order.id);
+                          }
+                        }}
+                        title="Apply or edit discount"
+                        className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-colors ${discountPanel === order.id ? "bg-indigo-600 text-white" : "text-indigo-700 bg-indigo-100 hover:bg-indigo-200"}`}
+                      >
+                        % Discount
+                      </button>
+                    )}
                     {/* WhatsApp bill — always visible */}
                     <button
                       onClick={() => sendWhatsAppBill(order, orgSettings)}

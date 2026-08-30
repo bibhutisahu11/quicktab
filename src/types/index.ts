@@ -93,6 +93,8 @@ export interface OrderData {
   deliveryAddress: string | null;
   notes: string | null;
   status: OrderStatus;
+  discount: number | null;
+  discountType: string | null;
   discountAmount: number;
   total: number;
   paymentId: string | null;

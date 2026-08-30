@@ -32,7 +32,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { status, paymentAction } = body;
+    const { status, paymentAction, discount, discountType } = body;
 
     // ── Payment verification (admin only) ──────────────────────────
     // paymentAction: "ACCEPT" → PAYMENT_PENDING → PENDING  |  PENDING(cash) → PREPARING
@@ -63,6 +63,43 @@ export async function PATCH(
         data: {
           status: nextStatus,
           paymentVerified: paymentAction === "ACCEPT",
+        },
+        include: { items: true, table: true },
+      });
+      return NextResponse.json(updated);
+    }
+
+    // ── Discount update (admin / manager / biller only) ───────────
+    if (discount !== undefined) {
+      if (!["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN", "BILLER"].includes(role)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const discVal = parseFloat(discount);
+      if (isNaN(discVal) || discVal < 0) {
+        return NextResponse.json({ error: "Invalid discount value" }, { status: 400 });
+      }
+      const dtype: string = discountType === "PERCENTAGE" ? "PERCENTAGE" : "FLAT";
+
+      const orderWithItems = await prisma.order.findUnique({
+        where: { id },
+        include: { items: true, table: true },
+      });
+      if (!orderWithItems) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+
+      const subtotal = orderWithItems.items.reduce((s, i) => s + i.price, 0);
+      const parcelCharge = (orderWithItems as { parcelCharge?: number }).parcelCharge ?? 0;
+      const discountAmt = dtype === "PERCENTAGE"
+        ? subtotal * (discVal / 100)
+        : discVal;
+      const newTotal = Math.max(0, subtotal + parcelCharge - discountAmt);
+
+      const updated = await prisma.order.update({
+        where: { id, ...(ctx.orgId ? { orgId: ctx.orgId } : {}) },
+        data: {
+          discount: discVal,
+          discountType: dtype,
+          discountAmount: discountAmt,
+          total: newTotal,
         },
         include: { items: true, table: true },
       });

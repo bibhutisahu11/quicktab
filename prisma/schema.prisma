@@ -178,6 +178,8 @@ model Order {
   deliveryAddress   String?
   notes             String?
   status            OrderStatus   @default(PENDING)
+  discount          Float?        // raw value entered by staff (amount or percentage)
+  discountType      String?       // "FLAT" | "PERCENTAGE"
   discountAmount    Float         @default(0)
   total             Float
   paymentId         String?
