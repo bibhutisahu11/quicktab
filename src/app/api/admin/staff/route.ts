@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const allowedRoles = ["HOTEL_ADMIN", "MANAGER", "WAITER", "KITCHEN"];
+    const allowedRoles = ["HOTEL_ADMIN", "MANAGER", "WAITER", "KITCHEN", "BILLER"];
     if (!allowedRoles.includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
