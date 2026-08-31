@@ -413,6 +413,14 @@ export default function MenuManager() {
 
       {tab === "availability" && (
         <div className="space-y-4">
+          {/* Search bar — always visible, especially for BILLER */}
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or category..."
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-slate-800 placeholder-slate-400"
+          />
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex gap-2 flex-wrap">
