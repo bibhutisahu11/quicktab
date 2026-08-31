@@ -13,6 +13,7 @@ const ALL_LINKS = [
   { href: "/admin/pre-orders",   label: "Pre-Orders",   icon: "🎁", roles: ["HOTEL_ADMIN", "MANAGER"] },
   { href: "/admin/new-order",    label: "New Order",    icon: "➕", roles: ["BILLER"] },
   { href: "/admin/orders",       label: "Transactions", icon: "🧾", roles: ["BILLER"] },
+  { href: "/admin/cash-drawer",  label: "Cash Drawer",  icon: "💵", roles: ["BILLER", "HOTEL_ADMIN", "MANAGER"] },
   { href: "/admin/table-view",   label: "Table View",   icon: "🪑", roles: ["HOTEL_ADMIN", "MANAGER", "WAITER", "BILLER"] },
   { href: "/admin/analytics",    label: "Analytics",    icon: "📊", roles: ["HOTEL_ADMIN", "MANAGER"] },
   { href: "/admin/customers",    label: "Customers",    icon: "👥", roles: ["HOTEL_ADMIN", "MANAGER"] },

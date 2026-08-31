@@ -78,6 +78,7 @@ model Organization {
   advances        AdvancePayment[]
   preOrderSweets  PreOrderSweet[]
   preOrders       PreOrder[]
+  cashDrawers     CashDrawer[]
 
   @@map("organizations")
 }
@@ -315,6 +316,21 @@ model AdvancePayment {
   @@index([orgId])
   @@index([orgId, date])
   @@map("advance_payments")
+}
+
+model CashDrawer {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  date           String       // "YYYY-MM-DD" — one record per org per day
+  openingBalance Float        @default(0)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([orgId, date])
+  @@index([orgId])
+  @@map("cash_drawers")
 }
 
 enum AttendanceStatus {
