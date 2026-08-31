@@ -274,7 +274,8 @@ export default function MenuManager() {
 
   const availChanged = Object.keys(pendingAvail).length > 0;
   const availByCategory = categories.reduce((acc, cat) => {
-    acc[cat] = items.filter((i) => i.category === cat);
+    const catItems = filtered.filter((i) => i.category === cat);
+    if (catItems.length) acc[cat] = catItems;
     return acc;
   }, {} as Record<string, MenuItemData[]>);
 
