@@ -448,17 +448,39 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const filtered = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
     const words = q.split(/\s+/).filter(Boolean);
-    let pool = words.length > 0
-      ? menuItems.filter((i) =>
-          words.every((w) =>
-            i.name.toLowerCase().includes(w) ||
-            i.category.toLowerCase().includes(w) ||
-            (i.description ?? "").toLowerCase().includes(w)
-          )
-        )
-      : (activeCategory === "All"
-          ? menuItems
-          : menuItems.filter((i) => i.category === activeCategory));
+
+    let pool: MenuItemData[];
+    if (words.length === 0) {
+      pool = activeCategory === "All"
+        ? menuItems
+        : menuItems.filter((i) => i.category === activeCategory);
+    } else {
+      const scoreItem = (i: MenuItemData): number => {
+        const name = i.name.toLowerCase();
+        const cat  = i.category.toLowerCase();
+        const desc = (i.description ?? "").toLowerCase();
+        const haystack = `${name} ${cat} ${desc}`;
+        // Tier 1: exact phrase
+        if (haystack.includes(q)) return 100;
+        const matchCount = words.filter(
+          (w) => name.includes(w) || cat.includes(w) || desc.includes(w)
+        ).length;
+        // Tier 2: all words present
+        if (matchCount === words.length) return 50 + matchCount;
+        // Tier 3: at least one word present
+        return matchCount;
+      };
+
+      const scored = menuItems
+        .map((i) => ({ item: i, score: scoreItem(i) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score);
+
+      // Suppress tier-3 noise when tier-1 or tier-2 results exist
+      const hasHighScore = scored.some(({ score }) => score >= 50);
+      const threshold = hasHighScore ? 50 : 1;
+      pool = scored.filter(({ score }) => score >= threshold).map(({ item }) => item);
+    }
 
     // Apply veg/non-veg filter
     if (vegFilter === "veg")    pool = pool.filter((i) => i.isVeg);
