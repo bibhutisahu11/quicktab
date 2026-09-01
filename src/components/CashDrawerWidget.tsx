@@ -166,47 +166,66 @@ export default function CashDrawerWidget() {
         </p>
       </div>
 
-      {/* Edit form */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-slate-700">Set Opening Balance</h2>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-            Opening Cash (₹)
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={openingInput}
-              onChange={(e) => setOpeningInput(e.target.value)}
-              className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-              placeholder="0.00"
-            />
-            <button
-              onClick={handleSave}
-              disabled={saving || loading}
-              className="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? "Saving…" : success ? "✓ Saved" : "Set"}
-            </button>
+      {/* Opening balance — set-once per day */}
+      {data?.drawer ? (
+        // Already set today — show locked read-only view
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Opening Balance — Locked</p>
+              <p className="text-2xl font-bold text-slate-800 mt-1">{fmt(data.drawer.openingBalance)}</p>
+              {data.drawer.notes && (
+                <p className="text-sm text-slate-500 mt-1">📝 {data.drawer.notes}</p>
+              )}
+            </div>
+            <span className="text-3xl">🔒</span>
           </div>
+          <p className="text-xs text-slate-400 mt-2">Opening balance was set for today and cannot be changed.</p>
         </div>
+      ) : (
+        // Not yet set — show entry form
+        <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-amber-700">⚠️ Set Today&apos;s Opening Balance</h2>
 
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-            Notes (optional)
-          </label>
-          <textarea
-            rows={2}
-            value={notesInput}
-            onChange={(e) => setNotesInput(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-none"
-            placeholder="e.g. gave ₹200 change to table 3"
-          />
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Opening Cash (₹)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={openingInput}
+                onChange={(e) => setOpeningInput(e.target.value)}
+                className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                placeholder="0.00"
+              />
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? "Saving…" : success ? "✓ Saved" : "Set"}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Notes (optional)
+            </label>
+            <textarea
+              rows={2}
+              value={notesInput}
+              onChange={(e) => setNotesInput(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-none"
+              placeholder="e.g. gave ₹200 change to table 3"
+            />
+          </div>
+          <p className="text-xs text-amber-600">⚠️ This can only be set once per day.</p>
         </div>
-      </div>
+      )}
 
       {/* WhatsApp share */}
       <button

@@ -64,17 +64,20 @@ export async function POST(req: NextRequest) {
 
     const targetDate = date ?? todayString();
 
-    const drawer = await prisma.cashDrawer.upsert({
+    // Check if already set today — opening balance is set-once per day
+    const existing = await prisma.cashDrawer.findUnique({
       where: { orgId_date: { orgId: ctx.orgId, date: targetDate } },
-      create: {
+    });
+    if (existing) {
+      return NextResponse.json({ error: "Opening balance already set for today. It cannot be changed." }, { status: 409 });
+    }
+
+    const drawer = await prisma.cashDrawer.create({
+      data: {
         orgId: ctx.orgId,
         date: targetDate,
         openingBalance: openingBalance ?? 0,
         notes: notes ?? null,
-      },
-      update: {
-        ...(openingBalance !== undefined && { openingBalance }),
-        ...(notes !== undefined && { notes }),
       },
     });
 
