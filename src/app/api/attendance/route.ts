@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 // GET /api/attendance?date=YYYY-MM-DD&month=YYYY-MM
 export async function GET(req: NextRequest) {
   const ctx = await getOrgContext(req, {
-    requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"],
+    requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER", "BILLER"],
   });
   if (ctx.error) return ctx.error;
 
