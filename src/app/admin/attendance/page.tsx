@@ -10,7 +10,7 @@ export default async function AttendancePage() {
   if (!session) redirect("/admin");
 
   const role = session.user.role;
-  if (!["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role)) {
+  if (!["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN", "BILLER"].includes(role)) {
     redirect("/admin/dashboard");
   }
 

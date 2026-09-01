@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY" | "ON_LEAVE";
 
@@ -59,6 +60,8 @@ function getDaysInMonth(ym: string) {
 }
 
 export default function AttendanceManager() {
+  const { data: session } = useSession();
+  const isBiller = session?.user?.role === "BILLER";
   const [tab, setTab] = useState<"today" | "history" | "monthly">("today");
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -363,8 +366,8 @@ export default function AttendanceManager() {
       ) : (
         /* ── Today / History view ────────────────────────────────────── */
         <div className="space-y-3">
-          {/* Mark All buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Mark All buttons — hidden for BILLER */}
+          {!isBiller && <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-slate-500 font-semibold">Mark all:</span>
             {(["PRESENT", "ABSENT"] as AttendanceStatus[]).map((st) => {
               const cfg = STATUS_CONFIG[st];
@@ -380,7 +383,7 @@ export default function AttendanceManager() {
                 </button>
               );
             })}
-          </div>
+          </div>}
 
           {staff.map((s) => {
             const rec = getRecord(s.id);
@@ -417,34 +420,45 @@ export default function AttendanceManager() {
                   )}
 
                   {/* Quick status buttons */}
-                  <div className="flex flex-wrap gap-1.5 flex-shrink-0">
-                    {(Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map((st) => {
-                      const c = STATUS_CONFIG[st];
-                      const isActive = status === st;
-                      return (
-                        <button
-                          key={st}
-                          disabled={isLoading}
-                          onClick={() => quickMark(s.id, st)}
-                          title={c.label}
-                          className={`px-2 py-1 rounded-lg text-xs font-bold border transition-all ${
-                            isActive
-                              ? `${c.bg} ${c.color} ${c.border} shadow-sm`
-                              : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
-                          }`}
-                        >
-                          {isLoading && isActive ? "…" : c.emoji}
-                        </button>
-                      );
-                    })}
-                    {/* Edit details button */}
-                    <button
-                      onClick={() => openEdit(s.id)}
-                      title="Add check-in/out time & notes"
-                      className="px-2 py-1 rounded-lg text-xs border border-slate-200 hover:border-amber-400 text-slate-400 hover:text-amber-600 transition-all"
-                    >
-                      ✏️
-                    </button>
+                  <div className="flex flex-wrap gap-1.5 flex-shrink-0 items-center">
+                    {isBiller && rec ? (
+                      // BILLER: attendance already marked — show locked badge
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                        🔒 Locked
+                      </span>
+                    ) : (
+                      <>
+                        {(Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map((st) => {
+                          const c = STATUS_CONFIG[st];
+                          const isActive = status === st;
+                          return (
+                            <button
+                              key={st}
+                              disabled={isLoading}
+                              onClick={() => quickMark(s.id, st)}
+                              title={c.label}
+                              className={`px-2 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                isActive
+                                  ? `${c.bg} ${c.color} ${c.border} shadow-sm`
+                                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                              }`}
+                            >
+                              {isLoading && isActive ? "…" : c.emoji}
+                            </button>
+                          );
+                        })}
+                        {/* Edit details button — hidden for BILLER */}
+                        {!isBiller && (
+                          <button
+                            onClick={() => openEdit(s.id)}
+                            title="Add check-in/out time & notes"
+                            className="px-2 py-1 rounded-lg text-xs border border-slate-200 hover:border-amber-400 text-slate-400 hover:text-amber-600 transition-all"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

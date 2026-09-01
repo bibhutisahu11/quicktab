@@ -53,9 +53,11 @@ export async function GET(req: NextRequest) {
 // POST /api/attendance  — upsert one record
 export async function POST(req: NextRequest) {
   const ctx = await getOrgContext(req, {
-    requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"],
+    requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER", "BILLER"],
   });
   if (ctx.error) return ctx.error;
+
+  const isAdmin = ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"].includes(ctx.role ?? "");
 
   try {
     const body = await req.json();
@@ -63,6 +65,19 @@ export async function POST(req: NextRequest) {
 
     if (!adminId || !date || !status) {
       return NextResponse.json({ error: "adminId, date, status required" }, { status: 400 });
+    }
+
+    // BILLER: once attendance is marked it cannot be changed — only admins can overwrite
+    if (!isAdmin) {
+      const existing = await prisma.attendance.findUnique({
+        where: { adminId_date: { adminId, date } },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { error: "Attendance already marked for this date. Only an admin can change it." },
+          { status: 409 }
+        );
+      }
     }
 
     const record = await prisma.attendance.upsert({
