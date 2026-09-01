@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 import { MenuItemData } from "@/types";
 
 interface Table { id: string; name: string; }
@@ -20,7 +21,6 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const [parcelCharge, setParcelCharge] = useState<0 | 5 | 10>(0);
   const [suggestionIdx, setSuggestionIdx] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
   const [discountInput, setDiscountInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -62,25 +62,27 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   }, [filteredItems]);
 
   // Auto-suggestions: top 8 matches when search is active
-  const suggestions = useMemo(
-    () => (search.trim() ? filteredItems.slice(0, 8) : []),
-    [filteredItems, search]
+  const suggestions: Suggestion[] = useMemo(
+    () => search.trim()
+      ? filteredItems.slice(0, 8).map((m) => ({
+          id: m.id,
+          primary: m.name,
+          secondary: m.category,
+          meta: m.unit === "100g" ? `₹${m.price * 10}/kg` : `₹${m.price}`,
+          badge: cart.find((r) => r.item.id === m.id) ? `×${cart.find((r) => r.item.id === m.id)!.qty}` : undefined,
+        }))
+      : [],
+    [filteredItems, search, cart]
   );
 
-  // Pick suggestion by index
-  const acceptSuggestion = useCallback((item: MenuItemData) => {
-    if (item.unit === "100g") {
-      // For weight items just clear search so user can enter grams in the list below
-      setSearch("");
-      setSuggestionIdx(-1);
-      return;
-    }
+  const acceptSuggestion = useCallback((s: Suggestion) => {
+    const item = menuItems.find((m) => m.id === s.id);
+    if (!item || item.unit === "100g") { setSearch(""); setSuggestionIdx(-1); return; }
     setQty(item, (cart.find((r) => r.item.id === item.id)?.qty ?? 0) + 1);
-    setSearch("");
-    setSuggestionIdx(-1);
+    setSearch(""); setSuggestionIdx(-1);
     searchRef.current?.focus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart]);
+  }, [menuItems, cart]);
 
   function setQty(item: MenuItemData, qty: number) {
     if (qty <= 0) setCart((p) => p.filter((r) => r.item.id !== item.id));
@@ -287,44 +289,15 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
                 ref={searchRef}
                 type="search" value={search}
                 onChange={(e) => { setSearch(e.target.value); setSuggestionIdx(-1); }}
-                onKeyDown={(e) => {
-                  if (!suggestions.length) return;
-                  if (e.key === "ArrowDown") { e.preventDefault(); setSuggestionIdx((i) => Math.min(i + 1, suggestions.length - 1)); }
-                  else if (e.key === "ArrowUp") { e.preventDefault(); setSuggestionIdx((i) => Math.max(i - 1, 0)); }
-                  else if (e.key === "Enter" && suggestionIdx >= 0) { e.preventDefault(); acceptSuggestion(suggestions[suggestionIdx]); }
-                  else if (e.key === "Escape") { setSearch(""); setSuggestionIdx(-1); }
-                }}
+                onKeyDown={(e) => handleSuggestionKey(e, suggestions.length, suggestionIdx, setSuggestionIdx,
+                  (idx) => acceptSuggestion(suggestions[idx]),
+                  () => { setSearch(""); setSuggestionIdx(-1); }
+                )}
                 placeholder="Search items or category…" autoComplete="off"
                 style={{ colorScheme: "light" }}
                 className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
-              {/* Suggestions dropdown */}
-              {suggestions.length > 0 && (
-                <div ref={suggestionsRef} className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
-                  {suggestions.map((item, idx) => {
-                    const inCart = cart.find((r) => r.item.id === item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onMouseDown={(e) => { e.preventDefault(); acceptSuggestion(item); }}
-                        className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors ${
-                          idx === suggestionIdx ? "bg-amber-50" : "hover:bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm font-semibold text-slate-800 truncate">{item.name}</span>
-                          <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full flex-shrink-0">{item.category}</span>
-                          {inCart && <span className="text-xs text-amber-600 font-bold flex-shrink-0">×{inCart.qty}</span>}
-                        </div>
-                        <span className="text-xs font-bold text-slate-600 flex-shrink-0 ml-2">
-                          {item.unit === "100g" ? `₹${item.price * 10}/kg` : `₹${item.price}`}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              <SuggestionDropdown suggestions={suggestions} activeIdx={suggestionIdx} onSelect={acceptSuggestion} />
             </div>
 
             {Object.entries(grouped).map(([cat, items]) => (

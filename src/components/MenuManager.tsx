@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { MenuItemData } from "@/types";
 import MenuScanner from "./MenuScanner";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 
 const EMPTY_FORM = {
   name: "",
@@ -39,6 +40,8 @@ export default function MenuManager() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [searchSugIdx, setSearchSugIdx] = useState(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   // BILLER lands directly on availability tab and cannot switch to manage
   const [tab, setTab] = useState<"manage" | "availability" | "move" | "vegnonveg">("manage");
@@ -184,6 +187,18 @@ export default function MenuManager() {
     if (t2.length) return t2;
     return items.filter((i) => words.some((w) => hay(i).includes(w)));
   })();
+
+  const menuSuggestions: Suggestion[] = useMemo(
+    () => search.trim()
+      ? filtered.slice(0, 8).map((m) => ({
+          id: m.id,
+          primary: m.name,
+          secondary: m.category,
+          meta: m.unit === "100g" ? `₹${m.price * 10}/kg` : `₹${m.price}`,
+        }))
+      : [],
+    [filtered, search]
+  );
 
   const grouped = categories.reduce(
     (acc, cat) => {
@@ -421,13 +436,23 @@ export default function MenuManager() {
       {tab === "availability" && (
         <div className="space-y-4">
           {/* Search bar — always visible, especially for BILLER */}
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or category..."
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-slate-800 placeholder-slate-400"
-          />
+          <div className="relative">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setSearchSugIdx(-1); }}
+              onKeyDown={(e) => handleSuggestionKey(e, menuSuggestions.length, searchSugIdx, setSearchSugIdx,
+                (idx) => { setSearch(menuSuggestions[idx].primary); setSearchSugIdx(-1); searchInputRef.current?.focus(); },
+                () => { setSearch(""); setSearchSugIdx(-1); }
+              )}
+              placeholder="Search by name or category..."
+              autoComplete="off"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-slate-800 placeholder-slate-400"
+            />
+            <SuggestionDropdown suggestions={menuSuggestions} activeIdx={searchSugIdx}
+              onSelect={(s) => { setSearch(s.primary); setSearchSugIdx(-1); searchInputRef.current?.focus(); }} />
+          </div>
           {/* Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex gap-2 flex-wrap">
@@ -601,13 +626,23 @@ export default function MenuManager() {
       )}
 
       {tab === "manage" && <>
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by name or category..."
-        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 mb-6 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-      />
+      <div className="relative mb-6">
+        <input
+          ref={searchInputRef}
+          type="text"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setSearchSugIdx(-1); }}
+          onKeyDown={(e) => handleSuggestionKey(e, menuSuggestions.length, searchSugIdx, setSearchSugIdx,
+            (idx) => { setSearch(menuSuggestions[idx].primary); setSearchSugIdx(-1); searchInputRef.current?.focus(); },
+            () => { setSearch(""); setSearchSugIdx(-1); }
+          )}
+          placeholder="Search by name or category..."
+          autoComplete="off"
+          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-slate-800"
+        />
+        <SuggestionDropdown suggestions={menuSuggestions} activeIdx={searchSugIdx}
+          onSelect={(s) => { setSearch(s.primary); setSearchSugIdx(-1); searchInputRef.current?.focus(); }} />
+      </div>
 
       {loading ? (
         <div className="text-center py-20 text-slate-400">

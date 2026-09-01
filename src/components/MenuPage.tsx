@@ -116,6 +116,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   // ── Customer search ───────────────────────────────────────────────────────
   const [customerSearch, setCustomerSearch] = useState("");
   const [searchFocused, setSearchFocused]   = useState(false);
+  const [searchSugIdx, setSearchSugIdx]     = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Close suggestions on outside click
@@ -741,8 +742,25 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
             <input
               type="text"
               value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
+              onChange={(e) => { setCustomerSearch(e.target.value); setSearchSugIdx(-1); }}
               onFocus={() => setSearchFocused(true)}
+              onKeyDown={(e) => {
+                if (!searchFocused || !customerSearch.trim()) return;
+                const q = customerSearch.trim().toLowerCase();
+                const qWords = q.split(/\s+/).filter(Boolean);
+                const matched = menuItems.filter((m) => m.available && qWords.every((w) =>
+                  m.name.toLowerCase().includes(w) || m.category.toLowerCase().includes(w)
+                )).slice(0, 6);
+                const total = matched.length;
+                if (e.key === "ArrowDown") { e.preventDefault(); setSearchSugIdx((i) => Math.min(i + 1, total - 1)); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setSearchSugIdx((i) => Math.max(i - 1, 0)); }
+                else if (e.key === "Enter" && searchSugIdx >= 0 && matched[searchSugIdx]) {
+                  e.preventDefault();
+                  setCustomerSearch(matched[searchSugIdx].name);
+                  setSearchFocused(false); setSearchSugIdx(-1);
+                }
+                else if (e.key === "Escape") { setCustomerSearch(""); setSearchFocused(false); setSearchSugIdx(-1); }
+              }}
               placeholder="Search items, categories…"
               autoComplete="off"
               style={{ colorScheme: "light", WebkitTextFillColor: "#111827", color: "#111827" }}
@@ -795,15 +813,15 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
                     <div className="px-1 pt-1 pb-1">
                       {matchedCats.length > 0 && <div className="border-t border-slate-100 mt-2 mb-1" />}
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide px-2 mb-1">Items</p>
-                      {matched.map((item) => (
+                      {matched.map((item, idx) => (
                         <button
                           key={item.id}
                           onMouseDown={(e) => {
                             e.preventDefault();
                             setCustomerSearch(item.name);
-                            setSearchFocused(false);
+                            setSearchFocused(false); setSearchSugIdx(-1);
                           }}
-                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-amber-50 transition-colors flex items-center justify-between gap-3"
+                          className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors flex items-center justify-between gap-3 ${idx === searchSugIdx ? "bg-amber-50" : "hover:bg-amber-50"}`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 
 interface AdvancePayment {
   id: string;
@@ -68,6 +69,8 @@ export default function AdvanceManager() {
   const [typeFilter, setTypeFilter] = useState<"all" | "Customer" | "Staff">("all");
   const [modeFilter, setModeFilter] = useState("all");
   const [searchQ, setSearchQ] = useState("");
+  const [advSugIdx, setAdvSugIdx] = useState(-1);
+  const advSearchRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -168,6 +171,15 @@ export default function AdvanceManager() {
     }
     return true;
   }), [advances, statusFilter, typeFilter, modeFilter, searchQ]);
+
+  const advanceSuggestions: Suggestion[] = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q) return [];
+    const names = [...new Set(
+      advances.filter((a) => a.customerName.toLowerCase().includes(q)).map((a) => a.customerName)
+    )].slice(0, 6);
+    return names.map((n) => ({ id: n, primary: n }));
+  }, [advances, searchQ]);
 
   const totalAmount   = filtered.reduce((s, a) => s + a.amount, 0);
   const pendingAmount = filtered.filter((a) => !a.settled).reduce((s, a) => s + a.amount, 0);
@@ -325,13 +337,23 @@ export default function AdvanceManager() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <input
-          type="search"
-          value={searchQ}
-          onChange={(e) => setSearchQ(e.target.value)}
-          placeholder="Search name, phone, purpose…"
-          className={INPUT_CLS + " flex-1 min-w-[180px]"}
-        />
+        <div className="relative flex-1 min-w-[180px]">
+          <input
+            ref={advSearchRef}
+            type="search"
+            value={searchQ}
+            onChange={(e) => { setSearchQ(e.target.value); setAdvSugIdx(-1); }}
+            onKeyDown={(e) => handleSuggestionKey(e, advanceSuggestions.length, advSugIdx, setAdvSugIdx,
+              (idx) => { setSearchQ(advanceSuggestions[idx].primary); setAdvSugIdx(-1); advSearchRef.current?.focus(); },
+              () => { setSearchQ(""); setAdvSugIdx(-1); }
+            )}
+            placeholder="Search name, phone, purpose…"
+            autoComplete="off"
+            className={INPUT_CLS + " w-full"}
+          />
+          <SuggestionDropdown suggestions={advanceSuggestions} activeIdx={advSugIdx}
+            onSelect={(s) => { setSearchQ(s.primary); setAdvSugIdx(-1); }} />
+        </div>
         <div className="flex rounded-lg overflow-hidden border border-slate-200">
           {(["all", "Customer", "Staff"] as const).map((t) => (
             <button

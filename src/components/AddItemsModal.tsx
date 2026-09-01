@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 import { MenuItemData, OrderData } from "@/types";
 
 interface CartRow {
@@ -54,13 +55,22 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
     return map;
   }, [filtered]);
 
-  const suggestions = useMemo(
-    () => (search.trim() ? filtered.slice(0, 8) : []),
-    [filtered, search]
+  const suggestions: Suggestion[] = useMemo(
+    () => search.trim()
+      ? filtered.slice(0, 8).map((m) => ({
+          id: m.id,
+          primary: m.name,
+          secondary: m.category,
+          meta: m.unit === "100g" ? `₹${m.price * 10}/kg` : `₹${m.price}`,
+          badge: cart.find((r) => r.item.id === m.id) ? `×${cart.find((r) => r.item.id === m.id)!.qty}` : undefined,
+        }))
+      : [],
+    [filtered, search, cart]
   );
 
-  const acceptSuggestion = useCallback((item: MenuItemData) => {
-    if (item.unit !== "100g") {
+  const acceptSuggestion = useCallback((s: Suggestion) => {
+    const item = menuItems.find((m) => m.id === s.id);
+    if (item && item.unit !== "100g") {
       setCart((prev) => {
         const ex = prev.find((r) => r.item.id === item.id);
         if (ex) return prev.map((r) => r.item.id === item.id ? { ...r, qty: r.qty + 1 } : r);
@@ -70,7 +80,7 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
     setSearch("");
     setSuggestionIdx(-1);
     searchRef.current?.focus();
-  }, []);
+  }, [menuItems]);
 
   function getQty(itemId: string) {
     return cart.find((r) => r.item.id === itemId)?.qty ?? 0;
@@ -182,46 +192,17 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
               type="search"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setSuggestionIdx(-1); }}
-              onKeyDown={(e) => {
-                if (!suggestions.length) return;
-                if (e.key === "ArrowDown") { e.preventDefault(); setSuggestionIdx((i) => Math.min(i + 1, suggestions.length - 1)); }
-                else if (e.key === "ArrowUp") { e.preventDefault(); setSuggestionIdx((i) => Math.max(i - 1, 0)); }
-                else if (e.key === "Enter" && suggestionIdx >= 0) { e.preventDefault(); acceptSuggestion(suggestions[suggestionIdx]); }
-                else if (e.key === "Escape") { setSearch(""); setSuggestionIdx(-1); }
-              }}
+              onKeyDown={(e) => handleSuggestionKey(e, suggestions.length, suggestionIdx, setSuggestionIdx,
+                (idx) => acceptSuggestion(suggestions[idx]),
+                () => { setSearch(""); setSuggestionIdx(-1); }
+              )}
               placeholder="Search items or categories…"
               autoFocus
               autoComplete="off"
               style={{ colorScheme: "light" }}
               className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
-            {/* Suggestions dropdown */}
-            {suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
-                {suggestions.map((item, idx) => {
-                  const inCart = cart.find((r) => r.item.id === item.id);
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); acceptSuggestion(item); }}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors ${
-                        idx === suggestionIdx ? "bg-amber-50" : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-semibold text-slate-800 truncate">{item.name}</span>
-                        <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full flex-shrink-0">{item.category}</span>
-                        {inCart && <span className="text-xs text-amber-600 font-bold flex-shrink-0">×{inCart.qty}</span>}
-                      </div>
-                      <span className="text-xs font-bold text-slate-600 flex-shrink-0 ml-2">
-                        {item.unit === "100g" ? `₹${item.price * 10}/kg` : `₹${item.price}`}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <SuggestionDropdown suggestions={suggestions} activeIdx={suggestionIdx} onSelect={acceptSuggestion} />
           </div>
         </div>
 

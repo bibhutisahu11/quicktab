@@ -85,6 +85,7 @@ export default function WaiterDashboard() {
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const adminSearchRef = useRef<HTMLDivElement>(null);
+  const [searchSugIdx, setSearchSugIdx] = useState(-1);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -527,9 +528,24 @@ export default function WaiterDashboard() {
         <input
           type="search"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setSearchSugIdx(-1); }}
           onFocus={() => setSearchFocused(true)}
+          onKeyDown={(e) => {
+            if (!searchFocused || !search.trim()) return;
+            const q = search.trim().toLowerCase();
+            const names = [...new Set(orders.filter((o) => o.customerName.toLowerCase().includes(q)).map((o) => o.customerName))].slice(0, 4);
+            const phones = [...new Set(orders.filter((o) => o.phone && o.phone.includes(q)).map((o) => o.phone as string))].slice(0, 3);
+            const tables = [...new Set(orders.filter((o) => o.table?.name && o.table.name.toLowerCase().includes(q)).map((o) => o.table!.name))].slice(0, 3);
+            const orderIds = orders.filter((o) => o.id.slice(-6).toLowerCase().includes(q)).map((o) => o.id.slice(-6).toUpperCase()).slice(0, 3);
+            const flat = [...names, ...phones, ...tables, ...orderIds];
+            if (!flat.length) return;
+            if (e.key === "ArrowDown") { e.preventDefault(); setSearchSugIdx((i) => Math.min(i + 1, flat.length - 1)); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); setSearchSugIdx((i) => Math.max(i - 1, 0)); }
+            else if (e.key === "Enter" && searchSugIdx >= 0) { e.preventDefault(); setSearch(flat[searchSugIdx]); setSearchFocused(false); setSearchSugIdx(-1); }
+            else if (e.key === "Escape") { setSearch(""); setSearchFocused(false); setSearchSugIdx(-1); }
+          }}
           placeholder="Search by order ID, customer name, phone, table…"
+          autoComplete="off"
           className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder-slate-400"
         />
         {search && (
@@ -567,68 +583,68 @@ export default function WaiterDashboard() {
             .slice(0, 3);
 
           if (names.length === 0 && phones.length === 0 && tables.length === 0 && orderIds.length === 0) return null;
+          // flat index for keyboard highlight: names → phones → tables → orderIds
+          let flatIdx = 0;
+          const btnClass = (active: boolean) =>
+            `w-full text-left px-3 py-2 rounded-xl text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors ${active ? "bg-amber-50" : "hover:bg-amber-50"}`;
 
           return (
             <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden">
               {names.length > 0 && (
                 <div className="px-3 pt-3 pb-2">
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Customers</p>
-                  {names.map((name) => (
-                    <button
-                      key={name}
-                      onMouseDown={(e) => { e.preventDefault(); setSearch(name); setSearchFocused(false); }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
-                    >
-                      <span className="text-base">👤</span> {name}
-                    </button>
-                  ))}
+                  {names.map((name) => {
+                    const active = flatIdx++ === searchSugIdx;
+                    return (
+                      <button key={name} onMouseDown={(e) => { e.preventDefault(); setSearch(name); setSearchFocused(false); setSearchSugIdx(-1); }} className={btnClass(active)}>
+                        <span className="text-base">👤</span> {name}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               {phones.length > 0 && (
                 <div className="px-3 pb-2">
                   {names.length > 0 && <div className="border-t border-slate-100 mb-2" />}
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Phone Numbers</p>
-                  {phones.map((phone) => (
-                    <button
-                      key={phone}
-                      onMouseDown={(e) => { e.preventDefault(); setSearch(phone); setSearchFocused(false); }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
-                    >
-                      <span className="text-base">📱</span> {phone}
-                    </button>
-                  ))}
+                  {phones.map((phone) => {
+                    const active = flatIdx++ === searchSugIdx;
+                    return (
+                      <button key={phone} onMouseDown={(e) => { e.preventDefault(); setSearch(phone); setSearchFocused(false); setSearchSugIdx(-1); }} className={btnClass(active)}>
+                        <span className="text-base">📱</span> {phone}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               {tables.length > 0 && (
                 <div className="px-3 pb-2">
                   {(names.length > 0 || phones.length > 0) && <div className="border-t border-slate-100 mb-2" />}
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Tables</p>
-                  {tables.map((tbl) => (
-                    <button
-                      key={tbl}
-                      onMouseDown={(e) => { e.preventDefault(); setSearch(tbl); setSearchFocused(false); }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
-                    >
-                      <span className="text-base">🍽️</span> {tbl}
-                    </button>
-                  ))}
+                  {tables.map((tbl) => {
+                    const active = flatIdx++ === searchSugIdx;
+                    return (
+                      <button key={tbl} onMouseDown={(e) => { e.preventDefault(); setSearch(tbl); setSearchFocused(false); setSearchSugIdx(-1); }} className={btnClass(active)}>
+                        <span className="text-base">🍽️</span> {tbl}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               {orderIds.length > 0 && (
                 <div className="px-3 pb-3">
                   {(names.length > 0 || phones.length > 0 || tables.length > 0) && <div className="border-t border-slate-100 mb-2" />}
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Order IDs</p>
-                  {orderIds.map(({ short, name }) => (
-                    <button
-                      key={short}
-                      onMouseDown={(e) => { e.preventDefault(); setSearch(short); setSearchFocused(false); }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-50 text-sm font-medium text-slate-700 flex items-center gap-2 transition-colors"
-                    >
-                      <span className="text-base">🧾</span>
-                      <span className="font-mono font-bold text-slate-800">#{short}</span>
-                      <span className="text-slate-400 text-xs">{name}</span>
-                    </button>
-                  ))}
+                  {orderIds.map(({ short, name }) => {
+                    const active = flatIdx++ === searchSugIdx;
+                    return (
+                      <button key={short} onMouseDown={(e) => { e.preventDefault(); setSearch(short); setSearchFocused(false); setSearchSugIdx(-1); }} className={btnClass(active)}>
+                        <span className="text-base">🧾</span>
+                        <span className="font-mono font-bold text-slate-800">#{short}</span>
+                        <span className="text-slate-400 text-xs">{name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

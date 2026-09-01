@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 
 interface StockLog {
   id: string;
@@ -49,6 +50,8 @@ export default function InventoryManager() {
   const [adjusting, setAdjusting] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "low" | "out">("all");
   const [search, setSearch] = useState("");
+  const [invSugIdx, setInvSugIdx] = useState(-1);
+  const invSearchRef = useRef<HTMLInputElement>(null);
 
   async function fetchItems() {
     const res = await fetch("/api/admin/inventory");
@@ -107,6 +110,13 @@ export default function InventoryManager() {
       setAdjusting(false);
     }
   }
+
+  const invSuggestions: Suggestion[] = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return items.filter((i) => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))
+      .slice(0, 6).map((i) => ({ id: i.id, primary: i.name, secondary: i.category }));
+  }, [items, search]);
 
   const grouped = items
     .filter((i) => {
@@ -176,13 +186,23 @@ export default function InventoryManager() {
             {f === "all" ? "All Items" : f === "low" ? "⚠️ Low Stock" : "🚨 Out of Stock"}
           </button>
         ))}
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setFilterStatus("all"); }}
-          placeholder="Search…"
-          className="ml-auto border border-slate-200 rounded-xl px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 w-48"
-        />
+        <div className="relative ml-auto w-48">
+          <input
+            ref={invSearchRef}
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setFilterStatus("all"); setInvSugIdx(-1); }}
+            onKeyDown={(e) => handleSuggestionKey(e, invSuggestions.length, invSugIdx, setInvSugIdx,
+              (idx) => { setSearch(invSuggestions[idx].primary); setInvSugIdx(-1); invSearchRef.current?.focus(); },
+              () => { setSearch(""); setInvSugIdx(-1); }
+            )}
+            placeholder="Search…"
+            autoComplete="off"
+            className="w-full border border-slate-200 rounded-xl px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          <SuggestionDropdown suggestions={invSuggestions} activeIdx={invSugIdx}
+            onSelect={(s) => { setSearch(s.primary); setInvSugIdx(-1); }} />
+        </div>
       </div>
 
       {/* Add Item Form */}

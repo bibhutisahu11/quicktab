@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 import ScanBillModal from "./ScanBillModal";
 
 interface Expense {
@@ -96,6 +97,8 @@ export default function ExpenseManager() {
   const [dateFrom,   setDateFrom]   = useState("");
   const [dateTo,     setDateTo]     = useState("");
   const [search,     setSearch]     = useState("");
+  const [expSugIdx, setExpSugIdx] = useState(-1);
+  const expSearchRef = useRef<HTMLInputElement>(null);
 
   const fetchData = useCallback(async () => {
     const params = new URLSearchParams();
@@ -195,6 +198,16 @@ export default function ExpenseManager() {
     }
     return true;
   });
+
+  const expenseSuggestions: Suggestion[] = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q || !data?.expenses) return [];
+    const all = data.expenses.filter((e) =>
+      e.category.toLowerCase().includes(q) || (e.description ?? "").toLowerCase().includes(q)
+    );
+    const unique = [...new Set(all.map((e) => e.description ?? e.category))].slice(0, 6);
+    return unique.map((d) => ({ id: d, primary: d }));
+  }, [data, search]);
 
   const monthlyTotals = data ? getMonthlyTotals(data.expenses) : [];
   const maxMonthly = Math.max(...monthlyTotals.map(([, v]) => v), 1);
@@ -446,8 +459,23 @@ export default function ExpenseManager() {
           </div>
           <div className="flex-1 min-w-40">
             <label className="block text-xs font-semibold text-slate-500 mb-1">Search</label>
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            <div className="relative">
+              <input
+                ref={expSearchRef}
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setExpSugIdx(-1); }}
+                onKeyDown={(e) => handleSuggestionKey(e, expenseSuggestions.length, expSugIdx, setExpSugIdx,
+                  (idx) => { setSearch(expenseSuggestions[idx].primary); setExpSugIdx(-1); expSearchRef.current?.focus(); },
+                  () => { setSearch(""); setExpSugIdx(-1); }
+                )}
+                placeholder="Search…"
+                autoComplete="off"
+                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <SuggestionDropdown suggestions={expenseSuggestions} activeIdx={expSugIdx}
+                onSelect={(s) => { setSearch(s.primary); setExpSugIdx(-1); }} />
+            </div>
           </div>
           {(dateFrom || dateTo || filterCat !== "All" || filterMode !== "All" || search) && (
             <button onClick={() => { setDateFrom(""); setDateTo(""); setFilterCat("All"); setFilterMode("All"); setSearch(""); }}

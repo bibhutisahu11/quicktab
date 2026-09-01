@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 
 interface CustomerOrder {
   id: string;
@@ -66,6 +67,8 @@ export default function CustomersDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Customer | null>(null);
+  const [sugIdx, setSugIdx] = useState(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   async function fetchCustomers(q = "") {
     setLoading(true);
@@ -84,8 +87,23 @@ export default function CustomersDashboard() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
+    setSugIdx(-1);
     fetchCustomers(search);
   }
+
+  const customerSuggestions: Suggestion[] = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q || customers.length === 0) return [];
+    return customers
+      .filter((c) => c.name.toLowerCase().includes(q) || (c.phone ?? "").includes(q))
+      .slice(0, 6)
+      .map((c) => ({
+        id: c.name,
+        primary: c.name,
+        secondary: c.phone ?? undefined,
+        meta: `₹${c.totalSpent.toFixed(0)}`,
+      }));
+  }, [customers, search]);
 
   const totalRevenue = customers.reduce((s, c) => s + c.totalSpent, 0);
 
@@ -208,13 +226,23 @@ export default function CustomersDashboard() {
 
       {/* Search */}
       <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or phone..."
-          className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-slate-800"
-        />
+        <div className="relative flex-1">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSugIdx(-1); }}
+            onKeyDown={(e) => handleSuggestionKey(e, customerSuggestions.length, sugIdx, setSugIdx,
+              (idx) => { setSearch(customerSuggestions[idx].primary); setSugIdx(-1); fetchCustomers(customerSuggestions[idx].primary); searchInputRef.current?.blur(); },
+              () => { setSearch(""); setSugIdx(-1); }
+            )}
+            placeholder="Search by name or phone..."
+            autoComplete="off"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-slate-800"
+          />
+          <SuggestionDropdown suggestions={customerSuggestions} activeIdx={sugIdx}
+            onSelect={(s) => { setSearch(s.primary); setSugIdx(-1); fetchCustomers(s.primary); }} />
+        </div>
         <button
           type="submit"
           className="bg-slate-800 hover:bg-slate-700 text-white font-medium px-5 py-2.5 rounded-xl transition-colors"

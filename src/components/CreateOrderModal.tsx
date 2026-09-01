@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 import { MenuItemData } from "@/types";
 
 interface Table { id: string; name: string; }
@@ -28,8 +29,9 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
   const [discountInput, setDiscountInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  // gram inputs for weight-based (100g unit) items
   const [gramInputs, setGramInputs] = useState<Record<string, string>>({});
+  const [suggestionIdx, setSuggestionIdx] = useState(-1);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/menu")
@@ -49,19 +51,42 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return menuItems;
-    return menuItems.filter((m) =>
-      m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)
-    );
+    const hay = (m: MenuItemData) => `${m.name} ${m.category}`.toLowerCase();
+    const t1 = menuItems.filter((m) => hay(m).includes(q));
+    if (t1.length) return t1;
+    const words = q.split(/\s+/).filter(Boolean);
+    const t2 = menuItems.filter((m) => words.every((w) => hay(m).includes(w)));
+    if (t2.length) return t2;
+    return menuItems.filter((m) => words.some((w) => hay(m).includes(w)));
   }, [menuItems, search]);
 
-  // Group filtered items by category
   const grouped = useMemo(() => {
     const map: Record<string, MenuItemData[]> = {};
-    filteredItems.forEach((m) => {
-      (map[m.category] ??= []).push(m);
-    });
+    filteredItems.forEach((m) => { (map[m.category] ??= []).push(m); });
     return map;
   }, [filteredItems]);
+
+  const suggestions: Suggestion[] = useMemo(
+    () => search.trim()
+      ? filteredItems.slice(0, 8).map((m) => ({
+          id: m.id,
+          primary: m.name,
+          secondary: m.category,
+          meta: m.unit === "100g" ? `₹${m.price * 10}/kg` : `₹${m.price}`,
+          badge: cart.find((r) => r.item.id === m.id) ? `×${cart.find((r) => r.item.id === m.id)!.qty}` : undefined,
+        }))
+      : [],
+    [filteredItems, search, cart]
+  );
+
+  const acceptSuggestion = useCallback((s: Suggestion) => {
+    const item = menuItems.find((m) => m.id === s.id);
+    if (!item || item.unit === "100g") { setSearch(""); setSuggestionIdx(-1); return; }
+    setQty(item, (cart.find((r) => r.item.id === item.id)?.qty ?? 0) + 1);
+    setSearch(""); setSuggestionIdx(-1);
+    searchRef.current?.focus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuItems, cart]);
 
   function setQty(item: MenuItemData, qty: number) {
     if (qty <= 0) {
@@ -308,12 +333,19 @@ export default function CreateOrderModal({ orgSlug, onClose, onCreated }: Props)
               <div className="relative mb-3">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
                 <input
+                  ref={searchRef}
                   type="search"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setSuggestionIdx(-1); }}
+                  onKeyDown={(e) => handleSuggestionKey(e, suggestions.length, suggestionIdx, setSuggestionIdx,
+                    (idx) => acceptSuggestion(suggestions[idx]),
+                    () => { setSearch(""); setSuggestionIdx(-1); }
+                  )}
                   placeholder="Search items…"
+                  autoComplete="off"
                   className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
+                <SuggestionDropdown suggestions={suggestions} activeIdx={suggestionIdx} onSelect={acceptSuggestion} />
               </div>
 
               {Object.entries(grouped).map(([cat, items]) => (
