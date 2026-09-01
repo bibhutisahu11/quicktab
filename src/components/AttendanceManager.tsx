@@ -67,6 +67,10 @@ export default function AttendanceManager() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Biller pending draft: default everyone to PRESENT before confirming
+  const [pendingMarks, setPendingMarks] = useState<Record<string, AttendanceStatus>>({});
+  const [confirming, setConfirming] = useState(false);
+
   // Today tab
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -90,8 +94,18 @@ export default function AttendanceManager() {
     const res = await fetch(`/api/attendance?${params}`);
     if (res.ok) {
       const data = await res.json();
-      setStaff(data.staff ?? []);
-      setRecords(data.records ?? []);
+      const staffList: StaffMember[] = data.staff ?? [];
+      const recordList: AttendanceRecord[] = data.records ?? [];
+      setStaff(staffList);
+      setRecords(recordList);
+      // Initialise biller pending draft: use saved status if exists, else default PRESENT
+      const effectiveDate = date ?? selectedDate;
+      const draft: Record<string, AttendanceStatus> = {};
+      for (const s of staffList) {
+        const existing = recordList.find((r) => r.adminId === s.id && r.date === effectiveDate);
+        draft[s.id] = existing?.status ?? "PRESENT";
+      }
+      setPendingMarks(draft);
     }
     setLoading(false);
   }, [selectedDate]);
@@ -142,6 +156,23 @@ export default function AttendanceManager() {
     await fetchData(selectedDate);
     setSaving(false);
     setEditModal(null);
+  }
+
+  // ── Biller: confirm all pending marks ───────────────────────────────────────
+  async function confirmAttendance() {
+    setConfirming(true);
+    const unmarkedStaff = staff.filter((s) => !getRecord(s.id));
+    await Promise.all(
+      unmarkedStaff.map((s) =>
+        fetch("/api/attendance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adminId: s.id, date: selectedDate, status: pendingMarks[s.id] ?? "PRESENT" }),
+        })
+      )
+    );
+    await fetchData(selectedDate);
+    setConfirming(false);
   }
 
   // ── Summary helpers ─────────────────────────────────────────────────────────
@@ -385,17 +416,36 @@ export default function AttendanceManager() {
             })}
           </div>}
 
+          {/* Biller: confirm button when any staff is still unmarked */}
+          {isBiller && staff.some((s) => !getRecord(s.id)) && (
+            <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="font-bold text-amber-800 text-sm">Everyone defaults to ✅ Present</p>
+                <p className="text-amber-600 text-xs mt-0.5">Change anyone who is absent/late, then confirm.</p>
+              </div>
+              <button
+                onClick={confirmAttendance}
+                disabled={confirming}
+                className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-black px-5 py-2.5 rounded-xl text-sm transition-colors whitespace-nowrap"
+              >
+                {confirming ? "Saving…" : "✅ Confirm Attendance"}
+              </button>
+            </div>
+          )}
+
           {staff.map((s) => {
             const rec = getRecord(s.id);
-            const status = rec?.status;
-            const cfg = status ? STATUS_CONFIG[status] : null;
+            // For display: use saved record if locked, else pending draft
+            const displayStatus: AttendanceStatus = rec?.status ?? (pendingMarks[s.id] ?? "PRESENT");
+            const cfg = STATUS_CONFIG[displayStatus];
             const isLoading = savingId === s.id;
+            const isPending = !rec; // not yet saved to DB
 
             return (
-              <div key={s.id} className={`bg-white border-2 rounded-2xl p-4 shadow-sm transition-all ${cfg ? cfg.border : "border-slate-200"}`}>
+              <div key={s.id} className={`bg-white border-2 rounded-2xl p-4 shadow-sm transition-all ${cfg.border} ${isPending && isBiller ? "opacity-90" : ""}`}>
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Avatar */}
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg flex-shrink-0 ${cfg ? cfg.bg : "bg-slate-100"} ${cfg?.color ?? "text-slate-400"}`}>
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg flex-shrink-0 ${cfg.bg} ${cfg.color}`}>
                     {(s.name ?? s.email)[0].toUpperCase()}
                   </div>
 
@@ -412,25 +462,45 @@ export default function AttendanceManager() {
                     {rec?.notes && <p className="text-xs text-slate-400 mt-0.5 italic">{rec.notes}</p>}
                   </div>
 
-                  {/* Current status badge */}
-                  {cfg && (
-                    <span className={`${cfg.bg} ${cfg.color} px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0`}>
-                      {cfg.emoji} {cfg.label}
-                    </span>
-                  )}
+                  {/* Status badge */}
+                  <span className={`${cfg.bg} ${cfg.color} px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0`}>
+                    {cfg.emoji} {cfg.label}
+                    {isPending && isBiller && <span className="ml-1 opacity-60">(draft)</span>}
+                  </span>
 
-                  {/* Quick status buttons */}
+                  {/* Buttons */}
                   <div className="flex flex-wrap gap-1.5 flex-shrink-0 items-center">
                     {isBiller && rec ? (
-                      // BILLER: attendance already marked — show locked badge
+                      // Already saved → locked for biller
                       <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
                         🔒 Locked
                       </span>
+                    ) : isBiller && !rec ? (
+                      // Pending draft → show all status buttons to adjust before confirming
+                      (Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map((st) => {
+                        const c = STATUS_CONFIG[st];
+                        const isActive = displayStatus === st;
+                        return (
+                          <button
+                            key={st}
+                            onClick={() => setPendingMarks((prev) => ({ ...prev, [s.id]: st }))}
+                            title={c.label}
+                            className={`px-2 py-1 rounded-lg text-xs font-bold border transition-all ${
+                              isActive
+                                ? `${c.bg} ${c.color} ${c.border} shadow-sm`
+                                : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                            }`}
+                          >
+                            {c.emoji}
+                          </button>
+                        );
+                      })
                     ) : (
+                      // Admin/Manager: immediate save on click
                       <>
                         {(Object.keys(STATUS_CONFIG) as AttendanceStatus[]).map((st) => {
                           const c = STATUS_CONFIG[st];
-                          const isActive = status === st;
+                          const isActive = displayStatus === st;
                           return (
                             <button
                               key={st}
@@ -447,16 +517,13 @@ export default function AttendanceManager() {
                             </button>
                           );
                         })}
-                        {/* Edit details button — hidden for BILLER */}
-                        {!isBiller && (
-                          <button
-                            onClick={() => openEdit(s.id)}
-                            title="Add check-in/out time & notes"
-                            className="px-2 py-1 rounded-lg text-xs border border-slate-200 hover:border-amber-400 text-slate-400 hover:text-amber-600 transition-all"
-                          >
-                            ✏️
-                          </button>
-                        )}
+                        <button
+                          onClick={() => openEdit(s.id)}
+                          title="Add check-in/out time & notes"
+                          className="px-2 py-1 rounded-lg text-xs border border-slate-200 hover:border-amber-400 text-slate-400 hover:text-amber-600 transition-all"
+                        >
+                          ✏️
+                        </button>
                       </>
                     )}
                   </div>
