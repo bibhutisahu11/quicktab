@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 
 interface DrawerData {
   id?: string;
@@ -21,6 +22,8 @@ function fmt(amount: number) {
 
 export default function CashDrawerWidget() {
   const today = new Date().toISOString().slice(0, 10);
+  const { data: session } = useSession();
+  const isAdmin = ["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN"].includes(session?.user?.role ?? "");
 
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -166,9 +169,9 @@ export default function CashDrawerWidget() {
         </p>
       </div>
 
-      {/* Opening balance — set-once per day */}
-      {data?.drawer ? (
-        // Already set today — show locked read-only view
+      {/* Opening balance — set-once for BILLER, always editable for admin */}
+      {data?.drawer && !isAdmin ? (
+        // Already set today and user is BILLER — show locked read-only view
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between">
             <div>
@@ -180,12 +183,14 @@ export default function CashDrawerWidget() {
             </div>
             <span className="text-3xl">🔒</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2">Opening balance was set for today and cannot be changed.</p>
+          <p className="text-xs text-slate-400 mt-2">Opening balance was set for today. Only an admin can change it.</p>
         </div>
       ) : (
-        // Not yet set — show entry form
+        // Not yet set, OR user is admin (can always edit)
         <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-amber-700">⚠️ Set Today&apos;s Opening Balance</h2>
+          <h2 className="text-sm font-semibold text-amber-700">
+            {isAdmin && data?.drawer ? "✏️ Edit Opening Balance (Admin)" : "⚠️ Set Today's Opening Balance"}
+          </h2>
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
@@ -223,7 +228,7 @@ export default function CashDrawerWidget() {
               placeholder="e.g. gave ₹200 change to table 3"
             />
           </div>
-          <p className="text-xs text-amber-600">⚠️ This can only be set once per day.</p>
+          {!isAdmin && <p className="text-xs text-amber-600">⚠️ This can only be set once per day.</p>}
         </div>
       )}
 

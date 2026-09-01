@@ -63,21 +63,29 @@ export async function POST(req: NextRequest) {
     };
 
     const targetDate = date ?? todayString();
+    const isAdmin = ["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN"].includes(ctx.role ?? "");
 
-    // Check if already set today — opening balance is set-once per day
-    const existing = await prisma.cashDrawer.findUnique({
-      where: { orgId_date: { orgId: ctx.orgId, date: targetDate } },
-    });
-    if (existing) {
-      return NextResponse.json({ error: "Opening balance already set for today. It cannot be changed." }, { status: 409 });
+    // BILLER: set-once per day — cannot overwrite after first entry
+    if (!isAdmin) {
+      const existing = await prisma.cashDrawer.findUnique({
+        where: { orgId_date: { orgId: ctx.orgId, date: targetDate } },
+      });
+      if (existing) {
+        return NextResponse.json({ error: "Opening balance already set for today. Only an admin can change it." }, { status: 409 });
+      }
     }
 
-    const drawer = await prisma.cashDrawer.create({
-      data: {
+    const drawer = await prisma.cashDrawer.upsert({
+      where: { orgId_date: { orgId: ctx.orgId, date: targetDate } },
+      create: {
         orgId: ctx.orgId,
         date: targetDate,
         openingBalance: openingBalance ?? 0,
         notes: notes ?? null,
+      },
+      update: {
+        ...(openingBalance !== undefined && { openingBalance }),
+        ...(notes !== undefined && { notes }),
       },
     });
 
