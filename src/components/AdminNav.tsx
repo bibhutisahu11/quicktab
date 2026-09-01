@@ -41,16 +41,19 @@ const ROLE_LABELS: Record<string, string> = {
 function SidebarInner({
   orgName,
   orgLogo,
+  initialRole,
   onNavClick,
 }: {
   orgName: string | null;
   orgLogo?: string | null;
+  initialRole?: string | null;
   onNavClick?: () => void;
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const role = session?.user?.role ?? "HOTEL_ADMIN";
-  const visibleLinks = ALL_LINKS.filter((l) => l.roles.includes(role));
+  // Use server-provided role immediately, fall back to client session once loaded
+  const role = session?.user?.role ?? initialRole ?? null;
+  const visibleLinks = role ? ALL_LINKS.filter((l) => l.roles.includes(role)) : [];
 
   return (
     <div className="flex flex-col h-full">
@@ -109,7 +112,7 @@ function SidebarInner({
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-white text-xs font-medium truncate">{session?.user?.name ?? "Admin"}</div>
-            <div className="text-slate-500 text-xs">{ROLE_LABELS[role] ?? role}</div>
+            <div className="text-slate-500 text-xs">{role ? (ROLE_LABELS[role] ?? role) : ""}</div>
           </div>
         </div>
         <button
@@ -130,9 +133,11 @@ function SidebarInner({
 export default function AdminNav({
   orgName,
   orgLogo,
+  initialRole,
 }: {
   orgName: string | null;
   orgLogo?: string | null;
+  initialRole?: string | null;
 }) {
   const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -141,7 +146,7 @@ export default function AdminNav({
     <>
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex flex-col fixed inset-y-0 left-0 w-56 bg-slate-900 z-30 shadow-xl">
-        <SidebarInner orgName={orgName} orgLogo={orgLogo} />
+        <SidebarInner orgName={orgName} orgLogo={orgLogo} initialRole={initialRole} />
       </aside>
 
       {/* ── Mobile top bar ── */}
@@ -189,7 +194,7 @@ export default function AdminNav({
           />
           <aside className="md:hidden fixed inset-y-0 left-0 w-64 bg-slate-900 z-50 shadow-2xl">
             <div className="pt-14 h-full">
-              <SidebarInner orgName={orgName} orgLogo={orgLogo} onNavClick={() => setMobileOpen(false)} />
+              <SidebarInner orgName={orgName} orgLogo={orgLogo} initialRole={initialRole} onNavClick={() => setMobileOpen(false)} />
             </div>
           </aside>
         </>

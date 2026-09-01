@@ -43,7 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {hasSidebar && <AdminNav orgName={orgName} orgLogo={orgLogo} />}
+      {hasSidebar && <AdminNav orgName={orgName} orgLogo={orgLogo} initialRole={session?.user?.role ?? null} />}
       {hasSidebar && <WelcomeToast />}
       {/* md:pl-56 offsets content for the 224px (w-56) desktop sidebar */}
       <main className={hasSidebar ? "md:pl-56 pt-14 md:pt-0" : ""}>{children}</main>
