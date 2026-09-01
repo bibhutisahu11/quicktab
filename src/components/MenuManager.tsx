@@ -173,11 +173,17 @@ export default function MenuManager() {
   }
 
   const categories = Array.from(new Set(items.map((i) => i.category))).sort();
-  const filtered = items.filter(
-    (i) =>
-      i.name.toLowerCase().includes(search.toLowerCase()) ||
-      i.category.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    const hay = (i: MenuItemData) => `${i.name} ${i.category}`.toLowerCase();
+    const t1 = items.filter((i) => hay(i).includes(q));
+    if (t1.length) return t1;
+    const words = q.split(/\s+/).filter(Boolean);
+    const t2 = items.filter((i) => words.every((w) => hay(i).includes(w)));
+    if (t2.length) return t2;
+    return items.filter((i) => words.some((w) => hay(i).includes(w)));
+  })();
 
   const grouped = categories.reduce(
     (acc, cat) => {

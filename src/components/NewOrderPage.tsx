@@ -42,10 +42,14 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return menuItems;
+    const haystack = (m: MenuItemData) =>
+      `${m.name} ${m.category} ${(m as MenuItemData & { description?: string }).description ?? ""}`.toLowerCase();
+    const t1 = menuItems.filter((m) => haystack(m).includes(q));
+    if (t1.length) return t1;
     const words = q.split(/\s+/).filter(Boolean);
-    return menuItems.filter((m) =>
-      words.every((w) => m.name.toLowerCase().includes(w) || m.category.toLowerCase().includes(w))
-    );
+    const t2 = menuItems.filter((m) => words.every((w) => haystack(m).includes(w)));
+    if (t2.length) return t2;
+    return menuItems.filter((m) => words.some((w) => haystack(m).includes(w)));
   }, [menuItems, search]);
 
   const grouped = useMemo(() => {

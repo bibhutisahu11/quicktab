@@ -36,9 +36,14 @@ export default function AddItemsModal({ order, onClose, onAdded }: Props) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return menuItems;
-    return menuItems.filter(
-      (m) => m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)
-    );
+    const hay = (m: { name: string; category: string }) =>
+      `${m.name} ${m.category}`.toLowerCase();
+    const t1 = menuItems.filter((m) => hay(m).includes(q));
+    if (t1.length) return t1;
+    const words = q.split(/\s+/).filter(Boolean);
+    const t2 = menuItems.filter((m) => words.every((w) => hay(m).includes(w)));
+    if (t2.length) return t2;
+    return menuItems.filter((m) => words.some((w) => hay(m).includes(w)));
   }, [menuItems, search]);
 
   const grouped = useMemo(() => {
