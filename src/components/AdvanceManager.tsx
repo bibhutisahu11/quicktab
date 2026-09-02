@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useSession } from "next-auth/react";
 import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
 
 interface AdvancePayment {
@@ -54,7 +55,151 @@ const EMPTY_FORM = {
   receivedBy: "",
 };
 
+// ── Biller-only: simple "add advance for staff" form ────────────────────────
+function BillerAdvanceForm({ staffList, onSaved }: { staffList: StaffMember[]; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    staffId: "",
+    customName: "",
+    amount: "",
+    paymentMode: "Cash",
+    purpose: "",
+    date: todayStr(),
+  });
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const selectedStaff = staffList.find((s) => s.id === form.staffId);
+  const staffName = selectedStaff?.name ?? selectedStaff?.email ?? form.customName;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = staffName.trim();
+    if (!name || !form.amount || !form.date) { setError("Staff name, amount and date are required."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch("/api/advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partyType: "Staff",
+          customerName: name,
+          amount: parseFloat(form.amount),
+          paymentMode: form.paymentMode,
+          purpose: form.purpose || null,
+          date: form.date,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setSuccess(`✅ Advance of ₹${form.amount} recorded for ${name}`);
+      setForm({ staffId: "", customName: "", amount: "", paymentMode: "Cash", purpose: "", date: todayStr() });
+      onSaved();
+    } catch {
+      setError("Could not save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="max-w-lg mx-auto space-y-6">
+      <div>
+        <h2 className="text-2xl font-black text-slate-800">Staff Advance</h2>
+        <p className="text-slate-500 text-sm mt-0.5">Record a cash advance given to a staff member.</p>
+      </div>
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-medium">
+          {success}
+          <button onClick={() => setSuccess(null)} className="ml-auto text-green-500 hover:text-green-700">×</button>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+        {/* Staff picker */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Staff Member</label>
+          {staffList.length > 0 ? (
+            <select
+              value={form.staffId}
+              onChange={(e) => setForm((p) => ({ ...p, staffId: e.target.value, customName: "" }))}
+              className={SELECT_CLS}
+              required
+            >
+              <option value="">Select staff…</option>
+              {staffList.map((s) => (
+                <option key={s.id} value={s.id}>{s.name ?? s.email}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={form.customName}
+              onChange={(e) => setForm((p) => ({ ...p, customName: e.target.value }))}
+              placeholder="Staff name"
+              className={INPUT_CLS}
+              required
+            />
+          )}
+        </div>
+
+        {/* Amount */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Amount (₹)</label>
+          <input
+            type="number" min="1" step="1"
+            value={form.amount}
+            onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
+            placeholder="e.g. 500"
+            className={INPUT_CLS}
+            required
+          />
+        </div>
+
+        {/* Payment mode */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode</label>
+          <select value={form.paymentMode} onChange={(e) => setForm((p) => ({ ...p, paymentMode: e.target.value }))} className={SELECT_CLS}>
+            {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
+          </select>
+        </div>
+
+        {/* Purpose */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Purpose <span className="font-normal text-slate-400">(optional)</span></label>
+          <input
+            type="text"
+            value={form.purpose}
+            onChange={(e) => setForm((p) => ({ ...p, purpose: e.target.value }))}
+            placeholder="e.g. Medical emergency, salary advance…"
+            className={INPUT_CLS}
+          />
+        </div>
+
+        {/* Date */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Date</label>
+          <input type="date" value={form.date} onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))} className={INPUT_CLS} required />
+        </div>
+
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-black py-3 rounded-xl transition-colors"
+        >
+          {saving ? "Saving…" : "💸 Record Advance"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function AdvanceManager() {
+  const { data: session } = useSession();
+  const isBiller = session?.user?.role === "BILLER";
+
   const [advances, setAdvances] = useState<AdvancePayment[]>([]);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -269,6 +414,11 @@ export default function AdvanceManager() {
   }
 
   const isStaff = form.partyType === "Staff";
+
+  // ── BILLER: simplified add-only view ────────────────────────────────────────
+  if (isBiller) {
+    return <BillerAdvanceForm staffList={staffList} onSaved={() => {}} />;
+  }
 
   return (
     <div className="max-w-5xl mx-auto py-6 px-4">
