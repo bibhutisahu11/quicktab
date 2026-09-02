@@ -56,11 +56,30 @@ export default function CreditBook() {
   const { data: session } = useSession();
   const role = session?.user?.role ?? "";
   const isAdmin = ["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN", "BILLER"].includes(role);
+  const canDelete = ["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
+
+  // ── Tabs (customer list view) ──────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"customers" | "logs">("customers");
 
   // ── Customer list ──────────────────────────────────────────────────────────
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  // ── All-logs (admin tab) ───────────────────────────────────────────────────
+  interface AllLogEntry extends CreditEntry { customer: { id: string; name: string; phone?: string | null } }
+  const [allLogs, setAllLogs] = useState<AllLogEntry[]>([]);
+  const [allLogsLoading, setAllLogsLoading] = useState(false);
+  const [allLogsLoaded, setAllLogsLoaded] = useState(false);
+  const [logsSearch, setLogsSearch] = useState("");
+
+  const loadAllLogs = useCallback(async () => {
+    setAllLogsLoading(true);
+    const res = await fetch("/api/credit-entries?all=true");
+    if (res.ok) setAllLogs(await res.json());
+    setAllLogsLoaded(true);
+    setAllLogsLoading(false);
+  }, []);
 
   // ── Selected customer (ledger view) ───────────────────────────────────────
   const [selected, setSelected] = useState<CreditCustomer | null>(null);
@@ -132,6 +151,19 @@ export default function CreditBook() {
       (m) => m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)
     ).slice(0, 20);
   }, [menuItems, billSearch]);
+
+  // ── Filtered all-logs ─────────────────────────────────────────────────────
+  const filteredLogs = useMemo(() => {
+    const q = logsSearch.trim().toLowerCase();
+    if (!q) return allLogs;
+    return allLogs.filter(
+      (e) =>
+        e.customer.name.toLowerCase().includes(q) ||
+        (e.customer.phone ?? "").includes(q) ||
+        (e.description ?? "").toLowerCase().includes(q) ||
+        (e.notes ?? "").toLowerCase().includes(q)
+    );
+  }, [allLogs, logsSearch]);
 
   // ── Filtered customers ─────────────────────────────────────────────────────
   const filteredCustomers = useMemo(() => {
@@ -336,7 +368,26 @@ export default function CreditBook() {
           )}
         </div>
 
+        {/* Tabs (admin only gets Logs tab) */}
+        {canDelete && (
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+            <button
+              onClick={() => setActiveTab("customers")}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === "customers" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"}`}
+            >
+              👥 Customers
+            </button>
+            <button
+              onClick={() => { setActiveTab("logs"); if (!allLogsLoaded) loadAllLogs(); }}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === "logs" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"}`}
+            >
+              📋 All Logs
+            </button>
+          </div>
+        )}
+
         {/* Search */}
+        {activeTab === "customers" && (
         <input
           type="text"
           value={search}
@@ -344,8 +395,71 @@ export default function CreditBook() {
           placeholder="Search by name or phone…"
           className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-400"
         />
+        )}
 
-        {/* List */}
+        {/* All Logs panel */}
+        {activeTab === "logs" && canDelete && (
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={logsSearch}
+              onChange={(e) => setLogsSearch(e.target.value)}
+              placeholder="Search by customer, description…"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+            {allLogsLoading ? (
+              <div className="text-center py-12 text-slate-400">Loading…</div>
+            ) : filteredLogs.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">No entries yet</div>
+            ) : (
+              filteredLogs.map((e) => (
+                <div key={e.id} className={`bg-white border-l-4 rounded-2xl p-4 shadow-sm ${e.type === "BILL" ? "border-l-red-400" : "border-l-green-400"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${e.type === "BILL" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                          {e.type}
+                        </span>
+                        <button
+                          onClick={() => { const c = customers.find((c) => c.id === e.customer.id); if (c) setSelected(c); }}
+                          className="text-xs font-bold text-slate-700 hover:text-red-600 hover:underline"
+                        >
+                          {e.customer.name}
+                        </button>
+                        <span className="text-xs text-slate-400">{fmtDate(e.date)}</span>
+                      </div>
+                      {e.type === "BILL" && e.items && (e.items as BillItem[]).length > 0 && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {(e.items as BillItem[]).map((item, i) => (
+                            <p key={i} className="text-xs text-slate-600">
+                              {item.name} ×{item.qty}
+                              <span className="text-slate-400 ml-1">— ₹{(item.price * item.qty).toFixed(0)}</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      {e.notes && <p className="text-xs text-slate-400 mt-0.5 italic">{e.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`text-lg font-black ${e.type === "BILL" ? "text-red-600" : "text-green-600"}`}>
+                        {e.type === "BILL" ? "−" : "+"} ₹{e.amount.toFixed(0)}
+                      </span>
+                      <button
+                        onClick={() => deleteEntry(e.id).then(loadAllLogs)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-100 flex items-center justify-center text-slate-400 hover:text-red-500 text-xs transition-colors"
+                        title="Delete entry"
+                      >✕</button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Customer list */}
+        {activeTab === "customers" && (
+        <>
         {loading ? (
           <div className="text-center py-12 text-slate-400">Loading…</div>
         ) : filteredCustomers.length === 0 ? (
@@ -387,6 +501,9 @@ export default function CreditBook() {
               </div>
             ))}
           </div>
+        )}
+
+        </>
         )}
 
         {/* Add/Edit customer modal */}
@@ -507,31 +624,35 @@ export default function CreditBook() {
           >
             ＋ Add Bill
           </button>
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => openEditCust(selected)}
-                className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 text-sm transition-colors"
-                title="Edit customer"
-              >
-                ✏️
-              </button>
-              <button
-                onClick={() => toggleActive(selected)}
-                className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 text-sm transition-colors"
-                title={selected.active ? "Deactivate" : "Activate"}
-              >
-                {selected.active ? "🔒" : "🔓"}
-              </button>
-              <button
-                onClick={() => deleteCust(selected)}
-                className="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 text-sm transition-colors"
-                title="Delete customer"
-              >
-                🗑️
-              </button>
-            </>
-          )}
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => openEditCust(selected)}
+                    className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 text-sm transition-colors"
+                    title="Edit customer"
+                  >
+                    ✏️
+                  </button>
+                  {canDelete && (
+                    <>
+                      <button
+                        onClick={() => toggleActive(selected)}
+                        className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 text-sm transition-colors"
+                        title={selected.active ? "Deactivate" : "Activate"}
+                      >
+                        {selected.active ? "🔒" : "🔓"}
+                      </button>
+                      <button
+                        onClick={() => deleteCust(selected)}
+                        className="w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 text-sm transition-colors"
+                        title="Delete customer"
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
         </div>
       </div>
 
@@ -593,7 +714,7 @@ export default function CreditBook() {
                     <span className={`text-lg font-black ${isBill ? "text-red-600" : "text-green-600"}`}>
                       {isBill ? "−" : "+"} ₹{e.amount.toFixed(0)}
                     </span>
-                    {isAdmin && (
+                    {canDelete && (
                       <button
                         onClick={() => deleteEntry(e.id)}
                         className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-100 flex items-center justify-center text-slate-400 hover:text-red-500 text-xs transition-colors"

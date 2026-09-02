@@ -2,15 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrgContext } from "@/lib/orgGuard";
 
-// GET /api/credit-entries?customerId=xxx
+// GET /api/credit-entries?customerId=xxx  OR  ?all=true  (admin: all entries with customer name)
 export async function GET(req: NextRequest) {
   const ctx = await getOrgContext(req, {
     requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER", "BILLER"],
   });
   if (ctx.error) return ctx.error;
 
-  const customerId = new URL(req.url).searchParams.get("customerId");
-  if (!customerId) return NextResponse.json({ error: "customerId required" }, { status: 400 });
+  const { searchParams } = new URL(req.url);
+  const customerId = searchParams.get("customerId");
+  const all = searchParams.get("all") === "true";
+
+  if (all) {
+    const entries = await prisma.creditEntry.findMany({
+      where: { orgId: ctx.orgId! },
+      include: { customer: { select: { id: true, name: true, phone: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(entries);
+  }
+
+  if (!customerId) return NextResponse.json({ error: "customerId or all=true required" }, { status: 400 });
 
   const entries = await prisma.creditEntry.findMany({
     where: { orgId: ctx.orgId!, customerId },

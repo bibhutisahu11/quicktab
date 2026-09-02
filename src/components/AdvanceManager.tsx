@@ -231,6 +231,10 @@ export default function AdvanceManager() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(currentMonthStr());
+  const [showAllLogs, setShowAllLogs] = useState(false);
+  const [allAdvances, setAllAdvances] = useState<AdvancePayment[]>([]);
+  const [allAdvLoading, setAllAdvLoading] = useState(false);
+  const [allAdvLoaded, setAllAdvLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -253,6 +257,14 @@ export default function AdvanceManager() {
       setLoading(false);
     }
   }, [month]);
+
+  const loadAllAdvances = useCallback(async () => {
+    setAllAdvLoading(true);
+    const res = await fetch("/api/advance");
+    if (res.ok) setAllAdvances(await res.json());
+    setAllAdvLoaded(true);
+    setAllAdvLoading(false);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -456,19 +468,29 @@ export default function AdvanceManager() {
           <h1 className="text-2xl font-black text-slate-800">💰 Advance Payments</h1>
           <p className="text-sm text-slate-500 mt-0.5">Track customer &amp; staff advances by month</p>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className={SELECT_CLS + " w-auto"}
-          />
+        <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={exportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
+            onClick={() => { setShowAllLogs((v) => { const next = !v; if (next && !allAdvLoaded) loadAllAdvances(); return next; }); }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${showAllLogs ? "bg-slate-800 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700"}`}
           >
-            📥 Export
+            📋 All Logs
           </button>
+          {!showAllLogs && (
+            <>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className={SELECT_CLS + " w-auto"}
+              />
+              <button
+                onClick={exportCSV}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
+              >
+                📥 Export
+              </button>
+            </>
+          )}
           <button
             onClick={() => { setEditId(null); setForm(EMPTY_FORM); setShowForm(true); }}
             className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors shadow"
@@ -478,8 +500,49 @@ export default function AdvanceManager() {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      {/* All Logs panel */}
+      {showAllLogs && (
+        <div className="mb-6">
+          {allAdvLoading ? (
+            <div className="text-center py-10 text-slate-400">Loading…</div>
+          ) : allAdvances.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">No advance records found</div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-bold text-slate-500">{allAdvances.length} total records</p>
+                <p className="text-sm font-bold text-slate-700">
+                  Pending: <span className="text-red-600">₹{allAdvances.filter(a => !a.settled).reduce((s, a) => s + a.amount, 0).toFixed(0)}</span>
+                  <span className="mx-2 text-slate-300">|</span>
+                  Settled: <span className="text-green-600">₹{allAdvances.filter(a => a.settled).reduce((s, a) => s + a.amount, 0).toFixed(0)}</span>
+                </p>
+              </div>
+              {allAdvances.map((a) => (
+                <div key={a.id} className={`bg-white border-l-4 rounded-xl p-3 shadow-sm flex items-center justify-between gap-3 ${a.settled ? "border-l-green-400" : "border-l-amber-400"}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${a.partyType === "Staff" ? "bg-violet-100 text-violet-700" : "bg-sky-100 text-sky-700"}`}>
+                        {a.partyType}
+                      </span>
+                      <span className="font-bold text-sm text-slate-800">{a.customerName}</span>
+                      <span className="text-xs text-slate-400">{fmt(a.date)}</span>
+                      {a.settled && <span className="text-xs text-green-600 font-semibold">✓ Settled</span>}
+                    </div>
+                    {a.purpose && <p className="text-xs text-slate-500 mt-0.5">{a.purpose}</p>}
+                    <p className="text-xs text-slate-400 mt-0.5">{a.paymentMode}{a.receivedBy ? ` · ${a.receivedBy}` : ""}</p>
+                  </div>
+                  <span className={`text-base font-black flex-shrink-0 ${a.settled ? "text-green-600" : "text-amber-600"}`}>
+                    ₹{a.amount.toFixed(0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Summary cards + filters + list (hidden when All Logs is open) */}
+      {!showAllLogs && (<><div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center col-span-2 sm:col-span-1">
           <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Total</p>
           <p className="text-2xl font-black text-amber-700">₹{totalAmount.toFixed(0)}</p>
@@ -513,6 +576,7 @@ export default function AdvanceManager() {
       </div>
 
       {/* Filters */}
+
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative flex-1 min-w-[180px]">
           <input
@@ -943,6 +1007,7 @@ export default function AdvanceManager() {
           </table>
         </div>
       )}
+      </>)}
     </div>
   );
 }
