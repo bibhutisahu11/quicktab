@@ -40,6 +40,32 @@ function fmt(d: string) {
   return `${dd} ${months[parseInt(m) - 1]} ${y}`;
 }
 
+function sendAdvanceWhatsApp(a: AdvancePayment, orgName?: string) {
+  const rawPhone = (a.phone ?? "").replace(/\D/g, "");
+  const to = rawPhone ? `91${rawPhone.replace(/^91/, "")}` : "";
+  const lines = [
+    `💸 *Advance Payment Notice*`,
+    ``,
+    `Hi *${a.customerName}*,`,
+    ``,
+    `This is to inform you that an advance has been recorded:`,
+    ``,
+    `  📅 Date: ${fmt(a.date)}`,
+    `  💰 Amount: *₹${a.amount.toFixed(0)}*`,
+    `  💳 Mode: ${a.paymentMode}`,
+    a.purpose ? `  📝 Purpose: ${a.purpose}` : "",
+    a.monthlySalary ? `  🧾 Monthly Salary: ₹${a.monthlySalary.toFixed(0)}` : "",
+    a.monthlySalary ? `  📊 Net Payable: ₹${(a.monthlySalary - a.amount).toFixed(0)}` : "",
+    ``,
+    orgName ? `— *${orgName}*` : "",
+  ].filter((l) => l !== "").join("\n").trim();
+
+  const url = to
+    ? `https://wa.me/${to}?text=${encodeURIComponent(lines)}`
+    : `https://wa.me/?text=${encodeURIComponent(lines)}`;
+  window.open(url, "_blank");
+}
+
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function currentMonthStr() { return new Date().toISOString().slice(0, 7); }
 
@@ -199,6 +225,7 @@ function BillerAdvanceForm({ staffList, onSaved }: { staffList: StaffMember[]; o
 export default function AdvanceManager() {
   const { data: session } = useSession();
   const isBiller = session?.user?.role === "BILLER";
+  const orgName = session?.user?.orgName ?? undefined;
 
   const [advances, setAdvances] = useState<AdvancePayment[]>([]);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -887,6 +914,7 @@ export default function AdvanceManager() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => sendAdvanceWhatsApp(a, orgName)} title="Send via WhatsApp" className="text-slate-400 hover:text-green-600 transition-colors">📲</button>
                         <button onClick={() => startEdit(a)} className="text-slate-400 hover:text-amber-600 transition-colors" title="Edit">✏️</button>
                         <button onClick={() => handleDelete(a.id)} className="text-slate-400 hover:text-red-600 transition-colors" title="Delete">🗑️</button>
                       </div>
