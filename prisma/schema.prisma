@@ -81,6 +81,8 @@ model Organization {
   cashDrawers      CashDrawer[]
   regularCustomers RegularCustomer[]
   mealPayments     MealPayment[]
+  creditCustomers  CreditCustomer[]
+  creditEntries    CreditEntry[]
 
   @@map("organizations")
 }
@@ -422,4 +424,46 @@ model MealEntry {
   @@index([orgId, date])
   @@index([customerId])
   @@map("meal_entries")
+}
+
+enum CreditEntryType {
+  BILL
+  PAYMENT
+}
+
+model CreditCustomer {
+  id        String        @id @default(cuid())
+  orgId     String
+  org       Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  address   String?
+  notes     String?
+  active    Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  entries   CreditEntry[]
+
+  @@index([orgId])
+  @@map("credit_customers")
+}
+
+model CreditEntry {
+  id         String          @id @default(cuid())
+  orgId      String
+  org        Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   CreditCustomer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       CreditEntryType
+  amount     Float
+  items      Json?           // array of {name, qty, price} for BILL entries
+  description String?
+  date       String          // YYYY-MM-DD
+  notes      String?
+  createdAt  DateTime        @default(now())
+
+  @@index([orgId])
+  @@index([customerId])
+  @@index([orgId, date])
+  @@map("credit_entries")
 }

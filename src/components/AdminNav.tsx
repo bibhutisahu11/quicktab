@@ -26,6 +26,7 @@ const ALL_LINKS = [
   { href: "/admin/advance",      label: "Advances",     icon: "💸", roles: ["HOTEL_ADMIN", "MANAGER", "BILLER"] },
   { href: "/admin/discounts",    label: "Discounts",    icon: "🏷️",  roles: ["HOTEL_ADMIN", "MANAGER"] },
   { href: "/admin/mess",         label: "Mess",         icon: "🍽️", roles: ["HOTEL_ADMIN", "MANAGER", "BILLER"] },
+  { href: "/admin/credit-book",  label: "Credit Book",  icon: "📒", roles: ["HOTEL_ADMIN", "MANAGER", "BILLER"] },
   { href: "/admin/feedback",     label: "Feedback",     icon: "💬", roles: ["HOTEL_ADMIN", "MANAGER", "BILLER"] },
   { href: "/admin/settings",     label: "Settings",     icon: "⚙️", roles: ["HOTEL_ADMIN"] },
 ];
