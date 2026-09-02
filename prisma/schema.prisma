@@ -75,10 +75,11 @@ model Organization {
   discounts       Discount[]
   feedbacks       Feedback[]
   attendance      Attendance[]
-  advances        AdvancePayment[]
-  preOrderSweets  PreOrderSweet[]
-  preOrders       PreOrder[]
-  cashDrawers     CashDrawer[]
+  advances         AdvancePayment[]
+  preOrderSweets   PreOrderSweet[]
+  preOrders        PreOrder[]
+  cashDrawers      CashDrawer[]
+  regularCustomers RegularCustomer[]
 
   @@map("organizations")
 }
@@ -359,4 +360,45 @@ model Attendance {
   @@index([orgId])
   @@index([orgId, date])
   @@map("attendance")
+}
+
+model RegularCustomer {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String?
+  address     String?
+  notes       String?
+  active      Boolean      @default(true)
+  // Per-meal rates (org-level defaults can be overridden per customer)
+  rateBreakfast Float?
+  rateLunch     Float?
+  rateDinner    Float?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  mealEntries MealEntry[]
+
+  @@index([orgId])
+  @@map("regular_customers")
+}
+
+model MealEntry {
+  id         String          @id @default(cuid())
+  orgId      String
+  customerId String
+  customer   RegularCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  date       String          // YYYY-MM-DD
+  breakfast  Boolean         @default(false)
+  lunch      Boolean         @default(false)
+  dinner     Boolean         @default(false)
+  notes      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([customerId, date])
+  @@index([orgId])
+  @@index([orgId, date])
+  @@index([customerId])
+  @@map("meal_entries")
 }
