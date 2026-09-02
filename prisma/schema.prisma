@@ -80,6 +80,7 @@ model Organization {
   preOrders        PreOrder[]
   cashDrawers      CashDrawer[]
   regularCustomers RegularCustomer[]
+  mealPayments     MealPayment[]
 
   @@map("organizations")
 }
@@ -375,12 +376,32 @@ model RegularCustomer {
   rateBreakfast Float?
   rateLunch     Float?
   rateDinner    Float?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  mealEntries MealEntry[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  mealEntries  MealEntry[]
+  mealPayments MealPayment[]
 
   @@index([orgId])
   @@map("regular_customers")
+}
+
+model MealPayment {
+  id         String          @id @default(cuid())
+  orgId      String
+  org        Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   RegularCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  month      String          // YYYY-MM
+  paidOn     String          // YYYY-MM-DD
+  amount     Float
+  notes      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([customerId, month])
+  @@index([orgId])
+  @@index([orgId, month])
+  @@map("meal_payments")
 }
 
 model MealEntry {

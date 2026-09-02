@@ -25,6 +25,15 @@ interface MealEntry {
   notes?: string | null;
 }
 
+interface MealPayment {
+  id: string;
+  customerId: string;
+  month: string;
+  paidOn: string;
+  amount: number;
+  notes?: string | null;
+}
+
 const MEAL_TYPES = ["breakfast", "lunch", "dinner"] as const;
 type MealType = typeof MEAL_TYPES[number];
 
@@ -68,8 +77,14 @@ export default function MealTracker() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr());
   const [summaryEntries, setSummaryEntries] = useState<MealEntry[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [payments, setPayments] = useState<MealPayment[]>([]);
   // Per-meal rates (editable by admin)
   const [rates, setRates] = useState<Record<MealType, number>>(DEFAULT_RATES);
+  // Pay modal state
+  const [payModal, setPayModal] = useState<{ customerId: string; name: string; amount: number } | null>(null);
+  const [payDate, setPayDate] = useState(todayStr());
+  const [payNotes, setPayNotes] = useState("");
+  const [payingSaving, setPayingSaving] = useState(false);
 
   // Customers tab
   const [showForm, setShowForm] = useState(false);
@@ -92,8 +107,12 @@ export default function MealTracker() {
 
   const loadSummary = useCallback(async (month: string) => {
     setSummaryLoading(true);
-    const res = await fetch(`/api/meal-entries?month=${month}`);
-    if (res.ok) setSummaryEntries(await res.json());
+    const [eRes, pRes] = await Promise.all([
+      fetch(`/api/meal-entries?month=${month}`),
+      fetch(`/api/meal-payments?month=${month}`),
+    ]);
+    if (eRes.ok) setSummaryEntries(await eRes.json());
+    if (pRes.ok) setPayments(await pRes.json());
     setSummaryLoading(false);
   }, []);
 
@@ -186,6 +205,39 @@ export default function MealTracker() {
       ? `https://wa.me/${to}?text=${encodeURIComponent(lines)}`
       : `https://wa.me/?text=${encodeURIComponent(lines)}`;
     window.open(url, "_blank");
+  }
+
+  // ── Payment helpers ──────────────────────────────────────────────────────────
+  function openPayModal(customerId: string, name: string, amount: number) {
+    const existing = payments.find((p) => p.customerId === customerId && p.month === selectedMonth);
+    setPayModal({ customerId, name, amount });
+    setPayDate(existing?.paidOn ?? todayStr());
+    setPayNotes(existing?.notes ?? "");
+  }
+
+  async function savePayment() {
+    if (!payModal) return;
+    setPayingSaving(true);
+    await fetch("/api/meal-payments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerId: payModal.customerId,
+        month: selectedMonth,
+        paidOn: payDate,
+        amount: payModal.amount,
+        notes: payNotes || null,
+      }),
+    });
+    await loadSummary(selectedMonth);
+    setPayModal(null);
+    setPayingSaving(false);
+  }
+
+  async function unmarkPayment(customerId: string) {
+    if (!confirm("Remove payment record for this customer?")) return;
+    await fetch(`/api/meal-payments?customerId=${customerId}&month=${selectedMonth}`, { method: "DELETE" });
+    await loadSummary(selectedMonth);
   }
 
   // ── Customer form ────────────────────────────────────────────────────────────
@@ -412,28 +464,52 @@ export default function MealTracker() {
             </div>
           ) : (
             <div className="space-y-3">
-              {summaryByCustomer.map(({ customer: c, counts, total, daysPresent }) => (
-                <div key={c.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              {summaryByCustomer.map(({ customer: c, counts, total, daysPresent }) => {
+                const payment = payments.find((p) => p.customerId === c.id && p.month === selectedMonth);
+                return (
+                <div key={c.id} className={`bg-white border-2 rounded-2xl p-5 shadow-sm ${payment ? "border-green-300" : "border-slate-200"}`}>
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-full bg-amber-100 flex items-center justify-center font-black text-amber-700 text-lg">
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg ${payment ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
                         {c.name[0].toUpperCase()}
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{c.name}</p>
                         {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
                         <p className="text-xs text-slate-400 mt-0.5">{daysPresent} visit days</p>
+                        {payment && (
+                          <p className="text-xs text-green-600 font-semibold mt-0.5">
+                            ✅ Paid ₹{payment.amount.toFixed(0)} on {fmtDate(payment.paidOn)}
+                            {payment.notes && <span className="text-slate-400 font-normal"> · {payment.notes}</span>}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                       <span className="text-xl font-black text-slate-800">₹{total.toFixed(0)}</span>
                       <button
                         onClick={() => sendWhatsAppSummary({ customer: c, counts, total, daysPresent, totalDays: getDaysInMonth(selectedMonth).length })}
                         title="Send bill via WhatsApp"
                         className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors"
                       >
-                        📲 Send Bill
+                        📲 Bill
                       </button>
+                      {!payment ? (
+                        <button
+                          onClick={() => openPayModal(c.id, c.name, total)}
+                          className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors"
+                        >
+                          💰 Mark Paid
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => unmarkPayment(c.id)}
+                          className="text-xs text-red-400 hover:text-red-600 font-medium px-2 py-1.5"
+                          title="Remove payment record"
+                        >
+                          ✕ Unmark
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -472,7 +548,8 @@ export default function MealTracker() {
                     })}
                   </div>
                 </div>
-              ))}
+              );
+              })}
 
               {/* Grand total */}
               <div className="bg-slate-800 text-white rounded-2xl p-5 flex items-center justify-between">
@@ -599,6 +676,54 @@ export default function MealTracker() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Mark Paid modal */}
+      {payModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <h3 className="text-lg font-black text-slate-800">💰 Mark Payment</h3>
+            <p className="text-sm text-slate-600">
+              Recording payment for <span className="font-bold">{payModal.name}</span> — ₹{payModal.amount.toFixed(0)}
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Date</label>
+                <input
+                  type="date"
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Notes (optional)</label>
+                <input
+                  type="text"
+                  value={payNotes}
+                  onChange={(e) => setPayNotes(e.target.value)}
+                  placeholder="e.g. paid by cash"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setPayModal(null)}
+                className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={savePayment}
+                disabled={payingSaving || !payDate}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-black py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {payingSaving ? "Saving…" : "✅ Confirm Payment"}
+              </button>
+            </div>
           </div>
         </div>
       )}
