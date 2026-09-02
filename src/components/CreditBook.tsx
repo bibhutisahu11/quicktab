@@ -55,7 +55,7 @@ const INPUT_CLS = "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm
 export default function CreditBook() {
   const { data: session } = useSession();
   const role = session?.user?.role ?? "";
-  const isAdmin = ["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
+  const isAdmin = ["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN", "BILLER"].includes(role);
 
   // ── Customer list ──────────────────────────────────────────────────────────
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
