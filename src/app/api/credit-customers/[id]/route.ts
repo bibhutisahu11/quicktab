@@ -2,21 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrgContext } from "@/lib/orgGuard";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getOrgContext(req, {
-    requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"],
+    requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER", "BILLER"],
   });
   if (ctx.error) return ctx.error;
 
+  const { id } = await params;
   const data = await req.json();
 
   const existing = await prisma.creditCustomer.findFirst({
-    where: { id: params.id, orgId: ctx.orgId! },
+    where: { id, orgId: ctx.orgId! },
   });
   if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const updated = await prisma.creditCustomer.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       name:    data.name    !== undefined ? data.name.trim()   : undefined,
       phone:   data.phone   !== undefined ? (data.phone || null) : undefined,
@@ -29,14 +30,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(updated);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getOrgContext(req, {
     requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"],
   });
   if (ctx.error) return ctx.error;
 
+  const { id } = await params;
   await prisma.creditCustomer.deleteMany({
-    where: { id: params.id, orgId: ctx.orgId! },
+    where: { id, orgId: ctx.orgId! },
   });
 
   return NextResponse.json({ ok: true });
