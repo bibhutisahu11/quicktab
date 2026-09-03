@@ -101,6 +101,7 @@ export default function CreditBook() {
   const [billDate, setBillDate] = useState(todayStr());
   const [billNotes, setBillNotes] = useState("");
   const [billSaving, setBillSaving] = useState(false);
+  const [billError, setBillError] = useState("");
   const billSearchRef = useRef<HTMLInputElement>(null);
 
   // ── Payment modal ──────────────────────────────────────────────────────────
@@ -203,6 +204,7 @@ export default function CreditBook() {
     setBillSearch("");
     setBillDate(todayStr());
     setBillNotes("");
+    setBillError("");
     setShowBill(true);
     loadMenu();
     setTimeout(() => billSearchRef.current?.focus(), 100);
@@ -212,56 +214,78 @@ export default function CreditBook() {
   async function saveBill() {
     if (!selected || cart.length === 0) return;
     setBillSaving(true);
-    await fetch("/api/credit-entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customerId: selected.id,
-        type: "BILL",
-        amount: billTotal,
-        items: cart,
-        date: billDate,
-        notes: billNotes || null,
-      }),
-    });
-    await Promise.all([loadEntries(selected.id), loadCustomers()]);
-    // refresh selected outstanding
-    const fresh = await fetch("/api/credit-customers");
-    if (fresh.ok) {
-      const list: CreditCustomer[] = await fresh.json();
-      const upd = list.find((c) => c.id === selected.id);
-      if (upd) setSelected(upd);
+    setBillError("");
+    try {
+      const res = await fetch("/api/credit-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: selected.id,
+          type: "BILL",
+          amount: billTotal,
+          items: cart,
+          date: billDate,
+          notes: billNotes || null,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setBillError(err.error ?? "Failed to save bill. Please try again.");
+        setBillSaving(false);
+        return;
+      }
+      // Reload entries and customer list
+      const [, custRes] = await Promise.all([
+        loadEntries(selected.id),
+        fetch("/api/credit-customers"),
+      ]);
+      if (custRes.ok) {
+        const list: CreditCustomer[] = await custRes.json();
+        setCustomers(list);
+        const upd = list.find((c) => c.id === selected.id);
+        if (upd) setSelected(upd);
+      }
+      setShowBill(false);
+    } catch {
+      setBillError("Network error. Please try again.");
+    } finally {
+      setBillSaving(false);
     }
-    setShowBill(false);
-    setBillSaving(false);
   }
 
   // ── Save payment ───────────────────────────────────────────────────────────
   async function savePayment() {
     if (!selected || !payAmount) return;
     setPaySaving(true);
-    await fetch("/api/credit-entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customerId: selected.id,
-        type: "PAYMENT",
-        amount: parseFloat(payAmount),
-        date: payDate,
-        notes: payNotes || null,
-      }),
-    });
-    await loadEntries(selected.id);
-    const fresh = await fetch("/api/credit-customers");
-    if (fresh.ok) {
-      const list: CreditCustomer[] = await fresh.json();
-      const upd = list.find((c) => c.id === selected.id);
-      if (upd) { setSelected(upd); setCustomers(list); }
+    try {
+      const res = await fetch("/api/credit-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: selected.id,
+          type: "PAYMENT",
+          amount: parseFloat(payAmount),
+          date: payDate,
+          notes: payNotes || null,
+        }),
+      });
+      if (!res.ok) { setPaySaving(false); return; }
+      const [, custRes] = await Promise.all([
+        loadEntries(selected.id),
+        fetch("/api/credit-customers"),
+      ]);
+      if (custRes.ok) {
+        const list: CreditCustomer[] = await custRes.json();
+        setCustomers(list);
+        const upd = list.find((c) => c.id === selected.id);
+        if (upd) setSelected(upd);
+      }
+      setShowPayment(false);
+      setPayAmount("");
+      setPayNotes("");
+    } finally {
+      setPaySaving(false);
     }
-    setShowPayment(false);
-    setPayAmount("");
-    setPayNotes("");
-    setPaySaving(false);
   }
 
   // ── Delete entry ───────────────────────────────────────────────────────────
@@ -495,7 +519,7 @@ export default function CreditBook() {
                     <p className={`text-lg font-black ${c.outstanding > 0 ? "text-red-600" : "text-green-600"}`}>
                       {c.outstanding > 0 ? `− ${fmtAmt(c.outstanding)}` : "✓ Clear"}
                     </p>
-                    <p className="text-xs text-slate-400">outstanding</p>
+                    <p className="text-xs text-slate-400">{c.outstanding > 0 ? "outstanding" : "tap to add bill"}</p>
                   </div>
                 </div>
               </div>
@@ -899,6 +923,9 @@ export default function CreditBook() {
                   <input type="text" value={billNotes} onChange={(e) => setBillNotes(e.target.value)} placeholder="Optional" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
                 </div>
               </div>
+              {billError && (
+                <p className="text-xs text-red-600 font-semibold bg-red-50 rounded-lg px-3 py-2">{billError}</p>
+              )}
               <button
                 onClick={saveBill}
                 disabled={billSaving || cart.length === 0}
