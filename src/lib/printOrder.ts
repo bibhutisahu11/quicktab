@@ -41,6 +41,7 @@ const thermalCss = `
     padding: 2px 1mm 4px 0;
     color: #000;
     font-size: 20px;
+    font-weight: 700;
     line-height: 1.45;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -56,12 +57,12 @@ const thermalCss = `
   }
   .tagline {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     margin-top: 1px;
   }
   .meta {
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 700;
     line-height: 1.4;
     text-align: center;
   }
@@ -107,6 +108,7 @@ const thermalCss = `
   th.center{ text-align: center; }
   td {
     font-size: 15px;
+    font-weight: 700;
     padding: 3px 0;
     vertical-align: top;
     overflow: hidden;
