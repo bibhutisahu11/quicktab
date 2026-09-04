@@ -97,19 +97,19 @@ const thermalCss = `
   col.col-qty  { width: 22px; }
   col.col-amt  { width: 48px; }
   th {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     border-bottom: 2px solid #000;
-    padding-bottom: 3px;
+    padding-bottom: 2px;
     overflow: hidden;
   }
   th.left  { text-align: left; }
   th.right { text-align: right; }
   th.center{ text-align: center; }
   td {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
-    padding: 3px 0;
+    padding: 2px 0;
     vertical-align: top;
     overflow: hidden;
     word-break: break-word;
