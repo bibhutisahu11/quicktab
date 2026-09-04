@@ -32,16 +32,16 @@ function receiptNo(orderId: string, createdAt: string) {
 
 const thermalCss = `
   * { margin:0; padding:0; box-sizing:border-box; }
-  html { margin:0; padding:0; }
+  html, body { margin:0 !important; padding:0; }
   body {
     font-family: 'Courier New', Courier, monospace;
-    width: 78mm;
-    max-width: 78mm;
-    margin: 0;
-    padding: 4px 1mm 4px 2mm;
+    width: 56mm;
+    max-width: 56mm;
+    margin: 0 !important;
+    padding: 2px 1mm 4px 0;
     color: #000;
-    font-size: 24px;
-    line-height: 1.5;
+    font-size: 20px;
+    line-height: 1.45;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -49,88 +49,96 @@ const thermalCss = `
   .right  { text-align: right; }
   .bold   { font-weight: 700; }
   .hotel-name {
-    font-size: 34px;
+    font-size: 26px;
     font-weight: 900;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     text-transform: uppercase;
   }
   .tagline {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
-    margin-top: 2px;
+    margin-top: 1px;
   }
   .meta {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 500;
-    line-height: 1.5;
+    line-height: 1.4;
     text-align: center;
   }
   .order-type-badge {
-    font-size: 22px;
+    font-size: 17px;
     font-weight: 900;
     text-align: center;
     letter-spacing: 1px;
-    border: 3px solid #000;
-    padding: 4px 8px;
-    margin: 6px 0 4px;
+    border: 2px solid #000;
+    padding: 2px 4px;
+    margin: 4px 0 3px;
     text-transform: uppercase;
   }
   hr.divider {
     border: none;
-    border-top: 3px dashed #000;
-    margin: 8px 0;
+    border-top: 2px dashed #000;
+    margin: 5px 0;
   }
   hr.solid {
     border: none;
-    border-top: 3px solid #000;
-    margin: 8px 0;
+    border-top: 2px solid #000;
+    margin: 5px 0;
   }
   .row {
     display: flex;
     justify-content: space-between;
-    font-size: 24px;
-    line-height: 1.5;
+    font-size: 20px;
+    line-height: 1.45;
   }
-  table { width: 100%; border-collapse: collapse; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  col.col-item { width: auto; }
+  col.col-qty  { width: 22px; }
+  col.col-amt  { width: 48px; }
   th {
-    font-size: 17px;
+    font-size: 13px;
     font-weight: 700;
-    border-bottom: 3px solid #000;
-    padding-bottom: 4px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 3px;
+    overflow: hidden;
   }
   th.left  { text-align: left; }
   th.right { text-align: right; }
   th.center{ text-align: center; }
-  td { font-size: 18px; padding: 4px 0; vertical-align: top; }
-  td.qty   { text-align: center; width: 32px; }
-  td.amt   { text-align: right;  width: 62px; white-space: nowrap; }
+  td {
+    font-size: 15px;
+    padding: 3px 0;
+    vertical-align: top;
+    overflow: hidden;
+    word-break: break-word;
+  }
+  td.qty { text-align: center; }
+  td.amt { text-align: right; white-space: nowrap; }
   .total-row td {
     font-weight: 900;
-    font-size: 22px;
-    padding-top: 6px;
-    border-top: 3px solid #000;
+    font-size: 18px;
+    padding-top: 5px;
+    border-top: 2px solid #000;
   }
   .discount-row td {
-    font-size: 22px;
-    padding-top: 4px;
+    font-size: 17px;
+    padding-top: 3px;
   }
   .footer-text {
-    font-size: 22px;
-    margin-top: 10px;
+    font-size: 17px;
+    margin-top: 8px;
     text-align: center;
     font-weight: 700;
   }
   @media print {
     html, body {
-      width: 78mm;
+      width: 56mm !important;
       margin: 0 !important;
-    }
-    body {
-      padding: 2px 1mm 2px 2mm !important;
+      padding-left: 0 !important;
     }
     @page {
-      margin: 0;
-      size: 80mm auto;
+      margin: 0 !important;
+      size: 58mm auto;
     }
   }
 `;
@@ -154,14 +162,16 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
   const tableName = order.table?.name ?? "?";
 
   const itemRows = order.items
-    .map(
-      (item) => `
+    .map((item) => {
+      const lineTotal = Number(item.price) || 0;
+      const amtStr = lineTotal === 0 ? "FREE" : `&#8377;${lineTotal.toFixed(0)}`;
+      return `
       <tr>
-        <td>${esc(item.name)}${item.notes ? `<br/><span style="font-size:14px;color:#b45309;">🌶 ${esc(item.notes)}</span>` : ""}</td>
+        <td>${esc(item.name)}${item.notes ? `<br/><span style="font-size:11px;">* ${esc(item.notes)}</span>` : ""}</td>
         <td class="qty">x${item.quantity}</td>
-        <td class="amt">${item.price === 0 ? "FREE" : `&#8377;${item.price.toFixed(0)}`}</td>
-      </tr>`
-    )
+        <td class="amt">${amtStr}</td>
+      </tr>`;
+    })
     .join("");
 
   const metaLines = [
@@ -180,11 +190,11 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
     : "";
 
   const payMethod = (order as { paymentMethod?: string }).paymentMethod ?? "UPI";
-  const paymentLine = `<div class="row" style="font-size:16px;font-weight:600;margin-top:4px;">
-    <span>Payment:</span><span>${payMethod === "CASH" ? "💵 Cash" : "📲 UPI"}</span>
+  const paymentLine = `<div class="row" style="font-size:13px;font-weight:600;margin-top:3px;">
+    <span>Payment:</span><span>${payMethod === "CASH" ? "Cash" : "UPI"}</span>
   </div>`;
   const utrLine = order.upiUtr
-    ? `<div class="row" style="font-size:14px;margin-top:2px;"><span>UTR:</span><span>${esc(order.upiUtr)}</span></div>`
+    ? `<div class="row" style="font-size:12px;margin-top:1px;"><span>UTR:</span><span>${esc(order.upiUtr)}</span></div>`
     : "";
 
   const html = `<!DOCTYPE html>
@@ -206,25 +216,30 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
     ${isDineIn ? `🍽️ DINE-IN &nbsp;|&nbsp; Table: ${esc(tableName)}` : "📦 PARCEL / TAKEAWAY"}
   </div>
 
-  <div class="row" style="margin-top:4px;font-size:16px;">
+  <div class="row" style="margin-top:3px;font-size:13px;">
     <span class="bold">Rcpt# ${receiptNo(order.id, order.createdAt)}</span>
     <span>${timeStr}</span>
   </div>
-  <div style="font-size:18px;margin-top:1px;">${dateStr}</div>
+  <div style="font-size:14px;margin-top:1px;">${dateStr}</div>
   <hr class="divider"/>
 
-  <div style="font-size:18px;font-weight:700;">Customer: ${esc(order.customerName)}</div>
-  ${order.phone           ? `<div style="font-size:18px;font-weight:700;">Phone: ${esc(order.phone)}</div>` : ""}
-  ${order.deliveryAddress ? `<div style="font-size:16px;font-weight:700;">Address: ${esc(order.deliveryAddress)}</div>` : ""}
-  ${order.notes           ? `<div style="font-size:16px;font-style:italic;margin-top:2px;">Note: ${esc(order.notes)}</div>` : ""}
+  <div style="font-size:14px;font-weight:700;">Customer: ${esc(order.customerName)}</div>
+  ${order.phone           ? `<div style="font-size:14px;font-weight:700;">Ph: ${esc(order.phone)}</div>` : ""}
+  ${order.deliveryAddress ? `<div style="font-size:13px;font-weight:700;">Addr: ${esc(order.deliveryAddress)}</div>` : ""}
+  ${order.notes           ? `<div style="font-size:13px;font-style:italic;margin-top:1px;">Note: ${esc(order.notes)}</div>` : ""}
   <hr class="divider"/>
 
   <table>
+    <colgroup>
+      <col class="col-item"/>
+      <col class="col-qty"/>
+      <col class="col-amt"/>
+    </colgroup>
     <thead>
       <tr>
         <th class="left">Item</th>
-        <th class="center" style="width:28px;">Qty</th>
-        <th class="right"  style="width:54px;">Amt</th>
+        <th class="center">Qty</th>
+        <th class="right">Amt</th>
       </tr>
     </thead>
     <tbody>${itemRows}</tbody>
@@ -233,7 +248,7 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
       ${parcelLine}
       <tr class="total-row">
         <td colspan="2">TOTAL</td>
-        <td class="amt">&#8377;${order.total.toFixed(0)}</td>
+        <td class="amt">&#8377;${Number(order.total).toFixed(0)}</td>
       </tr>
     </tfoot>
   </table>
@@ -246,7 +261,7 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
 </body>
 </html>`;
 
-  const win = window.open("", "_blank", "width=360,height=750");
+  const win = window.open("", "_blank", "width=240,height=700");
   if (!win) return;
   win.document.write(html);
   win.document.close();
