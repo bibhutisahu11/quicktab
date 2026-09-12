@@ -40,7 +40,7 @@ const thermalCss = `
     margin: 0 !important;
     padding: 2px 1mm 4px 0;
     color: #000;
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 700;
     line-height: 1.45;
     -webkit-print-color-adjust: exact;
@@ -89,19 +89,18 @@ const thermalCss = `
   .row {
     display: flex;
     justify-content: space-between;
-    font-size: 20px;
+    font-size: 14px;
     line-height: 1.45;
   }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   col.col-item { width: auto; }
-  col.col-qty  { width: 22px; }
-  col.col-amt  { width: 48px; }
+  col.col-qty  { width: 9mm; }
+  col.col-amt  { width: 20mm; }
   th {
     font-size: 12px;
     font-weight: 700;
     border-bottom: 2px solid #000;
     padding-bottom: 2px;
-    overflow: hidden;
   }
   th.left  { text-align: left; }
   th.right { text-align: right; }
@@ -111,20 +110,19 @@ const thermalCss = `
     font-weight: 700;
     padding: 2px 0;
     vertical-align: top;
-    overflow: hidden;
     word-break: break-word;
   }
-  td.qty { text-align: center; }
-  td.amt { text-align: right; white-space: nowrap; }
+  td.qty { text-align: center; white-space: nowrap; }
+  td.amt { text-align: right;  white-space: nowrap; padding-left: 2px; }
   .total-row td {
     font-weight: 900;
-    font-size: 18px;
-    padding-top: 5px;
+    font-size: 17px;
+    padding-top: 4px;
     border-top: 2px solid #000;
   }
   .discount-row td {
-    font-size: 17px;
-    padding-top: 3px;
+    font-size: 15px;
+    padding-top: 2px;
   }
   .footer-text {
     font-size: 17px;
@@ -233,9 +231,9 @@ export function printOrder(order: OrderData, org?: Partial<OrgSettings> | null) 
 
   <table>
     <colgroup>
-      <col class="col-item"/>
-      <col class="col-qty"/>
-      <col class="col-amt"/>
+      <col class="col-item" style="width:auto;"/>
+      <col class="col-qty"  style="width:9mm;"/>
+      <col class="col-amt"  style="width:20mm;"/>
     </colgroup>
     <thead>
       <tr>
