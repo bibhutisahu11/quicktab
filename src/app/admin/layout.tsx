@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import AdminNav from "@/components/AdminNav";
 import WelcomeToast from "@/components/WelcomeToast";
+import CloseStaleOrders from "@/components/CloseStaleOrders";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -45,6 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-slate-50">
       {hasSidebar && <AdminNav orgName={orgName} orgLogo={orgLogo} initialRole={session?.user?.role ?? null} />}
       {hasSidebar && <WelcomeToast />}
+      {hasSidebar && <CloseStaleOrders />}
       {/* md:pl-56 offsets content for the 224px (w-56) desktop sidebar */}
       <main className={hasSidebar ? "md:pl-56 pt-14 md:pt-0" : ""}>{children}</main>
     </div>

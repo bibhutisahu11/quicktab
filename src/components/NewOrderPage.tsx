@@ -18,7 +18,7 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const [orderType, setOrderType] = useState<"TABLE" | "PARCEL">("TABLE");
   const [tableId, setTableId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI">("CASH");
-  const [parcelCharge, setParcelCharge] = useState<0 | 5 | 10>(0);
+  const [parcelCharge, setParcelCharge] = useState(0);
   const [suggestionIdx, setSuggestionIdx] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
   const [discountInput, setDiscountInput] = useState("");
