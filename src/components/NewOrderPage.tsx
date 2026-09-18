@@ -248,14 +248,15 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
               ) : (
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Parcel Charge</label>
-                  <div className="flex rounded-lg border border-slate-300 overflow-hidden">
-                    {([0, 5, 10] as const).map((amt) => (
-                      <button key={amt} type="button" onClick={() => setParcelCharge(amt)}
-                        className={`flex-1 py-2 text-sm font-medium transition-colors ${parcelCharge === amt ? "bg-orange-500 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
-                        {amt === 0 ? "None" : `+₹${amt}`}
-                      </button>
+                  <select
+                    value={parcelCharge}
+                    onChange={(e) => setParcelCharge(Number(e.target.value))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  >
+                    {[0, 5, 10, 20, 30, 40].map((amt) => (
+                      <option key={amt} value={amt}>{amt === 0 ? "None (₹0)" : `+₹${amt}`}</option>
                     ))}
-                  </div>
+                  </select>
                 </div>
               )}
             </div>
