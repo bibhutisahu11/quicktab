@@ -378,6 +378,7 @@ model RegularCustomer {
   rateBreakfast Float?
   rateLunch     Float?
   rateDinner    Float?
+  billingStartDay Int           @default(1)   // 1-28: day of month billing cycle starts
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   mealEntries  MealEntry[]

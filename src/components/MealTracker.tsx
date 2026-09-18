@@ -13,6 +13,7 @@ interface RegularCustomer {
   rateBreakfast?: number | null;
   rateLunch?: number | null;
   rateDinner?: number | null;
+  billingStartDay?: number | null; // 1-28, default 1
 }
 
 interface MealEntry {
@@ -57,6 +58,53 @@ function getDaysInMonth(ym: string) {
   return Array.from({ length: days }, (_, i) => `${ym}-${String(i + 1).padStart(2, "0")}`);
 }
 
+/** Returns the billing period for a customer given the selected "base" month */
+function getBillingPeriod(billingStartDay: number, selectedMonth: string) {
+  const startDay = billingStartDay && billingStartDay > 1 ? Math.min(billingStartDay, 28) : 1;
+  const [y, m] = selectedMonth.split("-").map(Number);
+
+  if (startDay === 1) {
+    // Standard calendar month
+    const days = getDaysInMonth(selectedMonth);
+    return {
+      from: days[0],
+      to: days[days.length - 1],
+      days,
+      label: new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+    };
+  }
+
+  // Custom cycle: startDay of selectedMonth → (startDay-1) of next month
+  const from = `${selectedMonth}-${String(startDay).padStart(2, "0")}`;
+  const nextMonthDate = new Date(y, m, 1); // 1st of next month
+  const ny = nextMonthDate.getFullYear();
+  const nm = String(nextMonthDate.getMonth() + 1).padStart(2, "0");
+  const to   = `${ny}-${nm}-${String(startDay - 1).padStart(2, "0")}`;
+
+  // Generate every date in this window
+  const days: string[] = [];
+  let cur = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  while (cur <= end) {
+    days.push(cur.toISOString().slice(0, 10));
+    cur = new Date(cur.getTime() + 86_400_000);
+  }
+
+  return {
+    from,
+    to,
+    days,
+    label: `${fmtDate(from)} – ${fmtDate(to)}`,
+  };
+}
+
+/** Returns the "next month" string for a given YYYY-MM */
+function nextMonthStr(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 const DEFAULT_RATES: Record<MealType, number> = { breakfast: 50, lunch: 80, dinner: 80 };
 
 export default function MealTracker() {
@@ -81,15 +129,16 @@ export default function MealTracker() {
   // Per-meal rates (editable by admin)
   const [rates, setRates] = useState<Record<MealType, number>>(DEFAULT_RATES);
   // Pay modal state
-  const [payModal, setPayModal] = useState<{ customerId: string; name: string; amount: number } | null>(null);
+  const [payModal, setPayModal] = useState<{ customerId: string; name: string; totalBill: number } | null>(null);
   const [payDate, setPayDate] = useState(todayStr());
+  const [payAmountInput, setPayAmountInput] = useState("");
   const [payNotes, setPayNotes] = useState("");
   const [payingSaving, setPayingSaving] = useState(false);
 
   // Customers tab
   const [showForm, setShowForm] = useState(false);
   const [editCustomer, setEditCustomer] = useState<RegularCustomer | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "", billingStartDay: "1" });
   const [saving, setSaving] = useState(false);
 
   const loadTodayData = useCallback(async (date: string) => {
@@ -107,11 +156,15 @@ export default function MealTracker() {
 
   const loadSummary = useCallback(async (month: string) => {
     setSummaryLoading(true);
-    const [eRes, pRes] = await Promise.all([
+    const next = nextMonthStr(month);
+    const [eRes, eRes2, pRes] = await Promise.all([
       fetch(`/api/meal-entries?month=${month}`),
+      fetch(`/api/meal-entries?month=${next}`),   // needed for cycles that span two months
       fetch(`/api/meal-payments?month=${month}`),
     ]);
-    if (eRes.ok) setSummaryEntries(await eRes.json());
+    const e1: MealEntry[] = eRes.ok  ? await eRes.json()  : [];
+    const e2: MealEntry[] = eRes2.ok ? await eRes2.json() : [];
+    setSummaryEntries([...e1, ...e2]);
     if (pRes.ok) setPayments(await pRes.json());
     setSummaryLoading(false);
   }, []);
@@ -155,30 +208,31 @@ export default function MealTracker() {
 
   // ── Summary helpers ──────────────────────────────────────────────────────────
   const summaryByCustomer = useMemo(() => {
-    const days = getDaysInMonth(selectedMonth);
     return customers.filter((c) => c.active).map((c) => {
-      const myEntries = summaryEntries.filter((e) => e.customerId === c.id);
+      const period = getBillingPeriod(c.billingStartDay ?? 1, selectedMonth);
+      const myEntries = summaryEntries.filter(
+        (e) => e.customerId === c.id && e.date >= period.from && e.date <= period.to
+      );
       const counts = { breakfast: 0, lunch: 0, dinner: 0 };
       for (const e of myEntries) {
         if (e.breakfast) counts.breakfast++;
-        if (e.lunch) counts.lunch++;
-        if (e.dinner) counts.dinner++;
+        if (e.lunch)     counts.lunch++;
+        if (e.dinner)    counts.dinner++;
       }
       const rB = c.rateBreakfast ?? rates.breakfast;
       const rL = c.rateLunch    ?? rates.lunch;
       const rD = c.rateDinner   ?? rates.dinner;
       const total = counts.breakfast * rB + counts.lunch * rL + counts.dinner * rD;
       const daysPresent = myEntries.filter((e) => e.breakfast || e.lunch || e.dinner).length;
-      return { customer: c, counts, total, daysPresent, totalDays: days.length };
+      return { customer: c, counts, total, daysPresent, period };
     });
   }, [customers, summaryEntries, selectedMonth, rates]);
 
   function sendWhatsAppSummary(row: typeof summaryByCustomer[0]) {
-    const { customer: c, counts, total } = row;
+    const { customer: c, counts, total, period } = row;
     const rawPhone = (c.phone ?? "").replace(/\D/g, "");
     const to = rawPhone ? `91${rawPhone.replace(/^91/, "")}` : "";
-    const [y, m] = selectedMonth.split("-");
-    const monthLabel = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    const monthLabel = period.label;
     const rB = c.rateBreakfast ?? rates.breakfast;
     const rL = c.rateLunch    ?? rates.lunch;
     const rD = c.rateDinner   ?? rates.dinner;
@@ -208,15 +262,18 @@ export default function MealTracker() {
   }
 
   // ── Payment helpers ──────────────────────────────────────────────────────────
-  function openPayModal(customerId: string, name: string, amount: number) {
+  function openPayModal(customerId: string, name: string, totalBill: number) {
     const existing = payments.find((p) => p.customerId === customerId && p.month === selectedMonth);
-    setPayModal({ customerId, name, amount });
+    setPayModal({ customerId, name, totalBill });
     setPayDate(existing?.paidOn ?? todayStr());
+    setPayAmountInput(existing ? String(existing.amount) : String(Math.round(totalBill)));
     setPayNotes(existing?.notes ?? "");
   }
 
   async function savePayment() {
     if (!payModal) return;
+    const paid = parseFloat(payAmountInput);
+    if (!paid || paid <= 0) return;
     setPayingSaving(true);
     await fetch("/api/meal-payments", {
       method: "POST",
@@ -225,7 +282,7 @@ export default function MealTracker() {
         customerId: payModal.customerId,
         month: selectedMonth,
         paidOn: payDate,
-        amount: payModal.amount,
+        amount: paid,
         notes: payNotes || null,
       }),
     });
@@ -243,7 +300,7 @@ export default function MealTracker() {
   // ── Customer form ────────────────────────────────────────────────────────────
   function openAdd() {
     setEditCustomer(null);
-    setForm({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "" });
+    setForm({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "", billingStartDay: "1" });
     setShowForm(true);
   }
   function openEdit(c: RegularCustomer) {
@@ -254,6 +311,7 @@ export default function MealTracker() {
       rateBreakfast: c.rateBreakfast != null ? String(c.rateBreakfast) : "",
       rateLunch:     c.rateLunch     != null ? String(c.rateLunch)     : "",
       rateDinner:    c.rateDinner    != null ? String(c.rateDinner)    : "",
+      billingStartDay: String(c.billingStartDay ?? 1),
     });
     setShowForm(true);
   }
@@ -269,6 +327,7 @@ export default function MealTracker() {
       rateBreakfast: form.rateBreakfast || null,
       rateLunch:     form.rateLunch     || null,
       rateDinner:    form.rateDinner    || null,
+      billingStartDay: parseInt(form.billingStartDay) || 1,
     };
     if (editCustomer) {
       await fetch(`/api/regular-customers/${editCustomer.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -464,31 +523,42 @@ export default function MealTracker() {
             </div>
           ) : (
             <div className="space-y-3">
-              {summaryByCustomer.map(({ customer: c, counts, total, daysPresent }) => {
+              {summaryByCustomer.map(({ customer: c, counts, total, daysPresent, period }) => {
                 const payment = payments.find((p) => p.customerId === c.id && p.month === selectedMonth);
                 return (
-                <div key={c.id} className={`bg-white border-2 rounded-2xl p-5 shadow-sm ${payment ? "border-green-300" : "border-slate-200"}`}>
+                <div key={c.id} className={`bg-white border-2 rounded-2xl p-5 shadow-sm ${
+                  !payment ? "border-slate-200" : (total - payment.amount > 0.5) ? "border-amber-300" : "border-green-300"
+                }`}>
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg ${payment ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg ${
+                        !payment ? "bg-amber-100 text-amber-700" : (total - payment.amount > 0.5) ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+                      }`}>
                         {c.name[0].toUpperCase()}
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{c.name}</p>
                         {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
-                        <p className="text-xs text-slate-400 mt-0.5">{daysPresent} visit days</p>
-                        {payment && (
-                          <p className="text-xs text-green-600 font-semibold mt-0.5">
-                            ✅ Paid ₹{payment.amount.toFixed(0)} on {fmtDate(payment.paidOn)}
-                            {payment.notes && <span className="text-slate-400 font-normal"> · {payment.notes}</span>}
-                          </p>
-                        )}
+                        <p className="text-xs text-slate-500 mt-0.5 font-medium">{period.label}</p>
+                        <p className="text-xs text-slate-400">{daysPresent} / {period.days.length} days present</p>
+                        {payment && (() => {
+                          const rem = total - payment.amount;
+                          const isPartial = rem > 0.5;
+                          return (
+                            <p className={`text-xs font-semibold mt-0.5 ${isPartial ? "text-amber-600" : "text-green-600"}`}>
+                              {isPartial ? `⚠️ Partial ₹${payment.amount.toFixed(0)} paid` : `✅ Paid ₹${payment.amount.toFixed(0)}`}
+                              {" on "}{fmtDate(payment.paidOn)}
+                              {isPartial && <span className="text-red-500"> · ₹{rem.toFixed(0)} remaining</span>}
+                              {payment.notes && <span className="text-slate-400 font-normal"> · {payment.notes}</span>}
+                            </p>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       <span className="text-xl font-black text-slate-800">₹{total.toFixed(0)}</span>
                       <button
-                        onClick={() => sendWhatsAppSummary({ customer: c, counts, total, daysPresent, totalDays: getDaysInMonth(selectedMonth).length })}
+                        onClick={() => sendWhatsAppSummary({ customer: c, counts, total, daysPresent, period })}
                         title="Send bill via WhatsApp"
                         className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors"
                       >
@@ -532,14 +602,19 @@ export default function MealTracker() {
 
                   {/* Day-by-day strip */}
                   <div className="mt-4 flex flex-wrap gap-1">
-                    {getDaysInMonth(selectedMonth).map((day) => {
+                    {period.days.map((day) => {
                       const e = summaryEntries.find((x) => x.customerId === c.id && x.date === day);
                       const hasAny = e?.breakfast || e?.lunch || e?.dinner;
                       const dayNum = parseInt(day.slice(-2));
+                      const isNextMonth = day.slice(0, 7) !== selectedMonth;
                       return (
                         <div key={day} title={`${fmtDate(day)}${e ? `: ${[e.breakfast && "B", e.lunch && "L", e.dinner && "D"].filter(Boolean).join("+")}` : ""}`}
                           className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold border ${
-                            hasAny ? "bg-amber-100 border-amber-400 text-amber-700" : "bg-slate-50 border-slate-200 text-slate-300"
+                            hasAny
+                              ? "bg-amber-100 border-amber-400 text-amber-700"
+                              : isNextMonth
+                                ? "bg-slate-100 border-slate-300 text-slate-400"
+                                : "bg-slate-50 border-slate-200 text-slate-300"
                           }`}
                         >
                           {dayNum}
@@ -617,7 +692,12 @@ export default function MealTracker() {
                       </div>
                     )}
                   </div>
-                  {c.notes && <p className="text-xs text-slate-400 mt-2 italic pl-14">"{c.notes}"</p>}
+                  {(c.billingStartDay ?? 1) > 1 && (
+                    <p className="text-xs text-amber-600 font-semibold mt-1 pl-14">
+                      🗓 Billing: {c.billingStartDay}th – {(c.billingStartDay ?? 1) - 1}th of next month
+                    </p>
+                  )}
+                  {c.notes && <p className="text-xs text-slate-400 mt-1 italic pl-14">"{c.notes}"</p>}
                 </div>
               ))}
             </div>
@@ -669,6 +749,25 @@ export default function MealTracker() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
                 <input type="text" value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} className={INPUT_CLS} placeholder="Optional notes" />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">
+                  Billing Cycle Start Date <span className="font-normal text-slate-400">— day of month (1 = standard month, e.g. 16 = 16th–15th)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number" min="1" max="28"
+                    value={form.billingStartDay}
+                    onChange={(e) => setForm((p) => ({ ...p, billingStartDay: e.target.value }))}
+                    className={INPUT_CLS + " w-24"}
+                    placeholder="1"
+                  />
+                  {parseInt(form.billingStartDay) > 1 && (
+                    <p className="text-xs text-amber-600 font-semibold">
+                      Cycle: {form.billingStartDay}th of month → {parseInt(form.billingStartDay) - 1}th of next month
+                    </p>
+                  )}
+                </div>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl text-sm">Cancel</button>
                 <button type="submit" disabled={saving} className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-black py-2.5 rounded-xl text-sm transition-colors">
@@ -681,52 +780,100 @@ export default function MealTracker() {
       )}
 
       {/* Mark Paid modal */}
-      {payModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-black text-slate-800">💰 Mark Payment</h3>
-            <p className="text-sm text-slate-600">
-              Recording payment for <span className="font-bold">{payModal.name}</span> — ₹{payModal.amount.toFixed(0)}
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Date</label>
-                <input
-                  type="date"
-                  value={payDate}
-                  onChange={(e) => setPayDate(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
+      {payModal && (() => {
+        const paid      = parseFloat(payAmountInput) || 0;
+        const remaining = payModal.totalBill - paid;
+        const isPartial = paid > 0 && remaining > 0.5;
+        const isOver    = paid > payModal.totalBill + 0.5;
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+              <h3 className="text-lg font-black text-slate-800">💰 Record Payment</h3>
+
+              {/* Total bill summary */}
+              <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-500 font-semibold">Total Bill</p>
+                  <p className="text-2xl font-black text-slate-800">₹{payModal.totalBill.toFixed(0)}</p>
+                  <p className="text-xs text-slate-400">{payModal.name}</p>
+                </div>
+                {remaining > 0.5 && paid > 0 && (
+                  <div className="text-right">
+                    <p className="text-xs text-red-500 font-semibold">Remaining</p>
+                    <p className="text-xl font-black text-red-600">₹{remaining.toFixed(0)}</p>
+                  </div>
+                )}
+                {!isPartial && paid > 0 && !isOver && (
+                  <div className="text-right">
+                    <p className="text-green-600 font-black text-2xl">✅</p>
+                    <p className="text-xs text-green-600 font-semibold">Fully paid</p>
+                  </div>
+                )}
+                {isOver && (
+                  <div className="text-right">
+                    <p className="text-xs text-amber-500 font-semibold">Advance</p>
+                    <p className="text-xl font-black text-amber-600">+₹{(paid - payModal.totalBill).toFixed(0)}</p>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Notes (optional)</label>
-                <input
-                  type="text"
-                  value={payNotes}
-                  onChange={(e) => setPayNotes(e.target.value)}
-                  placeholder="e.g. paid by cash"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Amount Paying Now (₹) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={payAmountInput}
+                    onChange={(e) => setPayAmountInput(e.target.value)}
+                    autoFocus
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold text-slate-800"
+                    placeholder={`₹${payModal.totalBill.toFixed(0)}`}
+                  />
+                  {isPartial && (
+                    <p className="text-xs text-red-500 font-semibold mt-1">
+                      Partial payment — ₹{remaining.toFixed(0)} still remaining
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Payment Date</label>
+                  <input
+                    type="date"
+                    value={payDate}
+                    onChange={(e) => setPayDate(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Notes (optional)</label>
+                  <input
+                    type="text"
+                    value={payNotes}
+                    onChange={(e) => setPayNotes(e.target.value)}
+                    placeholder="e.g. paid by cash / UPI"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setPayModal(null)}
-                className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={savePayment}
-                disabled={payingSaving || !payDate}
-                className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-black py-2.5 rounded-xl text-sm transition-colors"
-              >
-                {payingSaving ? "Saving…" : "✅ Confirm Payment"}
-              </button>
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setPayModal(null)} className="flex-1 border border-slate-300 text-slate-600 font-semibold py-2.5 rounded-xl text-sm">
+                  Cancel
+                </button>
+                <button
+                  onClick={savePayment}
+                  disabled={payingSaving || !payDate || paid <= 0}
+                  className={`flex-1 font-black py-2.5 rounded-xl text-sm transition-colors text-white ${
+                    isPartial ? "bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300" : "bg-green-600 hover:bg-green-700 disabled:bg-green-300"
+                  }`}
+                >
+                  {payingSaving ? "Saving…" : isPartial ? `Save ₹${paid.toFixed(0)} (Partial)` : "✅ Confirm Full Payment"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
