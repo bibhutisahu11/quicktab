@@ -120,6 +120,10 @@ export default function MealTracker() {
   // Today tab
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  // Draft state — local edits before Save is clicked
+  const [pendingEntries, setPendingEntries] = useState<Record<string, { breakfast: boolean; lunch: boolean; dinner: boolean }>>({});
+  const [isSavingAll, setIsSavingAll] = useState(false);
+  const hasPending = Object.keys(pendingEntries).length > 0;
 
   // Summary tab
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr());
@@ -152,7 +156,10 @@ export default function MealTracker() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadTodayData(selectedDate); }, [selectedDate, loadTodayData]);
+  useEffect(() => {
+    setPendingEntries({});
+    loadTodayData(selectedDate);
+  }, [selectedDate, loadTodayData]);
 
   const loadSummary = useCallback(async (month: string) => {
     setSummaryLoading(true);
@@ -177,33 +184,59 @@ export default function MealTracker() {
     return entries.find((e) => e.customerId === customerId);
   }
 
-  async function toggleMeal(customer: RegularCustomer, meal: MealType) {
-    const key = `${customer.id}-${meal}`;
-    setSavingKey(key);
-    const existing = getEntry(customer.id);
-    const newVal = !(existing?.[meal] ?? false);
-    const payload = {
-      customerId: customer.id,
+  /** Returns the current state for a customer — pending draft takes priority */
+  function getEffectiveEntry(customerId: string) {
+    const saved = entries.find((e) => e.customerId === customerId);
+    const draft = pendingEntries[customerId];
+    if (!draft) return saved;
+    return {
+      id: saved?.id ?? "",
+      customerId,
       date: selectedDate,
-      breakfast: existing?.breakfast ?? false,
-      lunch:     existing?.lunch     ?? false,
-      dinner:    existing?.dinner    ?? false,
-      [meal]: newVal,
+      breakfast: draft.breakfast,
+      lunch:     draft.lunch,
+      dinner:    draft.dinner,
     };
-    const res = await fetch("/api/meal-entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+  }
+
+  function toggleMeal(customer: RegularCustomer, meal: MealType) {
+    const effective = getEffectiveEntry(customer.id);
+    const current = {
+      breakfast: effective?.breakfast ?? false,
+      lunch:     effective?.lunch     ?? false,
+      dinner:    effective?.dinner    ?? false,
+    };
+    const updated = { ...current, [meal]: !current[meal as MealType] };
+    setPendingEntries((prev) => ({ ...prev, [customer.id]: updated }));
+  }
+
+  function discardPending() {
+    setPendingEntries({});
+  }
+
+  async function saveAllPending() {
+    if (!hasPending) return;
+    setIsSavingAll(true);
+    const saves = Object.entries(pendingEntries).map(([customerId, meals]) =>
+      fetch("/api/meal-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId, date: selectedDate, ...meals }),
+      }).then((r) => r.ok ? r.json() : null)
+    );
+    const results: (MealEntry | null)[] = await Promise.all(saves);
+    setEntries((prev) => {
+      let next = [...prev];
+      for (const updated of results) {
+        if (!updated) continue;
+        const idx = next.findIndex((e) => e.customerId === updated.customerId);
+        if (idx >= 0) next[idx] = updated;
+        else next = [...next, updated];
+      }
+      return next;
     });
-    if (res.ok) {
-      const updated: MealEntry = await res.json();
-      setEntries((prev) => {
-        const exists = prev.find((e) => e.customerId === customer.id);
-        if (exists) return prev.map((e) => e.customerId === customer.id ? updated : e);
-        return [...prev, updated];
-      });
-    }
-    setSavingKey(null);
+    setPendingEntries({});
+    setIsSavingAll(false);
   }
 
   // ── Summary helpers ──────────────────────────────────────────────────────────
@@ -351,14 +384,17 @@ export default function MealTracker() {
   // ── Today summary ────────────────────────────────────────────────────────────
   const todayCounts = useMemo(() => {
     const counts = { breakfast: 0, lunch: 0, dinner: 0, total: 0 };
-    for (const e of entries) {
-      if (e.breakfast) counts.breakfast++;
-      if (e.lunch)     counts.lunch++;
-      if (e.dinner)    counts.dinner++;
+    const allCustomerIds = customers.filter((c) => c.active).map((c) => c.id);
+    for (const id of allCustomerIds) {
+      const e = getEffectiveEntry(id);
+      if (e?.breakfast) counts.breakfast++;
+      if (e?.lunch)     counts.lunch++;
+      if (e?.dinner)    counts.dinner++;
     }
     counts.total = counts.breakfast + counts.lunch + counts.dinner;
     return counts;
-  }, [entries]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, pendingEntries, customers]);
 
   const activeCustomers = customers.filter((c) => c.active);
 
@@ -436,12 +472,17 @@ export default function MealTracker() {
               <p className="text-sm mt-1">Add customers in the Customers tab first</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <>
+            <div className="space-y-2 pb-24">
               {activeCustomers.map((c) => {
-                const entry = getEntry(c.id);
-                const hasMeal = entry?.breakfast || entry?.lunch || entry?.dinner;
+                const effective = getEffectiveEntry(c.id);
+                const saved     = entries.find((e) => e.customerId === c.id);
+                const isDirty   = !!pendingEntries[c.id];
+                const hasMeal   = effective?.breakfast || effective?.lunch || effective?.dinner;
                 return (
-                  <div key={c.id} className={`bg-white border-2 rounded-2xl p-4 shadow-sm transition-all ${hasMeal ? "border-amber-300" : "border-slate-200"}`}>
+                  <div key={c.id} className={`bg-white border-2 rounded-2xl p-4 shadow-sm transition-all ${
+                    isDirty ? "border-amber-400 bg-amber-50/30" : hasMeal ? "border-amber-300" : "border-slate-200"
+                  }`}>
                     <div className="flex items-center gap-3 flex-wrap">
                       {/* Avatar */}
                       <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg flex-shrink-0 ${hasMeal ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-400"}`}>
@@ -451,26 +492,27 @@ export default function MealTracker() {
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-800 text-sm">{c.name}</p>
                         {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
+                        {isDirty && <p className="text-xs text-amber-600 font-semibold">● unsaved</p>}
                       </div>
                       {/* Meal toggles */}
                       <div className="flex gap-2 flex-wrap">
                         {MEAL_TYPES.map((meal) => {
-                          const cfg = MEAL_LABELS[meal];
-                          const active = entry?.[meal] ?? false;
-                          const isLoading = savingKey === `${c.id}-${meal}`;
+                          const cfg    = MEAL_LABELS[meal];
+                          const active = effective?.[meal] ?? false;
+                          const wasActive = saved?.[meal] ?? false;
+                          const changed = isDirty && active !== wasActive;
                           return (
                             <button
                               key={meal}
                               onClick={() => toggleMeal(c, meal)}
-                              disabled={!!savingKey}
                               title={cfg.label}
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all ${
                                 active
-                                  ? `${cfg.bg} ${cfg.color} ${cfg.border} shadow-sm`
-                                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
+                                  ? `${cfg.bg} ${cfg.color} ${cfg.border} shadow-sm ${changed ? "ring-2 ring-amber-400 ring-offset-1" : ""}`
+                                  : `bg-white border-slate-200 hover:border-slate-400 ${changed ? "text-red-400 border-red-200" : "text-slate-400"}`
                               }`}
                             >
-                              {isLoading ? "…" : cfg.emoji} {cfg.short}
+                              {cfg.emoji} {cfg.short}
                             </button>
                           );
                         })}
@@ -480,6 +522,33 @@ export default function MealTracker() {
                 );
               })}
             </div>
+
+            {/* ── Sticky Save / Discard bar ─────────────────────────────────── */}
+            {hasPending && (
+              <div className="fixed bottom-0 left-0 right-0 md:left-56 z-40 px-4 pb-4 pt-2 bg-white/90 backdrop-blur border-t border-amber-200 shadow-lg">
+                <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+                  <p className="text-sm font-bold text-amber-700">
+                    ⚠️ {Object.keys(pendingEntries).length} unsaved change{Object.keys(pendingEntries).length > 1 ? "s" : ""}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={discardPending}
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={saveAllPending}
+                      disabled={isSavingAll}
+                      className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-sm font-black transition-colors"
+                    >
+                      {isSavingAll ? "Saving…" : "✅ Save Changes"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
       )}
