@@ -136,7 +136,7 @@ export default function MealTracker() {
   // Per-meal rates (editable by admin)
   const [rates, setRates] = useState<Record<MealType, number>>(DEFAULT_RATES);
   // Pay modal state
-  const [payModal, setPayModal] = useState<{ customerId: string; name: string; totalBill: number } | null>(null);
+  const [payModal, setPayModal] = useState<{ customerId: string; name: string; totalBill: number; month: string } | null>(null);
   const [payDate, setPayDate] = useState(todayStr());
   const [payAmountInput, setPayAmountInput] = useState("");
   const [payNotes, setPayNotes] = useState("");
@@ -150,12 +150,15 @@ export default function MealTracker() {
 
   const loadTodayData = useCallback(async (date: string) => {
     setLoading(true);
-    const [cRes, eRes] = await Promise.all([
+    const month = date.slice(0, 7);
+    const [cRes, eRes, pRes] = await Promise.all([
       fetch("/api/regular-customers"),
       fetch(`/api/meal-entries?date=${date}`),
+      fetch(`/api/meal-payments?month=${month}`),
     ]);
     if (cRes.ok) setCustomers(await cRes.json());
     if (eRes.ok) setEntries(await eRes.json());
+    if (pRes.ok) setPayments(await pRes.json());
     setLoading(false);
   }, []);
 
@@ -304,9 +307,10 @@ export default function MealTracker() {
   }
 
   // ── Payment helpers ──────────────────────────────────────────────────────────
-  function openPayModal(customerId: string, name: string, totalBill: number) {
-    const existing = payments.find((p) => p.customerId === customerId && p.month === selectedMonth);
-    setPayModal({ customerId, name, totalBill });
+  function openPayModal(customerId: string, name: string, totalBill: number, month?: string) {
+    const m = month ?? selectedMonth;
+    const existing = payments.find((p) => p.customerId === customerId && p.month === m);
+    setPayModal({ customerId, name, totalBill, month: m });
     setPayDate(existing?.paidOn ?? todayStr());
     setPayAmountInput(existing ? String(existing.amount) : String(Math.round(totalBill)));
     setPayNotes(existing?.notes ?? "");
@@ -322,13 +326,15 @@ export default function MealTracker() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         customerId: payModal.customerId,
-        month: selectedMonth,
+        month: payModal.month,
         paidOn: payDate,
         amount: paid,
         notes: payNotes || null,
       }),
     });
-    await loadSummary(selectedMonth);
+    // Refresh whichever tab is relevant
+    if (tab === "summary") await loadSummary(selectedMonth);
+    else await loadTodayData(selectedDate);
     setPayModal(null);
     setPayingSaving(false);
   }
@@ -503,12 +509,40 @@ export default function MealTracker() {
                       <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg flex-shrink-0 ${hasMeal ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-400"}`}>
                         {c.name[0].toUpperCase()}
                       </div>
-                      {/* Name */}
+                      {/* Name + payment badge */}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-800 text-sm">{c.name}</p>
                         {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
                         {isDirty && <p className="text-xs text-amber-600 font-semibold">● unsaved</p>}
+                        {(() => {
+                          const thisMonth = selectedDate.slice(0, 7);
+                          const pay = payments.find((p) => p.customerId === c.id && p.month === thisMonth);
+                          if (!pay) return null;
+                          return (
+                            <p className="text-xs font-semibold text-green-600 mt-0.5">
+                              ✅ ₹{pay.amount.toFixed(0)} paid this month
+                            </p>
+                          );
+                        })()}
                       </div>
+                      {/* Pay button */}
+                      {(() => {
+                        const thisMonth = selectedDate.slice(0, 7);
+                        const pay = payments.find((p) => p.customerId === c.id && p.month === thisMonth);
+                        return (
+                          <button
+                            onClick={() => openPayModal(c.id, c.name, 0, thisMonth)}
+                            title={pay ? "Update payment" : "Record advance / payment"}
+                            className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl border transition-colors ${
+                              pay
+                                ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                                : "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                            }`}
+                          >
+                            💰 {pay ? "Paid" : "Pay"}
+                          </button>
+                        );
+                      })()}
                       {/* Meal toggles — only enabled meals */}
                       <div className="flex gap-2 flex-wrap">
                         {MEAL_TYPES.filter((meal) => {
@@ -939,13 +973,19 @@ export default function MealTracker() {
         return (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-              <h3 className="text-lg font-black text-slate-800">💰 Record Payment</h3>
+              <div>
+                <h3 className="text-lg font-black text-slate-800">💰 Record Payment</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{payModal.name} · {new Date(payModal.month + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+              </div>
 
               {/* Total bill summary */}
               <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 font-semibold">Total Bill</p>
-                  <p className="text-2xl font-black text-slate-800">₹{payModal.totalBill.toFixed(0)}</p>
+                  <p className="text-xs text-slate-500 font-semibold">{payModal.totalBill > 0 ? "Total Bill" : "Advance / Prepayment"}</p>
+                  {payModal.totalBill > 0
+                    ? <p className="text-2xl font-black text-slate-800">₹{payModal.totalBill.toFixed(0)}</p>
+                    : <p className="text-sm text-slate-500 font-medium">Bill calculated at month end</p>
+                  }
                   <p className="text-xs text-slate-400">{payModal.name}</p>
                 </div>
                 {remaining > 0.5 && paid > 0 && (
@@ -978,7 +1018,7 @@ export default function MealTracker() {
                     onChange={(e) => setPayAmountInput(e.target.value)}
                     autoFocus
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold text-slate-800"
-                    placeholder={`₹${payModal.totalBill.toFixed(0)}`}
+                    placeholder={payModal.totalBill > 0 ? `₹${payModal.totalBill.toFixed(0)}` : "Enter amount"}
                   />
                   {isPartial && (
                     <p className="text-xs text-red-500 font-semibold mt-1">
