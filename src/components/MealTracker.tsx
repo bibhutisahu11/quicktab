@@ -10,6 +10,9 @@ interface RegularCustomer {
   address?: string | null;
   notes?: string | null;
   active: boolean;
+  enableBreakfast: boolean;
+  enableLunch: boolean;
+  enableDinner: boolean;
   rateBreakfast?: number | null;
   rateLunch?: number | null;
   rateDinner?: number | null;
@@ -142,7 +145,7 @@ export default function MealTracker() {
   // Customers tab
   const [showForm, setShowForm] = useState(false);
   const [editCustomer, setEditCustomer] = useState<RegularCustomer | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "", billingStartDay: "1" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "", billingStartDay: "1", enableBreakfast: true, enableLunch: true, enableDinner: true });
   const [saving, setSaving] = useState(false);
 
   const loadTodayData = useCallback(async (date: string) => {
@@ -248,16 +251,22 @@ export default function MealTracker() {
       );
       const counts = { breakfast: 0, lunch: 0, dinner: 0 };
       for (const e of myEntries) {
-        if (e.breakfast) counts.breakfast++;
-        if (e.lunch)     counts.lunch++;
-        if (e.dinner)    counts.dinner++;
+        // Only count a meal if it's enabled for this customer
+        if (e.breakfast && c.enableBreakfast !== false) counts.breakfast++;
+        if (e.lunch     && c.enableLunch     !== false) counts.lunch++;
+        if (e.dinner    && c.enableDinner    !== false) counts.dinner++;
       }
       const rB = c.rateBreakfast ?? rates.breakfast;
       const rL = c.rateLunch    ?? rates.lunch;
       const rD = c.rateDinner   ?? rates.dinner;
       const total = counts.breakfast * rB + counts.lunch * rL + counts.dinner * rD;
+      // Per-day rate = sum of enabled meal rates
+      const dailyRate =
+        (c.enableBreakfast !== false ? rB : 0) +
+        (c.enableLunch     !== false ? rL : 0) +
+        (c.enableDinner    !== false ? rD : 0);
       const daysPresent = myEntries.filter((e) => e.breakfast || e.lunch || e.dinner).length;
-      return { customer: c, counts, total, daysPresent, period };
+      return { customer: c, counts, total, daysPresent, period, dailyRate };
     });
   }, [customers, summaryEntries, selectedMonth, rates]);
 
@@ -333,7 +342,7 @@ export default function MealTracker() {
   // ── Customer form ────────────────────────────────────────────────────────────
   function openAdd() {
     setEditCustomer(null);
-    setForm({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "", billingStartDay: "1" });
+    setForm({ name: "", phone: "", address: "", notes: "", rateBreakfast: "", rateLunch: "", rateDinner: "", billingStartDay: "1", enableBreakfast: true, enableLunch: true, enableDinner: true });
     setShowForm(true);
   }
   function openEdit(c: RegularCustomer) {
@@ -345,6 +354,9 @@ export default function MealTracker() {
       rateLunch:     c.rateLunch     != null ? String(c.rateLunch)     : "",
       rateDinner:    c.rateDinner    != null ? String(c.rateDinner)    : "",
       billingStartDay: String(c.billingStartDay ?? 1),
+      enableBreakfast: c.enableBreakfast !== false,
+      enableLunch:     c.enableLunch     !== false,
+      enableDinner:    c.enableDinner    !== false,
     });
     setShowForm(true);
   }
@@ -361,6 +373,9 @@ export default function MealTracker() {
       rateLunch:     form.rateLunch     || null,
       rateDinner:    form.rateDinner    || null,
       billingStartDay: parseInt(form.billingStartDay) || 1,
+      enableBreakfast: form.enableBreakfast,
+      enableLunch:     form.enableLunch,
+      enableDinner:    form.enableDinner,
     };
     if (editCustomer) {
       await fetch(`/api/regular-customers/${editCustomer.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -494,9 +509,12 @@ export default function MealTracker() {
                         {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
                         {isDirty && <p className="text-xs text-amber-600 font-semibold">● unsaved</p>}
                       </div>
-                      {/* Meal toggles */}
+                      {/* Meal toggles — only enabled meals */}
                       <div className="flex gap-2 flex-wrap">
-                        {MEAL_TYPES.map((meal) => {
+                        {MEAL_TYPES.filter((meal) => {
+                          const k = `enable${meal.charAt(0).toUpperCase() + meal.slice(1)}` as keyof RegularCustomer;
+                          return c[k] !== false;
+                        }).map((meal) => {
                           const cfg    = MEAL_LABELS[meal];
                           const active = effective?.[meal] ?? false;
                           const wasActive = saved?.[meal] ?? false;
@@ -592,16 +610,20 @@ export default function MealTracker() {
             </div>
           ) : (
             <div className="space-y-3">
-              {summaryByCustomer.map(({ customer: c, counts, total, daysPresent, period }) => {
+              {summaryByCustomer.map(({ customer: c, counts, total, daysPresent, period, dailyRate }) => {
                 const payment = payments.find((p) => p.customerId === c.id && p.month === selectedMonth);
+                // Balance: positive = customer still owes, negative = credit (overpaid)
+                const balance = payment ? total - payment.amount : total;
+                const isPrepaid = payment && payment.amount >= total - 0.5;
+                const isPartialPay = payment && !isPrepaid;
+                const remainingCredit = payment ? payment.amount - total : 0;
+                const cardBorder = !payment ? "border-slate-200" : isPrepaid ? "border-green-300" : "border-amber-300";
                 return (
-                <div key={c.id} className={`bg-white border-2 rounded-2xl p-5 shadow-sm ${
-                  !payment ? "border-slate-200" : (total - payment.amount > 0.5) ? "border-amber-300" : "border-green-300"
-                }`}>
+                <div key={c.id} className={`bg-white border-2 rounded-2xl p-5 shadow-sm ${cardBorder}`}>
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
                       <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-lg ${
-                        !payment ? "bg-amber-100 text-amber-700" : (total - payment.amount > 0.5) ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+                        !payment ? "bg-amber-100 text-amber-700" : isPrepaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
                       }`}>
                         {c.name[0].toUpperCase()}
                       </div>
@@ -609,25 +631,24 @@ export default function MealTracker() {
                         <p className="font-bold text-slate-800">{c.name}</p>
                         {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
                         <p className="text-xs text-slate-500 mt-0.5 font-medium">{period.label}</p>
-                        <p className="text-xs text-slate-400">{daysPresent} / {period.days.length} days present</p>
-                        {payment && (() => {
-                          const rem = total - payment.amount;
-                          const isPartial = rem > 0.5;
-                          return (
-                            <p className={`text-xs font-semibold mt-0.5 ${isPartial ? "text-amber-600" : "text-green-600"}`}>
-                              {isPartial ? `⚠️ Partial ₹${payment.amount.toFixed(0)} paid` : `✅ Paid ₹${payment.amount.toFixed(0)}`}
-                              {" on "}{fmtDate(payment.paidOn)}
-                              {isPartial && <span className="text-red-500"> · ₹{rem.toFixed(0)} remaining</span>}
-                              {payment.notes && <span className="text-slate-400 font-normal"> · {payment.notes}</span>}
-                            </p>
-                          );
-                        })()}
+                        <p className="text-xs text-slate-400">{daysPresent} / {period.days.length} days present · ₹{dailyRate}/day</p>
+                        {payment && (
+                          <p className={`text-xs font-semibold mt-0.5 ${isPrepaid ? "text-green-600" : "text-amber-600"}`}>
+                            {isPrepaid ? `✅ Paid ₹${payment.amount.toFixed(0)}` : `⚠️ Partial ₹${payment.amount.toFixed(0)} paid`}
+                            {" on "}{fmtDate(payment.paidOn)}
+                            {isPartialPay && <span className="text-red-500"> · ₹{balance.toFixed(0)} pending</span>}
+                            {payment.notes && <span className="text-slate-400 font-normal"> · {payment.notes}</span>}
+                          </p>
+                        )}
+                        {!payment && total > 0 && (
+                          <p className="text-xs font-semibold mt-0.5 text-red-500">❌ Not paid · ₹{total.toFixed(0)} due</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       <span className="text-xl font-black text-slate-800">₹{total.toFixed(0)}</span>
                       <button
-                        onClick={() => sendWhatsAppSummary({ customer: c, counts, total, daysPresent, period })}
+                        onClick={() => sendWhatsAppSummary({ customer: c, counts, total, daysPresent, period, dailyRate })}
                         title="Send bill via WhatsApp"
                         className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition-colors"
                       >
@@ -652,10 +673,34 @@ export default function MealTracker() {
                     </div>
                   </div>
 
+                  {/* Remaining balance bar */}
+                  {payment && (
+                    <div className={`mt-3 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 ${
+                      remainingCredit >= 0 ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"
+                    }`}>
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                          {remainingCredit >= 0 ? "💰 Remaining Credit" : "⚠️ Amount Due"}
+                        </p>
+                        <p className={`text-lg font-black ${remainingCredit >= 0 ? "text-green-700" : "text-red-600"}`}>
+                          ₹{Math.abs(remainingCredit).toFixed(0)}
+                        </p>
+                      </div>
+                      <div className="text-right text-xs text-slate-500 space-y-0.5">
+                        <p>Paid: <span className="font-bold text-slate-700">₹{payment.amount.toFixed(0)}</span></p>
+                        <p>Consumed: <span className="font-bold text-slate-700">₹{total.toFixed(0)}</span></p>
+                        {dailyRate > 0 && remainingCredit > 0 && (
+                          <p className="text-green-600 font-medium">~{Math.floor(remainingCredit / dailyRate)} days left</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Meal breakdown */}
                   <div className="mt-4 flex flex-wrap gap-3">
                     {MEAL_TYPES.map((m) => {
                       const cfg = MEAL_LABELS[m];
+                      if (c[`enable${m.charAt(0).toUpperCase() + m.slice(1)}` as keyof RegularCustomer] === false) return null;
                       const rateUsed = m === "breakfast" ? (c.rateBreakfast ?? rates.breakfast) : m === "lunch" ? (c.rateLunch ?? rates.lunch) : (c.rateDinner ?? rates.dinner);
                       if (counts[m] === 0) return null;
                       return (
@@ -743,9 +788,21 @@ export default function MealTracker() {
                       <p className="font-bold text-slate-800">{c.name} {!c.active && <span className="text-xs text-slate-400 font-normal">(inactive)</span>}</p>
                       {c.phone   && <p className="text-xs text-slate-500">📱 {c.phone}</p>}
                       {c.address && <p className="text-xs text-slate-400">📍 {c.address}</p>}
+                      {/* Enabled meals badge */}
+                      <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                        {[
+                          c.enableBreakfast !== false && "🌅 B",
+                          c.enableLunch     !== false && "☀️ L",
+                          c.enableDinner    !== false && "🌙 D",
+                        ].filter(Boolean).join(" · ")}
+                      </p>
                       {(c.rateBreakfast || c.rateLunch || c.rateDinner) && (
                         <p className="text-xs text-slate-400 mt-0.5">
-                          {[c.rateBreakfast && `🌅₹${c.rateBreakfast}`, c.rateLunch && `☀️₹${c.rateLunch}`, c.rateDinner && `🌙₹${c.rateDinner}`].filter(Boolean).join(" · ")}
+                          {[
+                            c.enableBreakfast !== false && c.rateBreakfast && `₹${c.rateBreakfast}/B`,
+                            c.enableLunch     !== false && c.rateLunch     && `₹${c.rateLunch}/L`,
+                            c.enableDinner    !== false && c.rateDinner    && `₹${c.rateDinner}/D`,
+                          ].filter(Boolean).join(" · ")}
                         </p>
                       )}
                     </div>
@@ -795,16 +852,41 @@ export default function MealTracker() {
                   <input type="text" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} className={INPUT_CLS} placeholder="Optional" />
                 </div>
               </div>
+              {/* Which meals this customer takes */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Meals Applicable</label>
+                <div className="flex gap-3">
+                  {(["enableBreakfast", "enableLunch", "enableDinner"] as const).map((key) => {
+                    const meal = key.replace("enable", "").toLowerCase() as MealType;
+                    const cfg  = MEAL_LABELS[meal];
+                    return (
+                      <button key={key} type="button"
+                        onClick={() => setForm((p) => ({ ...p, [key]: !p[key] }))}
+                        className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
+                          form[key] ? `${cfg.bg} ${cfg.border} ${cfg.color}` : "bg-slate-50 border-slate-200 text-slate-400"
+                        }`}
+                      >
+                        <span className="text-lg">{cfg.emoji}</span>
+                        {cfg.label}
+                        <span className="text-[10px] font-normal">{form[key] ? "✓ enabled" : "disabled"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Custom Meal Rates (₹) <span className="font-normal text-slate-400">— leave blank to use default</span></label>
                 <div className="grid grid-cols-3 gap-3">
                   {MEAL_TYPES.map((m) => {
                     const cfg = MEAL_LABELS[m];
                     const key = `rate${m.charAt(0).toUpperCase() + m.slice(1)}` as keyof typeof form;
+                    const enableKey = `enable${m.charAt(0).toUpperCase() + m.slice(1)}` as keyof typeof form;
+                    if (!form[enableKey]) return null;
                     return (
                       <div key={m}>
                         <label className={`block text-xs font-semibold mb-1 ${cfg.color}`}>{cfg.emoji} {cfg.label}</label>
-                        <input type="number" min="0" value={form[key]}
+                        <input type="number" min="0" value={form[key] as string}
                           onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
                           placeholder={`₹${DEFAULT_RATES[m]}`}
                           className={INPUT_CLS}

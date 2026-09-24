@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (ctx.error) return ctx.error;
 
   const body = await req.json();
-  const { name, phone, address, notes, rateBreakfast, rateLunch, rateDinner, billingStartDay } = body;
+  const { name, phone, address, notes, rateBreakfast, rateLunch, rateDinner, billingStartDay, enableBreakfast, enableLunch, enableDinner } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
       rateLunch: rateLunch ? parseFloat(rateLunch) : null,
       rateDinner: rateDinner ? parseFloat(rateDinner) : null,
       billingStartDay: billingStartDay ? parseInt(billingStartDay) : 1,
+      enableBreakfast: enableBreakfast !== false,
+      enableLunch:     enableLunch     !== false,
+      enableDinner:    enableDinner    !== false,
     },
   });
 

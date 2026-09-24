@@ -14,7 +14,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { name, phone, address, notes, active, rateBreakfast, rateLunch, rateDinner, billingStartDay } = body;
+  const { name, phone, address, notes, active, rateBreakfast, rateLunch, rateDinner, billingStartDay, enableBreakfast, enableLunch, enableDinner } = body;
 
   const customer = await prisma.regularCustomer.updateMany({
     where: { id, orgId: ctx.orgId! },
@@ -28,6 +28,9 @@ export async function PATCH(
       ...(rateLunch !== undefined ? { rateLunch: rateLunch ? parseFloat(rateLunch) : null } : {}),
       ...(rateDinner !== undefined ? { rateDinner: rateDinner ? parseFloat(rateDinner) : null } : {}),
       ...(billingStartDay !== undefined ? { billingStartDay: parseInt(billingStartDay) || 1 } : {}),
+      ...(enableBreakfast !== undefined ? { enableBreakfast: Boolean(enableBreakfast) } : {}),
+      ...(enableLunch     !== undefined ? { enableLunch:     Boolean(enableLunch)     } : {}),
+      ...(enableDinner    !== undefined ? { enableDinner:    Boolean(enableDinner)    } : {}),
     },
   });
 

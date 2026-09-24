@@ -374,6 +374,10 @@ model RegularCustomer {
   address     String?
   notes       String?
   active      Boolean      @default(true)
+  // Which meals this customer takes (admin configures per customer)
+  enableBreakfast Boolean   @default(true)
+  enableLunch     Boolean   @default(true)
+  enableDinner    Boolean   @default(true)
   // Per-meal rates (org-level defaults can be overridden per customer)
   rateBreakfast Float?
   rateLunch     Float?
