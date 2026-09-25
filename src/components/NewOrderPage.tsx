@@ -5,8 +5,8 @@ import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./Suggestio
 import { MenuItemData } from "@/types";
 
 interface Table { id: string; name: string; }
-interface CartRow { item: MenuItemData; qty: number; customGrams?: number; customPrice?: number; }
-interface OnlineItem { name: string; qty: number; price: number; }
+// onlinePrice = per-unit price override for online orders (defaults to item.price)
+interface CartRow { item: MenuItemData; qty: number; customGrams?: number; customPrice?: number; onlinePrice?: number; }
 const ONLINE_PLATFORMS = ["Swiggy", "Zomato", "Toing", "Ownly", "Magic Pin"] as const;
 type OnlinePlatform = typeof ONLINE_PLATFORMS[number];
 
@@ -24,7 +24,6 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const [parcelCharge, setParcelCharge] = useState(0);
   // Online order state
   const [onlinePlatform, setOnlinePlatform] = useState<OnlinePlatform>("Swiggy");
-  const [onlineItems, setOnlineItems] = useState<OnlineItem[]>([{ name: "", qty: 1, price: 0 }]);
   const [onlinePackageCharge, setOnlinePackageCharge] = useState(0);
   const [suggestionIdx, setSuggestionIdx] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -121,15 +120,18 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const discountAmt = Math.min(Math.max(parseFloat(discountInput) || 0, 0), subtotal);
   const total = subtotal - discountAmt + (orderType === "PARCEL" ? parcelCharge : 0);
 
-  // Online totals
-  const onlineSubtotal = onlineItems.reduce((s, i) => s + (i.price * i.qty), 0);
-  const onlineTotal = onlineSubtotal + onlinePackageCharge;
+  // Online totals — uses same cart, but with per-item price overrides
+  const onlineItemsTotal = cart.reduce((s, r) => {
+    const unitPrice = r.onlinePrice ?? r.item.price;
+    return s + unitPrice * r.qty;
+  }, 0);
+  const onlineTotal = onlineItemsTotal + onlinePackageCharge;
 
   function resetForm() {
     setCart([]); setCustomerName(""); setPhone(""); setNotes("");
     setOrderType("TABLE"); setDiscountInput(""); setParcelCharge(0);
     setSearch(""); setSuccessOrderId(null); setError("");
-    setOnlineItems([{ name: "", qty: 1, price: 0 }]); setOnlinePackageCharge(0);
+    setOnlinePackageCharge(0);
     if (tables.length > 0) setTableId(tables[0].id);
   }
 
@@ -140,8 +142,7 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
 
     // ── Online order submission ───────────────────────────────────────────────
     if (orderType === "ONLINE") {
-      const validItems = onlineItems.filter((i) => i.name.trim() && i.price > 0);
-      if (validItems.length === 0) { setError("Add at least one item with name and price"); return; }
+      if (cart.length === 0) { setError("Add at least one item from the menu"); return; }
       setError(""); setSubmitting(true);
       try {
         const res = await fetch("/api/orders", {
@@ -157,7 +158,12 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
             onlinePlatform,
             parcelCharge: onlinePackageCharge,
             onlineTotal,
-            items: validItems.map((i) => ({ name: i.name, price: i.price, quantity: i.qty })),
+            // send per-unit price (API multiplies by quantity internally)
+            items: cart.map((r) => ({
+              name: r.item.name,
+              price: r.onlinePrice ?? r.item.price,
+              quantity: r.qty,
+            })),
           }),
         });
         if (!res.ok) { const d = await res.json(); setError(d.error ?? "Failed"); return; }
@@ -329,62 +335,25 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
             </div>
           </div>
 
-          {/* ── Online order item entry ───────────────────────────────────────── */}
+          {/* ── Online: package charge + total summary ───────────────────────── */}
           {orderType === "ONLINE" && (
-            <div className="bg-white rounded-2xl shadow-sm border-2 border-indigo-200 p-4 space-y-3">
-              <h2 className="text-sm font-bold text-indigo-700 uppercase tracking-wide">🌐 {onlinePlatform} Order Items</h2>
-              <p className="text-xs text-slate-400">Enter items and prices as shown on the {onlinePlatform} order. Prices may differ from in-store.</p>
-
-              {onlineItems.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
-                  <input
-                    type="text" value={item.name}
-                    onChange={(e) => setOnlineItems((p) => p.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
-                    placeholder={`Item ${idx + 1} name`}
-                    className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-slate-400" />
-                  <input
-                    type="number" min="1" value={item.qty}
-                    onChange={(e) => setOnlineItems((p) => p.map((x, i) => i === idx ? { ...x, qty: Number(e.target.value) || 1 } : x))}
-                    placeholder="Qty"
-                    className="border border-slate-300 rounded-lg px-2 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-center" />
-                  <input
-                    type="number" min="0" step="0.01" value={item.price || ""}
-                    onChange={(e) => setOnlineItems((p) => p.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) || 0 } : x))}
-                    placeholder="₹ Price"
-                    className="border border-slate-300 rounded-lg px-2 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold" />
-                  <button type="button" onClick={() => setOnlineItems((p) => p.filter((_, i) => i !== idx))}
-                    disabled={onlineItems.length === 1}
-                    className="text-slate-300 hover:text-red-500 text-xl font-bold disabled:opacity-30">×</button>
-                </div>
-              ))}
-
-              <button type="button"
-                onClick={() => setOnlineItems((p) => [...p, { name: "", qty: 1, price: 0 }])}
-                className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
-                ＋ Add item
-              </button>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Package / Delivery Charge (₹)</label>
-                  <input type="number" min="0" value={onlinePackageCharge || ""}
-                    onChange={(e) => setOnlinePackageCharge(Number(e.target.value) || 0)}
-                    placeholder="0"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold" />
-                </div>
-                <div className="flex items-end">
-                  <div className="w-full bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2">
-                    <p className="text-xs text-slate-500">Total</p>
-                    <p className="text-xl font-black text-indigo-700">₹{onlineTotal.toFixed(0)}</p>
-                    {onlinePackageCharge > 0 && <p className="text-xs text-slate-400">incl. ₹{onlinePackageCharge} pkg</p>}
-                  </div>
-                </div>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3 flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-indigo-600 whitespace-nowrap">📦 Package Charge (₹)</label>
+                <input type="number" min="0" value={onlinePackageCharge || ""}
+                  onChange={(e) => setOnlinePackageCharge(Number(e.target.value) || 0)}
+                  placeholder="0"
+                  className="w-24 border border-indigo-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold" />
               </div>
+              {cart.length > 0 && (
+                <p className="text-xs text-indigo-500 ml-auto">
+                  💡 Tap the price on any item below to override it for this {onlinePlatform} order
+                </p>
+              )}
             </div>
           )}
 
-          {/* Item search */}
-          {orderType !== "ONLINE" && (
+          {/* Item search — shown for all order types */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
             <div className="relative mb-3">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">🔍</span>
@@ -469,7 +438,6 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
               </div>
             ))}
           </div>
-          )}
         </form>
       </div>
 
@@ -478,25 +446,51 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
         {error && <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 
         {cart.length > 0 && (
-          <div className="bg-slate-50 rounded-xl px-3 py-2 max-h-28 overflow-y-auto space-y-1">
-            {cart.map((r) => (
-              <div key={r.item.id} className="flex items-center justify-between text-sm gap-2">
-                <span className="text-slate-700 truncate flex-1">{r.item.name} {r.customGrams ? `⚖️ ${r.customGrams}g` : `× ${r.qty}`}</span>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {!r.customGrams && (
-                    <>
-                      <button type="button" onClick={() => setQty(r.item, r.qty - 1)}
-                        className="w-5 h-5 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-xs font-bold leading-none">−</button>
-                      <span className="w-4 text-center text-xs font-bold text-slate-700">{r.qty}</span>
-                      <button type="button" onClick={() => setQty(r.item, r.qty + 1)}
-                        className="w-5 h-5 bg-amber-400 hover:bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold leading-none">+</button>
-                    </>
-                  )}
-                  <span className="text-slate-500 font-medium w-12 text-right">₹{(r.customPrice ?? r.item.price * r.qty).toFixed(0)}</span>
+          <div className="bg-slate-50 rounded-xl px-3 py-2 max-h-36 overflow-y-auto space-y-1">
+            {cart.map((r) => {
+              const unitPrice = r.onlinePrice ?? r.item.price;
+              const lineTotal = orderType === "ONLINE" ? unitPrice * r.qty : (r.customPrice ?? r.item.price * r.qty);
+              return (
+                <div key={r.item.id} className="flex items-center justify-between text-sm gap-2">
+                  <span className="text-slate-700 truncate flex-1">{r.item.name} {r.customGrams ? `⚖️ ${r.customGrams}g` : `× ${r.qty}`}</span>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {!r.customGrams && (
+                      <>
+                        <button type="button" onClick={() => setQty(r.item, r.qty - 1)}
+                          className="w-5 h-5 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-xs font-bold leading-none">−</button>
+                        <span className="w-4 text-center text-xs font-bold text-slate-700">{r.qty}</span>
+                        <button type="button" onClick={() => setQty(r.item, r.qty + 1)}
+                          className="w-5 h-5 bg-amber-400 hover:bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold leading-none">+</button>
+                      </>
+                    )}
+                    {/* Online mode: editable per-unit price */}
+                    {orderType === "ONLINE" ? (
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-xs text-slate-400">₹</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={r.onlinePrice ?? r.item.price}
+                          onChange={(e) => setCart((p) => p.map((x) => x.item.id === r.item.id ? { ...x, onlinePrice: Number(e.target.value) || 0 } : x))}
+                          className="w-16 border border-indigo-300 rounded-md px-1.5 py-0.5 text-xs font-bold text-indigo-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 text-right"
+                          title="Override price for this online platform"
+                        />
+                        {lineTotal !== r.item.price * r.qty && (
+                          <span className="text-[10px] text-slate-400 ml-0.5">×{r.qty}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 font-medium w-12 text-right">₹{lineTotal.toFixed(0)}</span>
+                    )}
+                  </div>
                 </div>
+              );
+            })}
+            {orderType === "ONLINE" && onlinePackageCharge > 0 && (
+              <div className="flex justify-between text-xs text-indigo-500 font-semibold pt-1 border-t border-slate-200">
+                <span>📦 Package</span><span>+₹{onlinePackageCharge}</span>
               </div>
-            ))}
-            {discountAmt > 0 && (
+            )}
+            {orderType !== "ONLINE" && discountAmt > 0 && (
               <div className="flex justify-between text-xs text-green-600 font-semibold pt-1 border-t border-slate-200">
                 <span>Discount</span><span>-₹{discountAmt.toFixed(0)}</span>
               </div>
