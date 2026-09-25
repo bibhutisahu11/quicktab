@@ -63,6 +63,7 @@ interface BatchItem {
   qty: string;
   unit: string;
   amount: string;
+  paymentMode: string;
 }
 
 function emptyForm() {
@@ -112,9 +113,9 @@ export default function ExpenseManager() {
   const itemInputRef = useRef<HTMLInputElement>(null);
 
   // Batch items (multi-item add)
-  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
-  const [batchDate, setBatchDate]   = useState(today());
-  const [batchPayMode, setBatchPayMode] = useState("Cash");
+  const [batchItems, setBatchItems]   = useState<BatchItem[]>([]);
+  const [batchDate, setBatchDate]     = useState(today());
+  const [showCatalog, setShowCatalog] = useState(true);
 
   // Edit modal
   const [editId, setEditId]     = useState<string | null>(null);
@@ -172,17 +173,18 @@ export default function ExpenseManager() {
     }
     setBatchItems((p) => [...p, {
       id: Math.random().toString(36).slice(2),
-      catId:    form.catalogCatId,
-      catLabel: cat?.label  ?? "",
-      catEmoji: cat?.emoji  ?? "💰",
-      itemName: name,
-      qty:      "",
-      unit:     found?.unit ?? "",
-      amount:   "",
+      catId:       form.catalogCatId,
+      catLabel:    cat?.label  ?? "",
+      catEmoji:    cat?.emoji  ?? "💰",
+      itemName:    name,
+      qty:         "",
+      unit:        found?.unit ?? "",
+      amount:      "",
+      paymentMode: "Cash",
     }]);
     setForm((f) => ({ ...f, catalogItem: "", itemSearch: "" }));
     setShowItemDropdown(false);
-    setTimeout(() => itemInputRef.current?.focus(), 50);
+    setShowCatalog(false); // auto-collapse catalog after each pick
   }
 
   // When parent category changes, reset child search
@@ -220,7 +222,7 @@ export default function ExpenseManager() {
             unit:        b.unit || null,
             amount:      Number(b.amount),
             date:        batchDate,
-            paymentMode: batchPayMode,
+            paymentMode: b.paymentMode,
           }),
         })
       ));
@@ -228,7 +230,7 @@ export default function ExpenseManager() {
       setForm(emptyForm());
       setBatchItems([]);
       setBatchDate(today());
-      setBatchPayMode("Cash");
+      setShowCatalog(true);
       fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -533,176 +535,177 @@ export default function ExpenseManager() {
           {/* ── Add Expense Panel ───────────────────────────────────────────────── */}
           {showAdd && (
             <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-sm p-6">
-              <h2 className="font-bold text-slate-800 text-base mb-4">➕ Add Expense</h2>
+              {/* Header with minimize toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-slate-800 text-base">➕ Add Expense</h2>
+                <button type="button" onClick={() => { setShowAdd(false); setForm(emptyForm()); setBatchItems([]); setShowCatalog(true); }}
+                  className="text-slate-400 hover:text-slate-600 text-sm font-medium px-2 py-1 rounded-lg hover:bg-slate-100">✕ Close</button>
+              </div>
               {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2 mb-4">{error}</div>}
 
               <form onSubmit={handleAdd} className="space-y-4">
 
-                {/* Row 1: Parent category */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                    Category (Parent) *
-                  </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                    {EXPENSE_CATALOG.map((cat) => (
-                      <button key={cat.id} type="button"
-                        onClick={() => selectCategory(cat.id)}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border-2 text-xs font-semibold transition-all ${
-                          form.catalogCatId === cat.id
-                            ? `${cat.color} ${cat.borderColor} shadow-sm`
-                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
-                        }`}
-                      >
-                        <span className="text-lg">{cat.emoji}</span>
-                        <span className="text-center leading-tight">{cat.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                {/* ── Catalog section (collapsible) ─────────────────────────── */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  {/* Catalog header — click to toggle */}
+                  <button type="button"
+                    onClick={() => setShowCatalog((v) => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left">
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                      {showCatalog ? "▲ Hide Catalog" : "▼ Pick Items from Catalog"}
+                    </span>
+                    {!showCatalog && batchItems.length > 0 && (
+                      <span className="text-xs bg-amber-500 text-white font-bold px-2 py-0.5 rounded-full">{batchItems.length} added</span>
+                    )}
+                  </button>
+
+                  {showCatalog && (
+                    <div className="p-4 space-y-3">
+                      {/* Category tiles */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Category *</label>
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                          {EXPENSE_CATALOG.map((cat) => (
+                            <button key={cat.id} type="button"
+                              onClick={() => selectCategory(cat.id)}
+                              className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+                                form.catalogCatId === cat.id
+                                  ? `${cat.color} ${cat.borderColor} shadow-sm`
+                                  : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
+                              }`}
+                            >
+                              <span className="text-lg">{cat.emoji}</span>
+                              <span className="text-center leading-tight">{cat.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Item search */}
+                      {form.catalogCatId && (
+                        <div className="relative">
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                            Item / Product — tap to add to list
+                          </label>
+                          <input
+                            ref={itemInputRef}
+                            type="text"
+                            value={form.itemSearch}
+                            onChange={(e) => { setForm((f) => ({ ...f, itemSearch: e.target.value, catalogItem: "" })); setShowItemDropdown(true); }}
+                            onFocus={() => setShowItemDropdown(true)}
+                            placeholder={`Search ${activeCat?.label ?? ""} items…`}
+                            className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                            autoComplete="off"
+                          />
+                          {showItemDropdown && filteredItems.length > 0 && (
+                            <div className="absolute z-30 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-56 overflow-y-auto">
+                              {filteredItems.map((item) => {
+                                const hasCat = !activeCat;
+                                const fullItem = hasCat ? (item as typeof ALL_CATALOG_ITEMS[0]) : null;
+                                const alreadyAdded = batchItems.some((b) => b.itemName === item.name && b.catId === form.catalogCatId);
+                                return (
+                                  <button key={item.name} type="button" onClick={() => selectItem(item.name)}
+                                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 border-b border-slate-50 last:border-none transition-colors ${alreadyAdded ? "bg-green-50" : "hover:bg-amber-50"}`}>
+                                    <div>
+                                      <p className="text-sm font-semibold text-slate-800">{item.name} {alreadyAdded && <span className="text-green-600 text-xs">✓ added</span>}</p>
+                                      {hasCat && fullItem && <p className="text-xs text-slate-400">{fullItem.categoryEmoji} {fullItem.categoryLabel}</p>}
+                                    </div>
+                                    <span className="text-xs text-slate-400 shrink-0">{item.unit}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Row 2: Child item search */}
-                {form.catalogCatId && (
-                  <div className="relative">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                      Item / Product *
-                    </label>
-                    <input
-                      ref={itemInputRef}
-                      type="text"
-                      value={form.itemSearch}
-                      onChange={(e) => {
-                        setForm((f) => ({ ...f, itemSearch: e.target.value, catalogItem: "" }));
-                        setShowItemDropdown(true);
-                      }}
-                      onFocus={() => setShowItemDropdown(true)}
-                      placeholder={`Search ${activeCat?.label ?? ""} items…`}
-                      className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
-                      autoComplete="off"
-                    />
-                    {form.catalogItem && (
-                      <span className="absolute right-3 top-9 text-green-500 font-bold text-sm">✓</span>
-                    )}
-                    {showItemDropdown && filteredItems.length > 0 && (
-                      <div className="absolute z-30 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-64 overflow-y-auto">
-                        {filteredItems.map((item) => {
-                          const hasCat = !activeCat;
-                          const fullItem = hasCat ? (item as typeof ALL_CATALOG_ITEMS[0]) : null;
-                          return (
-                            <button
-                              key={item.name}
-                              type="button"
-                              onClick={() => selectItem(item.name)}
-                              className="w-full text-left px-4 py-2.5 hover:bg-amber-50 flex items-center justify-between gap-2 border-b border-slate-50 last:border-none"
-                            >
-                              <div>
-                                <p className="text-sm font-semibold text-slate-800">{item.name}</p>
-                                {hasCat && fullItem && (
-                                  <p className="text-xs text-slate-400">{fullItem.categoryEmoji} {fullItem.categoryLabel}</p>
-                                )}
-                              </div>
-                              <span className="text-xs text-slate-400 shrink-0">{item.unit}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {/* ── Batch item list ────────────────────────────────────────── */}
-                {batchItems.length > 0 && (
+                {batchItems.length === 0 ? (
+                  <div className="text-center py-5 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
+                    Open catalog above → pick items → they appear here
+                  </div>
+                ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                        Items to save ({batchItems.length})
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                        🛒 Items ({batchItems.length}) — fill amount &amp; payment for each
                       </label>
-                      <span className="text-xs text-slate-400">Enter qty &amp; amount for each</span>
                     </div>
+
                     {batchItems.map((b) => (
-                      <div key={b.id} className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-2 flex-wrap">
-                        {/* Name */}
-                        <div className="flex items-center gap-1.5 flex-1 min-w-[120px]">
-                          <span className="text-base leading-none">{b.catEmoji}</span>
+                      <div key={b.id} className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                        {/* Row 1: name + remove */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base leading-none">{b.catEmoji}</span>
+                            <div>
+                              <p className="text-sm font-bold text-slate-800 leading-tight">{b.itemName}</p>
+                              <p className="text-[10px] text-slate-400">{b.catLabel}</p>
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => removeBatchItem(b.id)}
+                            className="text-slate-300 hover:text-red-500 text-xl font-bold leading-none px-1" title="Remove">×</button>
+                        </div>
+                        {/* Row 2: qty + unit + amount + payment */}
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                           <div>
-                            <p className="text-sm font-semibold text-slate-800 leading-tight">{b.itemName}</p>
-                            <p className="text-[10px] text-slate-400">{b.catLabel}</p>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Qty</label>
+                            <input type="number" min="0" step="any" value={b.qty}
+                              onChange={(e) => updateBatchItem(b.id, { qty: e.target.value })}
+                              placeholder="e.g. 2"
+                              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-center" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Unit</label>
+                            <select value={b.unit} onChange={(e) => updateBatchItem(b.id, { unit: e.target.value })}
+                              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                              <option value="">—</option>
+                              {ALL_UNITS.map((u) => <option key={u}>{u}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Amount ₹ *</label>
+                            <input type="number" min="0.01" step="0.01" value={b.amount}
+                              onChange={(e) => updateBatchItem(b.id, { amount: e.target.value })}
+                              placeholder="0.00"
+                              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Payment</label>
+                            <select value={b.paymentMode} onChange={(e) => updateBatchItem(b.id, { paymentMode: e.target.value })}
+                              className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                              {PAYMENT_MODES.map((m) => <option key={m} value={m}>{PAYMENT_ICONS[m]} {m}</option>)}
+                            </select>
                           </div>
                         </div>
-                        {/* Qty */}
-                        <input
-                          type="number" min="0" step="any"
-                          value={b.qty}
-                          onChange={(e) => updateBatchItem(b.id, { qty: e.target.value })}
-                          placeholder="Qty"
-                          className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-center"
-                        />
-                        {/* Unit */}
-                        <select
-                          value={b.unit}
-                          onChange={(e) => updateBatchItem(b.id, { unit: e.target.value })}
-                          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-                        >
-                          <option value="">Unit</option>
-                          {ALL_UNITS.map((u) => <option key={u}>{u}</option>)}
-                        </select>
-                        {/* Amount */}
-                        <div className="flex items-center gap-0.5">
-                          <span className="text-xs text-slate-400 font-bold">₹</span>
-                          <input
-                            type="number" min="0.01" step="0.01" required
-                            value={b.amount}
-                            onChange={(e) => updateBatchItem(b.id, { amount: e.target.value })}
-                            placeholder="Amount"
-                            className="w-24 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold"
-                          />
-                        </div>
-                        {/* Remove */}
-                        <button type="button" onClick={() => removeBatchItem(b.id)}
-                          className="text-slate-300 hover:text-red-500 text-xl font-bold leading-none px-1" title="Remove">×</button>
                       </div>
                     ))}
 
                     {/* Total preview */}
-                    <div className="flex justify-between items-center bg-slate-50 rounded-xl px-4 py-2 border border-slate-200">
+                    <div className="flex justify-between items-center bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200">
                       <span className="text-xs text-slate-500 font-semibold">{batchItems.length} item{batchItems.length !== 1 ? "s" : ""} · Total</span>
-                      <span className="text-base font-black text-amber-700">
+                      <span className="text-lg font-black text-amber-700">
                         {fmt(batchItems.reduce((s, b) => s + (Number(b.amount) || 0), 0))}
                       </span>
                     </div>
                   </div>
                 )}
 
-                {batchItems.length === 0 && (
-                  <div className="text-center py-4 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
-                    Select items above — they will appear here
-                  </div>
-                )}
-
-                {/* ── Shared: Date + Payment mode ──────────────────────────────── */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Date (all items)</label>
-                    <input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)}
-                      style={{ colorScheme: "light" }}
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode (all)</label>
-                    <select value={batchPayMode} onChange={(e) => setBatchPayMode(e.target.value)}
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-                      {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
-                    </select>
-                  </div>
+                {/* ── Shared date ───────────────────────────────────────────────── */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Date (for all items)</label>
+                  <input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)}
+                    style={{ colorScheme: "light" }}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
 
                 <div className="flex gap-3 pt-1">
                   <button type="submit" disabled={saving || batchItems.length === 0}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-                    {saving ? "Saving…" : batchItems.length === 0 ? "Add items above" : `✅ Save ${batchItems.length} Expense${batchItems.length !== 1 ? "s" : ""}`}
-                  </button>
-                  <button type="button" onClick={() => { setShowAdd(false); setError(""); setForm(emptyForm()); setBatchItems([]); }}
-                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 rounded-xl text-sm">
-                    Cancel
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+                    {saving ? "Saving…" : batchItems.length === 0 ? "Add items from catalog above" : `✅ Save ${batchItems.length} Expense${batchItems.length !== 1 ? "s" : ""}`}
                   </button>
                 </div>
               </form>
