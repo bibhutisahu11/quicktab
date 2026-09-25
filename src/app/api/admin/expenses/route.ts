@@ -55,7 +55,48 @@ export async function GET(req: NextRequest) {
     .map(([name, v]) => ({ name, ...v }))
     .sort((a, b) => b.total - a.total);
 
-  return NextResponse.json({ expenses, totalAmount, todayTotal, monthTotal, yearTotal, byCategory, productStats });
+  // ── Reorder Suggestions ────────────────────────────────────────────────────
+  // Items purchased last month but NOT yet purchased this month
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 1);
+  const orgWhereBase = ctx.orgId ? { orgId: ctx.orgId } : {};
+
+  const [lastMonthExpenses, thisMonthExpenses] = await Promise.all([
+    prisma.expense.findMany({
+      where: { ...orgWhereBase, date: { gte: lastMonthStart, lt: lastMonthEnd } },
+      select: { subCategory: true, description: true, category: true, amount: true },
+    }),
+    prisma.expense.findMany({
+      where: { ...orgWhereBase, date: { gte: monthStart } },
+      select: { subCategory: true, description: true },
+    }),
+  ]);
+
+  const thisMonthItems = new Set(
+    thisMonthExpenses.map((e) => (e.subCategory || e.description || "").toLowerCase().trim())
+  );
+
+  const lastMonthMap: Record<string, { count: number; total: number; category: string }> = {};
+  for (const e of lastMonthExpenses) {
+    const key = (e.subCategory || e.description || "").trim();
+    if (!key) continue;
+    if (!lastMonthMap[key]) lastMonthMap[key] = { count: 0, total: 0, category: e.category };
+    lastMonthMap[key].count++;
+    lastMonthMap[key].total += e.amount;
+  }
+
+  const reorderSuggestions = Object.entries(lastMonthMap)
+    .filter(([name]) => !thisMonthItems.has(name.toLowerCase()))
+    .map(([name, v]) => ({
+      name,
+      category: v.category,
+      lastMonthCount: v.count,
+      lastMonthTotal: v.total,
+      avgAmount: Math.round(v.total / v.count),
+    }))
+    .sort((a, b) => b.lastMonthCount - a.lastMonthCount);
+
+  return NextResponse.json({ expenses, totalAmount, todayTotal, monthTotal, yearTotal, byCategory, productStats, reorderSuggestions });
 }
 
 export async function POST(req: NextRequest) {

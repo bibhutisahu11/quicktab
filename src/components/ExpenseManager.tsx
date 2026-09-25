@@ -27,6 +27,14 @@ interface ProductStat {
   category: string;
 }
 
+interface ReorderSuggestion {
+  name: string;
+  category: string;
+  lastMonthCount: number;
+  lastMonthTotal: number;
+  avgAmount: number;
+}
+
 interface Summary {
   expenses: Expense[];
   totalAmount: number;
@@ -35,6 +43,7 @@ interface Summary {
   yearTotal: number;
   byCategory: Record<string, number>;
   productStats: ProductStat[];
+  reorderSuggestions: ReorderSuggestion[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -330,6 +339,43 @@ export default function ExpenseManager() {
       {/* ══════════════════════ ANALYTICS TAB ══════════════════════════════════ */}
       {activeTab === "analytics" && (
         <div className="space-y-6">
+
+          {/* ── Reorder Suggestions ─────────────────────────────────────────────── */}
+          {(data?.reorderSuggestions?.length ?? 0) > 0 && (() => {
+            const suggestions = data!.reorderSuggestions;
+            const currentMonth = new Date().toLocaleDateString("en-IN", { month: "long" });
+            return (
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div>
+                    <h3 className="font-black text-amber-800 text-base">🛒 What to Reorder This Month</h3>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Based on last month&apos;s purchases — not yet ordered in {currentMonth}. Resets automatically on 1st.
+                    </p>
+                  </div>
+                  <span className="bg-amber-400 text-white text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
+                    {suggestions.length} items
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {suggestions.map((s) => (
+                    <div key={s.name} className="bg-white border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800 text-sm truncate">{s.name}</p>
+                        <p className="text-xs text-slate-400">
+                          {getCatEmoji(s.category)} {s.category} · bought {s.lastMonthCount}× last month
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-amber-700">{fmt(s.avgAmount)}</p>
+                        <p className="text-xs text-slate-400">avg/purchase</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Monthly bar chart */}
           {monthlyTotals.length > 0 && (

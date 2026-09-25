@@ -4,6 +4,15 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+// Platform commission rates (% taken by the platform)
+const COMMISSION: Record<string, number> = {
+  Swiggy:     0.30,
+  Zomato:     0.30,
+  Toing:      0.05,
+  Ownly:      0.00,
+  "Magic Pin": 0.26,
+};
+
 export async function GET(req: NextRequest) {
   const ctx = await getOrgContext(req, {
     requireRoles: ["SUPER_ADMIN", "HOTEL_ADMIN", "MANAGER"],
@@ -105,6 +114,35 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // ── Monthly P&L (current month) ────────────────────────────────────────────
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthOrders = await prisma.order.findMany({
+      where: { ...orgFilter, createdAt: { gte: monthStart }, status: { not: "CANCELLED" } },
+      select: { total: true, type: true, onlinePlatform: true },
+    });
+
+    let grossRevenue = 0;
+    let totalCommission = 0;
+    const commissionByPlatform: Record<string, number> = {};
+    for (const o of thisMonthOrders) {
+      grossRevenue += o.total;
+      if (o.type === "ONLINE") {
+        const rate = COMMISSION[o.onlinePlatform ?? ""] ?? 0;
+        const commission = o.total * rate;
+        totalCommission += commission;
+        const plat = o.onlinePlatform ?? "Unknown";
+        commissionByPlatform[plat] = (commissionByPlatform[plat] ?? 0) + commission;
+      }
+    }
+    const netRevenue = grossRevenue - totalCommission;
+
+    const thisMonthExpenses = await prisma.expense.aggregate({
+      where: { ...(ctx.orgId ? { orgId: ctx.orgId } : {}), date: { gte: monthStart } },
+      _sum: { amount: true },
+    });
+    const totalExpenses = thisMonthExpenses._sum.amount ?? 0;
+    const monthlyProfit = netRevenue - totalExpenses;
+
     return NextResponse.json({
       topItems: topItems.map((i) => ({
         name: i.name,
@@ -117,6 +155,15 @@ export async function GET(req: NextRequest) {
       platformStats: Object.entries(platformStats)
         .map(([name, v]) => ({ name, ...v }))
         .sort((a, b) => b.count - a.count),
+      profitLoss: {
+        grossRevenue,
+        totalCommission,
+        commissionByPlatform,
+        netRevenue,
+        totalExpenses,
+        monthlyProfit,
+        month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+      },
       summary: {
         todayRevenue: todayStats._sum.total ?? 0,
         todayOrders: todayStats._count.id,

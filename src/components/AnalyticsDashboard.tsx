@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 interface TopItem {
   name: string;
@@ -31,6 +32,16 @@ interface Summary {
 
 interface PlatformStat { name: string; count: number; revenue: number; }
 
+interface ProfitLoss {
+  grossRevenue: number;
+  totalCommission: number;
+  commissionByPlatform: Record<string, number>;
+  netRevenue: number;
+  totalExpenses: number;
+  monthlyProfit: number;
+  month: string;
+}
+
 interface AnalyticsData {
   topItems: TopItem[];
   revenueByDay: DayRevenue[];
@@ -42,6 +53,7 @@ interface AnalyticsData {
     offline: { count: number; revenue: number };
   };
   platformStats?: PlatformStat[];
+  profitLoss?: ProfitLoss;
 }
 
 const PERIODS = [
@@ -63,6 +75,10 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 }
 
 export default function AnalyticsDashboard() {
+  const { data: session } = useSession();
+  const role = session?.user?.role ?? "";
+  const isAdmin = ["HOTEL_ADMIN", "SUPER_ADMIN"].includes(role);
+
   const [period, setPeriod] = useState("month");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,6 +149,64 @@ export default function AnalyticsDashboard() {
               </div>
             ))}
           </div>
+
+          {/* ── Monthly P&L — admin only ── */}
+          {isAdmin && data.profitLoss && (() => {
+            const pl = data.profitLoss!;
+            const profit = pl.monthlyProfit;
+            const isProfit = profit >= 0;
+            const monthLabel = new Date(pl.month + "-02").toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+            const fmtR = (n: number) => `₹${Math.abs(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+            return (
+              <div className={`rounded-2xl border-2 shadow-sm p-6 space-y-4 ${isProfit ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300"}`}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h2 className="font-black text-slate-800 text-xl">
+                      {isProfit ? "✅" : "⚠️"} Monthly P&amp;L — {monthLabel}
+                    </h2>
+                    <p className="text-slate-500 text-xs mt-0.5">After platform commissions &amp; expenses</p>
+                  </div>
+                  <div className={`text-3xl font-black ${isProfit ? "text-green-600" : "text-red-600"}`}>
+                    {isProfit ? "+" : "-"}{fmtR(profit)}
+                    <span className="text-base font-normal ml-1">{isProfit ? "Profit" : "Loss"}</span>
+                  </div>
+                </div>
+
+                {/* Breakdown rows */}
+                <div className="space-y-2">
+                  {[
+                    { label: "Gross Revenue (all orders)", value: pl.grossRevenue, color: "text-slate-700", sign: "" },
+                    { label: "Platform Commissions Deducted", value: pl.totalCommission, color: "text-orange-600", sign: "−" },
+                    { label: "Net Revenue", value: pl.netRevenue, color: "text-blue-700", sign: "" },
+                    { label: "Total Expenses This Month", value: pl.totalExpenses, color: "text-rose-600", sign: "−" },
+                  ].map((row) => (
+                    <div key={row.label} className="flex justify-between items-center py-1.5 border-b border-black/5 last:border-none">
+                      <span className="text-sm text-slate-600">{row.label}</span>
+                      <span className={`font-bold text-sm ${row.color}`}>{row.sign}{fmtR(row.value)}</span>
+                    </div>
+                  ))}
+                  <div className={`flex justify-between items-center py-2 rounded-xl px-3 font-black text-base ${isProfit ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    <span>{isProfit ? "Net Profit" : "Net Loss"}</span>
+                    <span>{isProfit ? "+" : "-"}{fmtR(profit)}</span>
+                  </div>
+                </div>
+
+                {/* Per-platform commission breakdown */}
+                {Object.keys(pl.commissionByPlatform).length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Commission Breakdown by Platform</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(pl.commissionByPlatform).map(([plat, comm]) => (
+                        <span key={plat} className="bg-white border border-orange-200 text-orange-700 text-xs font-semibold px-3 py-1.5 rounded-xl">
+                          {plat}: {fmtR(comm)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Top selling items */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
