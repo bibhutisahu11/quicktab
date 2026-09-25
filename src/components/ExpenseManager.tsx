@@ -183,8 +183,8 @@ export default function ExpenseManager() {
       paymentMode: "Cash",
     }]);
     setForm((f) => ({ ...f, catalogItem: "", itemSearch: "" }));
-    setShowItemDropdown(false);
-    setShowCatalog(false); // auto-collapse catalog after each pick
+    setShowItemDropdown(true); // keep dropdown open for next item
+    setTimeout(() => itemInputRef.current?.focus(), 50);
   }
 
   // When parent category changes, reset child search
@@ -546,7 +546,7 @@ export default function ExpenseManager() {
               <form onSubmit={handleAdd} className="space-y-4">
 
                 {/* ── Catalog section (collapsible) ─────────────────────────── */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="border border-slate-200 rounded-xl">
                   {/* Catalog header — click to toggle */}
                   <button type="button"
                     onClick={() => setShowCatalog((v) => !v)}
@@ -585,7 +585,7 @@ export default function ExpenseManager() {
                       {form.catalogCatId && (
                         <div className="relative">
                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                            Item / Product — tap to add to list
+                            Search &amp; tap items to add — keep picking more ↓
                           </label>
                           <input
                             ref={itemInputRef}
@@ -593,21 +593,28 @@ export default function ExpenseManager() {
                             value={form.itemSearch}
                             onChange={(e) => { setForm((f) => ({ ...f, itemSearch: e.target.value, catalogItem: "" })); setShowItemDropdown(true); }}
                             onFocus={() => setShowItemDropdown(true)}
-                            placeholder={`Search ${activeCat?.label ?? ""} items…`}
+                            onBlur={() => setTimeout(() => setShowItemDropdown(false), 150)}
+                            placeholder={`Type to search ${activeCat?.label ?? ""} items, or scroll list…`}
                             className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
                             autoComplete="off"
                           />
+                          {/* Dropdown — z-50 so it renders above everything */}
                           {showItemDropdown && filteredItems.length > 0 && (
-                            <div className="absolute z-30 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-56 overflow-y-auto">
+                            <div className="absolute z-50 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl mt-1 max-h-60 overflow-y-auto">
                               {filteredItems.map((item) => {
                                 const hasCat = !activeCat;
                                 const fullItem = hasCat ? (item as typeof ALL_CATALOG_ITEMS[0]) : null;
                                 const alreadyAdded = batchItems.some((b) => b.itemName === item.name && b.catId === form.catalogCatId);
                                 return (
-                                  <button key={item.name} type="button" onClick={() => selectItem(item.name)}
+                                  <button key={item.name} type="button"
+                                    onMouseDown={(e) => e.preventDefault()} // prevent blur before click
+                                    onClick={() => selectItem(item.name)}
                                     className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 border-b border-slate-50 last:border-none transition-colors ${alreadyAdded ? "bg-green-50" : "hover:bg-amber-50"}`}>
                                     <div>
-                                      <p className="text-sm font-semibold text-slate-800">{item.name} {alreadyAdded && <span className="text-green-600 text-xs">✓ added</span>}</p>
+                                      <p className="text-sm font-semibold text-slate-800">
+                                        {item.name}
+                                        {alreadyAdded && <span className="ml-1.5 text-green-600 text-xs font-bold">✓ added</span>}
+                                      </p>
                                       {hasCat && fullItem && <p className="text-xs text-slate-400">{fullItem.categoryEmoji} {fullItem.categoryLabel}</p>}
                                     </div>
                                     <span className="text-xs text-slate-400 shrink-0">{item.unit}</span>
