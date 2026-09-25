@@ -43,7 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const hasSidebar = session && !isLoginPage;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 text-slate-800">
       {hasSidebar && <AdminNav orgName={orgName} orgLogo={orgLogo} initialRole={session?.user?.role ?? null} />}
       {hasSidebar && <WelcomeToast />}
       {hasSidebar && <CloseStaleOrders />}
