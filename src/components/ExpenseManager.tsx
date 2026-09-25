@@ -53,19 +53,27 @@ const PAYMENT_ICONS: Record<string, string> = {
   Cash: "💵", UPI: "📱", Card: "💳", "Bank Transfer": "🏦", Cheque: "📄",
 };
 
+// Batch item accumulated before saving
+interface BatchItem {
+  id: string;
+  catId: string;
+  catLabel: string;
+  catEmoji: string;
+  itemName: string;
+  qty: string;
+  unit: string;
+  amount: string;
+}
+
 function emptyForm() {
   return {
     catalogCatId: "",        // parent category id
     catalogItem:  "",        // child item name
     itemSearch:   "",        // search text in child dropdown
-    quantity:     "",
-    unit:         "",
-    amount:       "",
-    description:  "",        // extra notes
-    date: new Date().toISOString().slice(0, 10),
-    paymentMode:  "Cash",
   };
 }
+
+function today() { return new Date().toISOString().slice(0, 10); }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -103,9 +111,14 @@ export default function ExpenseManager() {
   const [showItemDropdown, setShowItemDropdown] = useState(false);
   const itemInputRef = useRef<HTMLInputElement>(null);
 
+  // Batch items (multi-item add)
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const [batchDate, setBatchDate]   = useState(today());
+  const [batchPayMode, setBatchPayMode] = useState("Cash");
+
   // Edit modal
   const [editId, setEditId]     = useState<string | null>(null);
-  const [editForm, setEditForm] = useState(emptyForm());
+  const [editForm, setEditForm] = useState({ ...emptyForm(), quantity: "", unit: "", amount: "", description: "", date: today(), paymentMode: "Cash" });
 
   // Scan
   const [showScan, setShowScan] = useState(false);
@@ -146,23 +159,44 @@ export default function ExpenseManager() {
     return src.filter((i) => i.name.toLowerCase().includes(q)).slice(0, 50);
   }, [activeCat, form.itemSearch]);
 
-  // When user selects an item, auto-fill the unit
+  // When user selects an item → push into batch list, clear search for next item
   function selectItem(name: string) {
-    const found = ALL_CATALOG_ITEMS.find((i) => i.name === name);
-    setForm((f) => ({
-      ...f,
-      catalogItem: name,
-      itemSearch:  name,
-      unit: found?.unit ?? f.unit,
-    }));
+    const found  = ALL_CATALOG_ITEMS.find((i) => i.name === name);
+    const cat    = EXPENSE_CATALOG.find((c) => c.id === form.catalogCatId);
+    // Don't duplicate the same item in batch
+    if (batchItems.find((b) => b.itemName === name && b.catId === form.catalogCatId)) {
+      setForm((f) => ({ ...f, catalogItem: "", itemSearch: "" }));
+      setShowItemDropdown(false);
+      setTimeout(() => itemInputRef.current?.focus(), 50);
+      return;
+    }
+    setBatchItems((p) => [...p, {
+      id: Math.random().toString(36).slice(2),
+      catId:    form.catalogCatId,
+      catLabel: cat?.label  ?? "",
+      catEmoji: cat?.emoji  ?? "💰",
+      itemName: name,
+      qty:      "",
+      unit:     found?.unit ?? "",
+      amount:   "",
+    }]);
+    setForm((f) => ({ ...f, catalogItem: "", itemSearch: "" }));
     setShowItemDropdown(false);
+    setTimeout(() => itemInputRef.current?.focus(), 50);
   }
 
-  // When parent category changes, reset child
+  // When parent category changes, reset child search
   function selectCategory(id: string) {
-    setForm((f) => ({ ...f, catalogCatId: id, catalogItem: "", itemSearch: "", unit: "" }));
+    setForm((f) => ({ ...f, catalogCatId: id, catalogItem: "", itemSearch: "" }));
     setShowItemDropdown(true);
     setTimeout(() => itemInputRef.current?.focus(), 50);
+  }
+
+  function updateBatchItem(id: string, patch: Partial<BatchItem>) {
+    setBatchItems((p) => p.map((b) => b.id === id ? { ...b, ...patch } : b));
+  }
+  function removeBatchItem(id: string) {
+    setBatchItems((p) => p.filter((b) => b.id !== id));
   }
 
   // ── Save ─────────────────────────────────────────────────────────────────────
@@ -170,29 +204,31 @@ export default function ExpenseManager() {
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!form.catalogCatId) { setError("Please select a category"); return; }
-    if (!form.catalogItem && !form.itemSearch) { setError("Please select or type an item"); return; }
+    if (batchItems.length === 0) { setError("Add at least one item from the catalog above"); return; }
+    const invalid = batchItems.find((b) => !b.amount || Number(b.amount) <= 0);
+    if (invalid) { setError(`Enter amount for "${invalid.itemName}"`); return; }
     setSaving(true);
     try {
-      const cat = EXPENSE_CATALOG.find((c) => c.id === form.catalogCatId);
-      const res = await fetch("/api/admin/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category:    cat?.label ?? form.catalogCatId,
-          subCategory: form.catalogItem || form.itemSearch,
-          description: form.description || null,
-          quantity:    form.quantity ? Number(form.quantity) : null,
-          unit:        form.unit || null,
-          amount:      Number(form.amount),
-          date:        form.date,
-          paymentMode: form.paymentMode,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
+      await Promise.all(batchItems.map((b) =>
+        fetch("/api/admin/expenses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category:    b.catLabel,
+            subCategory: b.itemName,
+            quantity:    b.qty ? Number(b.qty) : null,
+            unit:        b.unit || null,
+            amount:      Number(b.amount),
+            date:        batchDate,
+            paymentMode: batchPayMode,
+          }),
+        })
+      ));
       setShowAdd(false);
       setForm(emptyForm());
+      setBatchItems([]);
+      setBatchDate(today());
+      setBatchPayMode("Cash");
       fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -573,64 +609,98 @@ export default function ExpenseManager() {
                   </div>
                 )}
 
-                {/* Row 3: Qty + Unit + Amount side by side */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Quantity</label>
-                    <input type="number" min="0" step="any" value={form.quantity}
-                      onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                      placeholder="e.g. 2.5"
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Unit</label>
-                    <select value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-                      <option value="">—</option>
-                      {ALL_UNITS.map((u) => <option key={u}>{u}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Amount (₹) *</label>
-                    <input type="number" min="0.01" step="0.01" required value={form.amount}
-                      onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                      placeholder="0.00"
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold" />
-                  </div>
-                </div>
+                {/* ── Batch item list ────────────────────────────────────────── */}
+                {batchItems.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                        Items to save ({batchItems.length})
+                      </label>
+                      <span className="text-xs text-slate-400">Enter qty &amp; amount for each</span>
+                    </div>
+                    {batchItems.map((b) => (
+                      <div key={b.id} className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-2 flex-wrap">
+                        {/* Name */}
+                        <div className="flex items-center gap-1.5 flex-1 min-w-[120px]">
+                          <span className="text-base leading-none">{b.catEmoji}</span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800 leading-tight">{b.itemName}</p>
+                            <p className="text-[10px] text-slate-400">{b.catLabel}</p>
+                          </div>
+                        </div>
+                        {/* Qty */}
+                        <input
+                          type="number" min="0" step="any"
+                          value={b.qty}
+                          onChange={(e) => updateBatchItem(b.id, { qty: e.target.value })}
+                          placeholder="Qty"
+                          className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-center"
+                        />
+                        {/* Unit */}
+                        <select
+                          value={b.unit}
+                          onChange={(e) => updateBatchItem(b.id, { unit: e.target.value })}
+                          className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        >
+                          <option value="">Unit</option>
+                          {ALL_UNITS.map((u) => <option key={u}>{u}</option>)}
+                        </select>
+                        {/* Amount */}
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-xs text-slate-400 font-bold">₹</span>
+                          <input
+                            type="number" min="0.01" step="0.01" required
+                            value={b.amount}
+                            onChange={(e) => updateBatchItem(b.id, { amount: e.target.value })}
+                            placeholder="Amount"
+                            className="w-24 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold"
+                          />
+                        </div>
+                        {/* Remove */}
+                        <button type="button" onClick={() => removeBatchItem(b.id)}
+                          className="text-slate-300 hover:text-red-500 text-xl font-bold leading-none px-1" title="Remove">×</button>
+                      </div>
+                    ))}
 
-                {/* Row 4: Date + Payment mode */}
+                    {/* Total preview */}
+                    <div className="flex justify-between items-center bg-slate-50 rounded-xl px-4 py-2 border border-slate-200">
+                      <span className="text-xs text-slate-500 font-semibold">{batchItems.length} item{batchItems.length !== 1 ? "s" : ""} · Total</span>
+                      <span className="text-base font-black text-amber-700">
+                        {fmt(batchItems.reduce((s, b) => s + (Number(b.amount) || 0), 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {batchItems.length === 0 && (
+                  <div className="text-center py-4 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
+                    Select items above — they will appear here
+                  </div>
+                )}
+
+                {/* ── Shared: Date + Payment mode ──────────────────────────────── */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Date</label>
-                    <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Date (all items)</label>
+                    <input type="date" value={batchDate} onChange={(e) => setBatchDate(e.target.value)}
                       style={{ colorScheme: "light" }}
                       className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode</label>
-                    <select value={form.paymentMode} onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode (all)</label>
+                    <select value={batchPayMode} onChange={(e) => setBatchPayMode(e.target.value)}
                       className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
                       {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
                     </select>
                   </div>
                 </div>
 
-                {/* Row 5: Notes (optional) */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Notes (optional)</label>
-                  <input type="text" value={form.description}
-                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                    placeholder="e.g. Bought from local market"
-                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
-                </div>
-
                 <div className="flex gap-3 pt-1">
-                  <button type="submit" disabled={saving}
+                  <button type="submit" disabled={saving || batchItems.length === 0}
                     className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-                    {saving ? "Saving…" : "✅ Save Expense"}
+                    {saving ? "Saving…" : batchItems.length === 0 ? "Add items above" : `✅ Save ${batchItems.length} Expense${batchItems.length !== 1 ? "s" : ""}`}
                   </button>
-                  <button type="button" onClick={() => { setShowAdd(false); setError(""); }}
+                  <button type="button" onClick={() => { setShowAdd(false); setError(""); setForm(emptyForm()); setBatchItems([]); }}
                     className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 rounded-xl text-sm">
                     Cancel
                   </button>
