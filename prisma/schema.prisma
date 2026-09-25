@@ -194,6 +194,7 @@ model Order {
   paymentScreenshot  String?      @db.Text
   screenshotExpiry   DateTime?
   parcelCharge       Float         @default(0)
+  onlinePlatform    String?       // "Swiggy" | "Zomato" | "Toing" | "Ownly" | "Magic Pin" | null
   paymentVerified   Boolean       @default(false)
   nudgeCount        Int           @default(0)
   nudgedAt          DateTime?
@@ -276,6 +277,7 @@ model Discount {
 enum OrderType {
   TABLE
   PARCEL
+  ONLINE
 }
 
 model Feedback {

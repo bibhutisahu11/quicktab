@@ -29,12 +29,19 @@ interface Summary {
   totalOrders: number;
 }
 
+interface PlatformStat { name: string; count: number; revenue: number; }
+
 interface AnalyticsData {
   topItems: TopItem[];
   revenueByDay: DayRevenue[];
   revenueByMonth: MonthRevenue[];
   summary: Summary;
   period: string;
+  channelStats?: {
+    online: { count: number; revenue: number };
+    offline: { count: number; revenue: number };
+  };
+  platformStats?: PlatformStat[];
 }
 
 const PERIODS = [
@@ -190,6 +197,80 @@ export default function AnalyticsDashboard() {
               </div>
             )}
           </div>
+
+          {/* Online vs Offline channel breakdown */}
+          {data.channelStats && (data.channelStats.online.count > 0 || data.channelStats.offline.count > 0) && (() => {
+            const { online, offline } = data.channelStats!;
+            const totalCount = online.count + offline.count;
+            const onlinePct = totalCount > 0 ? (online.count / totalCount) * 100 : 0;
+            const fmt = (n: number) => `₹${n.toFixed(0)}`;
+            return (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+                <div>
+                  <h2 className="font-bold text-slate-800 text-lg mb-1">🌐 Online vs Offline Orders</h2>
+                  <p className="text-slate-400 text-xs">Last 30 days</p>
+                </div>
+
+                {/* Side-by-side cards */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                    <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-1">🌐 Online</p>
+                    <p className="text-2xl font-black text-indigo-700">{online.count}</p>
+                    <p className="text-sm text-indigo-600 font-semibold">{fmt(online.revenue)}</p>
+                    <p className="text-xs text-slate-400 mt-1">{onlinePct.toFixed(0)}% of orders</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">🏪 Offline</p>
+                    <p className="text-2xl font-black text-slate-700">{offline.count}</p>
+                    <p className="text-sm text-slate-600 font-semibold">{fmt(offline.revenue)}</p>
+                    <p className="text-xs text-slate-400 mt-1">{(100 - onlinePct).toFixed(0)}% of orders</p>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div>
+                  <div className="flex text-xs text-slate-500 justify-between mb-1">
+                    <span>Online {onlinePct.toFixed(0)}%</span>
+                    <span>Offline {(100 - onlinePct).toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full h-3 rounded-full overflow-hidden flex">
+                    <div className="bg-indigo-400 h-full transition-all" style={{ width: `${onlinePct}%` }} />
+                    <div className="bg-slate-300 h-full flex-1" />
+                  </div>
+                </div>
+
+                {/* Per-platform breakdown */}
+                {data.platformStats && data.platformStats.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">By Platform (last 30 days)</p>
+                    <div className="space-y-2.5">
+                      {data.platformStats.map((p) => {
+                        const maxCount = data.platformStats![0].count;
+                        const PLAT_COLORS: Record<string, string> = {
+                          Swiggy:    "bg-orange-500",
+                          Zomato:    "bg-red-500",
+                          Toing:     "bg-purple-500",
+                          Ownly:     "bg-blue-500",
+                          "Magic Pin": "bg-pink-500",
+                        };
+                        const color = PLAT_COLORS[p.name] ?? "bg-slate-400";
+                        return (
+                          <div key={p.name} className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-slate-700 w-24">{p.name}</span>
+                            <div className="flex-1 bg-slate-100 rounded-full h-2.5">
+                              <div className={`${color} h-full rounded-full`} style={{ width: `${(p.count / maxCount) * 100}%` }} />
+                            </div>
+                            <span className="text-sm font-bold text-slate-800 w-8 text-right">{p.count}</span>
+                            <span className="text-xs text-slate-500 w-20 text-right">{fmt(p.revenue)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Monthly Revenue */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">

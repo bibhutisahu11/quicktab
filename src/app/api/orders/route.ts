@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         email: true, birthday: true, deliveryAddress: true, notes: true,
         status: true, discountAmount: true, total: true, paymentId: true,
         paymentMethod: true, upiUtr: true, screenshotExpiry: true,
-        parcelCharge: true, paymentVerified: true, nudgeCount: true,
+        parcelCharge: true, onlinePlatform: true, paymentVerified: true, nudgeCount: true,
         nudgedAt: true, isRepeatDiner: true, orgId: true,
         createdAt: true, updatedAt: true,
         items: true,
@@ -45,8 +45,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount, parcelCharge, paymentMethod, adminCreated, tableId: directTableId } = body;
+    const { type, tableToken, orgSlug, customerName, phone, email, birthday, deliveryAddress, notes, items, upiUtr, paymentScreenshot, discountAmount, paidAmount, parcelCharge, paymentMethod, adminCreated, tableId: directTableId, onlinePlatform, onlineTotal } = body;
     const isCash = paymentMethod === "CASH";
+    const isOnlineOrder = type === "ONLINE";
     // adminCreated: order placed by admin/biller at the counter — skip payment validation
     const isAdminCreated = !!adminCreated;
 
@@ -121,6 +122,44 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── ONLINE ORDERS: use manually entered items + total ───────────────────
+    if (isOnlineOrder) {
+      if (!onlinePlatform) {
+        return NextResponse.json({ error: "onlinePlatform is required for online orders" }, { status: 400 });
+      }
+      const appliedParcelCharge = Math.max(0, Number(parcelCharge) || 0);
+      const total = Math.max(0, Number(onlineTotal) || 0);
+
+      // Build order items from free-text entries (name + price + qty)
+      const orderItemsData = (items as { name: string; price: number; quantity: number }[]).map((item) => ({
+        name: item.name,
+        price: Number(item.price) * Number(item.quantity),
+        quantity: Number(item.quantity),
+        menuItemId: null,
+      }));
+
+      const order = await prisma.order.create({
+        data: {
+          type: "ONLINE",
+          orgId,
+          customerName,
+          phone: phone ?? null,
+          notes: notes ?? null,
+          total,
+          discountAmount: 0,
+          parcelCharge: appliedParcelCharge,
+          onlinePlatform,
+          paymentMethod: paymentMethod ?? "CASH",
+          status: "PREPARING",
+          isRepeatDiner: false,
+          items: { create: orderItemsData },
+        },
+        include: { items: true },
+      });
+      return NextResponse.json(order, { status: 201 });
+    }
+
+    // ── STANDARD ORDERS ──────────────────────────────────────────────────────
     // Validate menu items scoped to org
     const menuItemIds: string[] = items.map((i: { menuItemId: string }) => i.menuItemId);
     const menuItems = await prisma.menuItem.findMany({
@@ -157,9 +196,6 @@ export async function POST(req: NextRequest) {
       const menuItem = menuMap.get(item.menuItemId)!;
       let linePrice: number;
       if (menuItem.unit === "100g" && typeof item.customGrams === "number" && item.customGrams > 0) {
-        // Weight-based item: price is stored per 100g in the DB.
-        // Convert to per-kg (× 10), then scale by the customer's actual gram entry.
-        // e.g. 210g of Chhenapoda at ₹65/100g → (210/1000) × 650 = ₹136.5 → ₹137
         linePrice = Math.ceil((item.customGrams / 1000) * (menuItem.price * 10));
       } else {
         linePrice = menuItem.price * item.quantity;
@@ -233,6 +269,7 @@ export async function POST(req: NextRequest) {
           ? new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
           : null,
         parcelCharge: appliedParcelCharge,
+        onlinePlatform: onlinePlatform ?? null,
         paymentMethod: isCash ? "CASH" : "UPI",
         items: { create: orderItemsData },
       },

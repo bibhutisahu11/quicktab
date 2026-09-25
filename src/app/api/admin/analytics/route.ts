@@ -44,16 +44,31 @@ export async function GET(req: NextRequest) {
     const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const recentOrders = await prisma.order.findMany({
       where: { ...orgFilter, createdAt: { gte: last30Days }, status: { not: "CANCELLED" } },
-      select: { createdAt: true, total: true, type: true },
+      select: { createdAt: true, total: true, type: true, onlinePlatform: true },
       orderBy: { createdAt: "asc" },
     });
 
     const revenueByDay: Record<string, { revenue: number; orders: number }> = {};
+    // Online vs offline counters
+    const channelStats = { online: { count: 0, revenue: 0 }, offline: { count: 0, revenue: 0 } };
+    const platformStats: Record<string, { count: number; revenue: number }> = {};
     for (const order of recentOrders) {
       const key = order.createdAt.toISOString().slice(0, 10);
       if (!revenueByDay[key]) revenueByDay[key] = { revenue: 0, orders: 0 };
       revenueByDay[key].revenue += order.total;
       revenueByDay[key].orders += 1;
+      // Channel breakdown
+      if (order.type === "ONLINE") {
+        channelStats.online.count++;
+        channelStats.online.revenue += order.total;
+        const plat = order.onlinePlatform ?? "Unknown";
+        if (!platformStats[plat]) platformStats[plat] = { count: 0, revenue: 0 };
+        platformStats[plat].count++;
+        platformStats[plat].revenue += order.total;
+      } else {
+        channelStats.offline.count++;
+        channelStats.offline.revenue += order.total;
+      }
     }
 
     const last6Months = new Date(now.getFullYear(), now.getMonth() - 5, 1);
@@ -98,6 +113,10 @@ export async function GET(req: NextRequest) {
       })),
       revenueByDay: Object.entries(revenueByDay).map(([date, data]) => ({ date, ...data })),
       revenueByMonth: Object.entries(revenueByMonth).map(([month, data]) => ({ month, ...data })),
+      channelStats,
+      platformStats: Object.entries(platformStats)
+        .map(([name, v]) => ({ name, ...v }))
+        .sort((a, b) => b.count - a.count),
       summary: {
         todayRevenue: todayStats._sum.total ?? 0,
         todayOrders: todayStats._count.id,

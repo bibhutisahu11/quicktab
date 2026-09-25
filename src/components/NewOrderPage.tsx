@@ -6,6 +6,9 @@ import { MenuItemData } from "@/types";
 
 interface Table { id: string; name: string; }
 interface CartRow { item: MenuItemData; qty: number; customGrams?: number; customPrice?: number; }
+interface OnlineItem { name: string; qty: number; price: number; }
+const ONLINE_PLATFORMS = ["Swiggy", "Zomato", "Toing", "Ownly", "Magic Pin"] as const;
+type OnlinePlatform = typeof ONLINE_PLATFORMS[number];
 
 export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([]);
@@ -15,10 +18,14 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [orderType, setOrderType] = useState<"TABLE" | "PARCEL">("TABLE");
+  const [orderType, setOrderType] = useState<"TABLE" | "PARCEL" | "ONLINE">("TABLE");
   const [tableId, setTableId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI">("CASH");
   const [parcelCharge, setParcelCharge] = useState(0);
+  // Online order state
+  const [onlinePlatform, setOnlinePlatform] = useState<OnlinePlatform>("Swiggy");
+  const [onlineItems, setOnlineItems] = useState<OnlineItem[]>([{ name: "", qty: 1, price: 0 }]);
+  const [onlinePackageCharge, setOnlinePackageCharge] = useState(0);
   const [suggestionIdx, setSuggestionIdx] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
   const [discountInput, setDiscountInput] = useState("");
@@ -114,25 +121,58 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
   const discountAmt = Math.min(Math.max(parseFloat(discountInput) || 0, 0), subtotal);
   const total = subtotal - discountAmt + (orderType === "PARCEL" ? parcelCharge : 0);
 
+  // Online totals
+  const onlineSubtotal = onlineItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const onlineTotal = onlineSubtotal + onlinePackageCharge;
+
   function resetForm() {
     setCart([]); setCustomerName(""); setPhone(""); setNotes("");
     setOrderType("TABLE"); setDiscountInput(""); setParcelCharge(0);
     setSearch(""); setSuccessOrderId(null); setError("");
+    setOnlineItems([{ name: "", qty: 1, price: 0 }]); setOnlinePackageCharge(0);
     if (tables.length > 0) setTableId(tables[0].id);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!customerName.trim()) { setError("Customer name is required"); return; }
-    if (cart.length === 0) { setError("Add at least one item"); return; }
     if (orderType === "TABLE" && !tableId) { setError("Select a table"); return; }
 
-    const hasDahipani = cart.some((r) => r.item.name.toLowerCase().includes("dahipani"));
-    const hasAloodum = cart.some((r) => ["dahibara", "aloodum", "aloo dum"].some((k) => r.item.name.toLowerCase().includes(k)));
-    if (hasDahipani && !hasAloodum) {
-      setError("🚫 Dahipani can only be added with Dahibara Aloodum.");
+    // ── Online order submission ───────────────────────────────────────────────
+    if (orderType === "ONLINE") {
+      const validItems = onlineItems.filter((i) => i.name.trim() && i.price > 0);
+      if (validItems.length === 0) { setError("Add at least one item with name and price"); return; }
+      setError(""); setSubmitting(true);
+      try {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "ONLINE",
+            orgSlug,
+            customerName: customerName.trim() || onlinePlatform,
+            phone: phone.trim() || undefined,
+            notes: notes.trim() || undefined,
+            paymentMethod,
+            onlinePlatform,
+            parcelCharge: onlinePackageCharge,
+            onlineTotal,
+            items: validItems.map((i) => ({ name: i.name, price: i.price, quantity: i.qty })),
+          }),
+        });
+        if (!res.ok) { const d = await res.json(); setError(d.error ?? "Failed"); return; }
+        const order = await res.json();
+        setSuccessOrderId(order.id ?? "OK");
+      } catch { setError("Network error. Please try again."); }
+      finally { setSubmitting(false); }
       return;
     }
+
+    // ── Standard order submission ─────────────────────────────────────────────
+    if (cart.length === 0) { setError("Add at least one item"); return; }
+    const hasDahipani = cart.some((r) => r.item.name.toLowerCase().includes("dahipani"));
+    const hasAloodum = cart.some((r) => ["dahibara", "aloodum", "aloo dum"].some((k) => r.item.name.toLowerCase().includes(k)));
+    if (hasDahipani && !hasAloodum) { setError("🚫 Dahipani can only be added with Dahibara Aloodum."); return; }
 
     setError(""); setSubmitting(true);
     try {
@@ -170,7 +210,7 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
           <div className="text-5xl">✅</div>
           <h2 className="text-2xl font-bold text-slate-800">Order Placed!</h2>
           <p className="text-slate-500 text-sm">Order <span className="font-mono font-bold text-amber-600">{successOrderId}</span> created for <span className="font-semibold">{customerName}</span></p>
-          <p className="text-2xl font-bold text-slate-800">₹{total.toFixed(0)}</p>
+          <p className="text-2xl font-bold text-slate-800">₹{(orderType === "ONLINE" ? onlineTotal : total).toFixed(0)}</p>
           <div className="flex flex-col gap-2 pt-2">
             <button onClick={resetForm} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition-colors">
               ➕ New Order
@@ -226,18 +266,18 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Order Type</label>
                 <div className="flex rounded-lg border border-slate-300 overflow-hidden">
-                  {(["TABLE", "PARCEL"] as const).map((t) => (
+                  {([["TABLE","🍽️ Dine-in"], ["PARCEL","📦 Parcel"], ["ONLINE","🌐 Online"]] as const).map(([t, label]) => (
                     <button key={t} type="button" onClick={() => setOrderType(t)}
                       className={`flex-1 py-2 text-sm font-medium transition-colors ${orderType === t ? "bg-amber-500 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
-                      {t === "TABLE" ? "🍽️ Dine-in" : "📦 Parcel"}
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
-              {orderType === "TABLE" ? (
+              {orderType === "TABLE" && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Table</label>
                   <select value={tableId} onChange={(e) => setTableId(e.target.value)}
@@ -245,17 +285,24 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
                     {tables.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
-              ) : (
+              )}
+              {orderType === "PARCEL" && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Parcel Charge</label>
-                  <select
-                    value={parcelCharge}
-                    onChange={(e) => setParcelCharge(Number(e.target.value))}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  >
+                  <select value={parcelCharge} onChange={(e) => setParcelCharge(Number(e.target.value))}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
                     {[0, 5, 10, 20, 30, 40].map((amt) => (
                       <option key={amt} value={amt}>{amt === 0 ? "None (₹0)" : `+₹${amt}`}</option>
                     ))}
+                  </select>
+                </div>
+              )}
+              {orderType === "ONLINE" && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Platform</label>
+                  <select value={onlinePlatform} onChange={(e) => setOnlinePlatform(e.target.value as OnlinePlatform)}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    {ONLINE_PLATFORMS.map((p) => <option key={p}>{p}</option>)}
                   </select>
                 </div>
               )}
@@ -282,7 +329,62 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
             </div>
           </div>
 
+          {/* ── Online order item entry ───────────────────────────────────────── */}
+          {orderType === "ONLINE" && (
+            <div className="bg-white rounded-2xl shadow-sm border-2 border-indigo-200 p-4 space-y-3">
+              <h2 className="text-sm font-bold text-indigo-700 uppercase tracking-wide">🌐 {onlinePlatform} Order Items</h2>
+              <p className="text-xs text-slate-400">Enter items and prices as shown on the {onlinePlatform} order. Prices may differ from in-store.</p>
+
+              {onlineItems.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
+                  <input
+                    type="text" value={item.name}
+                    onChange={(e) => setOnlineItems((p) => p.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
+                    placeholder={`Item ${idx + 1} name`}
+                    className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-slate-400" />
+                  <input
+                    type="number" min="1" value={item.qty}
+                    onChange={(e) => setOnlineItems((p) => p.map((x, i) => i === idx ? { ...x, qty: Number(e.target.value) || 1 } : x))}
+                    placeholder="Qty"
+                    className="border border-slate-300 rounded-lg px-2 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-center" />
+                  <input
+                    type="number" min="0" step="0.01" value={item.price || ""}
+                    onChange={(e) => setOnlineItems((p) => p.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) || 0 } : x))}
+                    placeholder="₹ Price"
+                    className="border border-slate-300 rounded-lg px-2 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold" />
+                  <button type="button" onClick={() => setOnlineItems((p) => p.filter((_, i) => i !== idx))}
+                    disabled={onlineItems.length === 1}
+                    className="text-slate-300 hover:text-red-500 text-xl font-bold disabled:opacity-30">×</button>
+                </div>
+              ))}
+
+              <button type="button"
+                onClick={() => setOnlineItems((p) => [...p, { name: "", qty: 1, price: 0 }])}
+                className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center gap-1">
+                ＋ Add item
+              </button>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Package / Delivery Charge (₹)</label>
+                  <input type="number" min="0" value={onlinePackageCharge || ""}
+                    onChange={(e) => setOnlinePackageCharge(Number(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold" />
+                </div>
+                <div className="flex items-end">
+                  <div className="w-full bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2">
+                    <p className="text-xs text-slate-500">Total</p>
+                    <p className="text-xl font-black text-indigo-700">₹{onlineTotal.toFixed(0)}</p>
+                    {onlinePackageCharge > 0 && <p className="text-xs text-slate-400">incl. ₹{onlinePackageCharge} pkg</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Item search */}
+          {orderType !== "ONLINE" && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
             <div className="relative mb-3">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base">🔍</span>
@@ -301,11 +403,11 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
               <SuggestionDropdown suggestions={suggestions} activeIdx={suggestionIdx} onSelect={acceptSuggestion} />
             </div>
 
-            {Object.entries(grouped).map(([cat, items]) => (
+            {Object.entries(grouped).map(([cat, itemsInCat]) => (
               <div key={cat} className="mb-4">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{cat}</p>
                 <div className="space-y-1">
-                  {items.map((item) => {
+                  {itemsInCat.map((item) => {
                     const qty = getQty(item.id);
                     const isWeight = item.unit === "100g";
                     const cartRow = cart.find((r) => r.item.id === item.id);
@@ -367,6 +469,7 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
               </div>
             ))}
           </div>
+          )}
         </form>
       </div>
 
@@ -416,9 +519,13 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
           </div>
         </div>
 
-        <button type="submit" form="new-order-form" disabled={submitting || cart.length === 0}
-          className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-3.5 rounded-xl transition-colors text-base">
-          {submitting ? "Placing…" : cart.length === 0 ? "Add items to continue" : `Place Order · ${cart.length} item${cart.length !== 1 ? "s" : ""} · ₹${total.toFixed(0)}`}
+        <button type="submit" form="new-order-form"
+          disabled={submitting || (orderType !== "ONLINE" && cart.length === 0) || (orderType === "ONLINE" && onlineTotal === 0)}
+          className={`w-full font-bold py-3.5 rounded-xl transition-colors text-base text-white disabled:opacity-50 ${orderType === "ONLINE" ? "bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-300" : "bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300"}`}>
+          {submitting ? "Placing…"
+            : orderType === "ONLINE"
+              ? (onlineTotal === 0 ? "Add items to continue" : `📲 Place ${onlinePlatform} Order · ₹${onlineTotal.toFixed(0)}`)
+              : (cart.length === 0 ? "Add items to continue" : `Place Order · ${cart.length} item${cart.length !== 1 ? "s" : ""} · ₹${total.toFixed(0)}`)}
         </button>
       </div>
     </div>
