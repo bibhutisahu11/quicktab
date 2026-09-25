@@ -1,17 +1,30 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import SuggestionDropdown, { Suggestion, handleSuggestionKey } from "./SuggestionDropdown";
+import { useSession } from "next-auth/react";
+import { EXPENSE_CATALOG, ALL_CATALOG_ITEMS, ALL_UNITS, type CatalogCategory } from "@/lib/expenseCatalog";
 import ScanBillModal from "./ScanBillModal";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Expense {
   id: string;
   amount: number;
   category: string;
+  subCategory: string | null;
   description: string | null;
+  quantity: number | null;
+  unit: string | null;
   date: string;
   paymentMode: string;
   addedBy: string | null;
+}
+
+interface ProductStat {
+  name: string;
+  count: number;
+  total: number;
+  category: string;
 }
 
 interface Summary {
@@ -21,73 +34,71 @@ interface Summary {
   monthTotal: number;
   yearTotal: number;
   byCategory: Record<string, number>;
+  productStats: ProductStat[];
 }
 
-const CATEGORIES = [
-  "Food & Beverages",
-  "Staff Salary",
-  "Utilities",
-  "Rent",
-  "Maintenance",
-  "Marketing",
-  "Supplies & Equipment",
-  "Transportation",
-  "Miscellaneous",
-];
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAYMENT_MODES = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque"];
-
-const CAT_COLORS: Record<string, string> = {
-  "Food & Beverages":    "bg-orange-100 text-orange-700",
-  "Staff Salary":        "bg-blue-100 text-blue-700",
-  "Utilities":           "bg-yellow-100 text-yellow-700",
-  "Rent":                "bg-purple-100 text-purple-700",
-  "Maintenance":         "bg-red-100 text-red-700",
-  "Marketing":           "bg-pink-100 text-pink-700",
-  "Supplies & Equipment":"bg-teal-100 text-teal-700",
-  "Transportation":      "bg-cyan-100 text-cyan-700",
-  "Miscellaneous":       "bg-slate-100 text-slate-600",
-};
-
 const PAYMENT_ICONS: Record<string, string> = {
   Cash: "💵", UPI: "📱", Card: "💳", "Bank Transfer": "🏦", Cheque: "📄",
 };
 
-const EMPTY_FORM = {
-  amount: "",
-  category: CATEGORIES[0],
-  description: "",
-  date: new Date().toISOString().slice(0, 10),
-  paymentMode: "Cash",
-};
+function emptyForm() {
+  return {
+    catalogCatId: "",        // parent category id
+    catalogItem:  "",        // child item name
+    itemSearch:   "",        // search text in child dropdown
+    quantity:     "",
+    unit:         "",
+    amount:       "",
+    description:  "",        // extra notes
+    date: new Date().toISOString().slice(0, 10),
+    paymentMode:  "Cash",
+  };
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 }
-
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
-
 function getMonthlyTotals(expenses: Expense[]) {
   const map: Record<string, number> = {};
   for (const e of expenses) {
     const key = new Date(e.date).toLocaleString("en-IN", { month: "short", year: "2-digit" });
     map[key] = (map[key] ?? 0) + e.amount;
   }
-  // Return last 6 months sorted
   return Object.entries(map).slice(-6);
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function ExpenseManager() {
-  const [data, setData]         = useState<Summary | null>(null);
-  const [loading, setLoading]   = useState(true);
+  const { data: session } = useSession();
+  const role = session?.user?.role ?? "";
+  const canDelete = ["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN"].includes(role);
+
+  const [data, setData]       = useState<Summary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"list" | "analytics">("list");
+
+  // Add form
   const [showAdd, setShowAdd]   = useState(false);
-  const [form, setForm]         = useState(EMPTY_FORM);
+  const [form, setForm]         = useState(emptyForm());
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
+  const itemInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit modal
   const [editId, setEditId]     = useState<string | null>(null);
-  const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [editForm, setEditForm] = useState(emptyForm());
+
+  // Scan
   const [showScan, setShowScan] = useState(false);
   const [scanFlash, setScanFlash] = useState(false);
 
@@ -97,8 +108,8 @@ export default function ExpenseManager() {
   const [dateFrom,   setDateFrom]   = useState("");
   const [dateTo,     setDateTo]     = useState("");
   const [search,     setSearch]     = useState("");
-  const [expSugIdx, setExpSugIdx] = useState(-1);
-  const expSearchRef = useRef<HTMLInputElement>(null);
+
+  // ── Fetch ────────────────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async () => {
     const params = new URLSearchParams();
@@ -112,57 +123,70 @@ export default function ExpenseManager() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  function handleScanned(data: { amount: number; category: string; description: string; date: string; paymentMode: string }) {
-    setForm({
-      amount:      String(data.amount),
-      category:    data.category,
-      description: data.description,
-      date:        data.date,
-      paymentMode: data.paymentMode,
-    });
-    setShowScan(false);
-    setShowAdd(true);
-    setScanFlash(true);
-    setTimeout(() => setScanFlash(false), 2000);
+  // ── Active catalog items for selected parent category ────────────────────────
+
+  const activeCat: CatalogCategory | null = useMemo(
+    () => EXPENSE_CATALOG.find((c) => c.id === form.catalogCatId) ?? null,
+    [form.catalogCatId]
+  );
+
+  const filteredItems = useMemo(() => {
+    const src = activeCat ? activeCat.items : ALL_CATALOG_ITEMS;
+    const q = form.itemSearch.trim().toLowerCase();
+    if (!q) return src.slice(0, 50);
+    return src.filter((i) => i.name.toLowerCase().includes(q)).slice(0, 50);
+  }, [activeCat, form.itemSearch]);
+
+  // When user selects an item, auto-fill the unit
+  function selectItem(name: string) {
+    const found = ALL_CATALOG_ITEMS.find((i) => i.name === name);
+    setForm((f) => ({
+      ...f,
+      catalogItem: name,
+      itemSearch:  name,
+      unit: found?.unit ?? f.unit,
+    }));
+    setShowItemDropdown(false);
   }
+
+  // When parent category changes, reset child
+  function selectCategory(id: string) {
+    setForm((f) => ({ ...f, catalogCatId: id, catalogItem: "", itemSearch: "", unit: "" }));
+    setShowItemDropdown(true);
+    setTimeout(() => itemInputRef.current?.focus(), 50);
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────────
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!form.catalogCatId) { setError("Please select a category"); return; }
+    if (!form.catalogItem && !form.itemSearch) { setError("Please select or type an item"); return; }
     setSaving(true);
     try {
+      const cat = EXPENSE_CATALOG.find((c) => c.id === form.catalogCatId);
       const res = await fetch("/api/admin/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, amount: Number(form.amount) }),
+        body: JSON.stringify({
+          category:    cat?.label ?? form.catalogCatId,
+          subCategory: form.catalogItem || form.itemSearch,
+          description: form.description || null,
+          quantity:    form.quantity ? Number(form.quantity) : null,
+          unit:        form.unit || null,
+          amount:      Number(form.amount),
+          date:        form.date,
+          paymentMode: form.paymentMode,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed");
       setShowAdd(false);
-      setForm(EMPTY_FORM);
+      setForm(emptyForm());
       fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleEdit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editId) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/admin/expenses/${editId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...editForm, amount: Number(editForm.amount) }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      setEditId(null);
-      fetchData();
-    } catch {
-      alert("Failed to update");
     } finally {
       setSaving(false);
     }
@@ -174,12 +198,29 @@ export default function ExpenseManager() {
     fetchData();
   }
 
+  function handleScanned(d: { amount: number; category: string; description: string; date: string; paymentMode: string }) {
+    setForm((f) => ({
+      ...f,
+      amount:      String(d.amount),
+      catalogItem: d.description,
+      itemSearch:  d.description,
+      description: d.description,
+      date:        d.date,
+      paymentMode: d.paymentMode,
+    }));
+    setShowScan(false);
+    setShowAdd(true);
+    setScanFlash(true);
+    setTimeout(() => setScanFlash(false), 2000);
+  }
+
   function exportCsv() {
     if (!data) return;
     const rows = [
-      ["Date", "Category", "Description", "Amount (₹)", "Payment Mode", "Added By"],
+      ["Date", "Category", "Item", "Qty", "Unit", "Amount (₹)", "Payment Mode", "Notes", "Added By"],
       ...data.expenses.map((e) => [
-        fmtDate(e.date), e.category, e.description ?? "", e.amount.toFixed(2), e.paymentMode, e.addedBy ?? "",
+        fmtDate(e.date), e.category, e.subCategory ?? "", e.quantity ?? "", e.unit ?? "",
+        e.amount.toFixed(2), e.paymentMode, e.description ?? "", e.addedBy ?? "",
       ]),
     ];
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -189,28 +230,42 @@ export default function ExpenseManager() {
     a.click();
   }
 
-  // Filtered expenses (client-side search + payment mode filter)
+  // ── Filters ───────────────────────────────────────────────────────────────────
+
+  const allCatLabels = EXPENSE_CATALOG.map((c) => c.label);
+
   const displayed = (data?.expenses ?? []).filter((e) => {
     if (filterMode !== "All" && e.paymentMode !== filterMode) return false;
     if (search) {
       const q = search.toLowerCase();
-      return e.category.toLowerCase().includes(q) || (e.description ?? "").toLowerCase().includes(q);
+      return (
+        e.category.toLowerCase().includes(q) ||
+        (e.subCategory ?? "").toLowerCase().includes(q) ||
+        (e.description ?? "").toLowerCase().includes(q)
+      );
     }
     return true;
   });
 
-  const expenseSuggestions: Suggestion[] = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q || !data?.expenses) return [];
-    const all = data.expenses.filter((e) =>
-      e.category.toLowerCase().includes(q) || (e.description ?? "").toLowerCase().includes(q)
-    );
-    const unique = [...new Set(all.map((e) => e.description ?? e.category))].slice(0, 6);
-    return unique.map((d) => ({ id: d, primary: d }));
-  }, [data, search]);
-
   const monthlyTotals = data ? getMonthlyTotals(data.expenses) : [];
-  const maxMonthly = Math.max(...monthlyTotals.map(([, v]) => v), 1);
+  const maxMonthly    = Math.max(...monthlyTotals.map(([, v]) => v), 1);
+
+  // ── Analytics data ────────────────────────────────────────────────────────────
+  const top10Spend  = (data?.productStats ?? []).slice(0, 10);
+  const top10Count  = [...(data?.productStats ?? [])].sort((a, b) => b.count - a.count).slice(0, 10);
+  const least10     = [...(data?.productStats ?? [])].sort((a, b) => a.count - b.count).slice(0, 10);
+  const maxSpend    = top10Spend[0]?.total ?? 1;
+  const maxCount    = top10Count[0]?.count ?? 1;
+
+  // ── Category color lookup ─────────────────────────────────────────────────────
+  function getCatColor(label: string) {
+    return EXPENSE_CATALOG.find((c) => c.label === label)?.color ?? "bg-slate-100 text-slate-600";
+  }
+  function getCatEmoji(label: string) {
+    return EXPENSE_CATALOG.find((c) => c.label === label)?.emoji ?? "💰";
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -225,7 +280,8 @@ export default function ExpenseManager() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
+
+      {/* ── Header ─────────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Expenses</h1>
@@ -233,18 +289,19 @@ export default function ExpenseManager() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={exportCsv} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium px-4 py-2 rounded-xl text-sm transition-colors">
-            ⬇ Export CSV
+            ⬇ CSV
           </button>
-          <button onClick={() => setShowScan(true)} className="bg-white border border-amber-300 hover:bg-amber-50 text-amber-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1.5">
+          <button onClick={() => setShowScan(true)} className="bg-white border border-amber-300 hover:bg-amber-50 text-amber-700 font-semibold px-4 py-2 rounded-xl text-sm flex items-center gap-1.5">
             🧾 Scan Bill
           </button>
-          <button onClick={() => { setShowAdd(true); setError(""); setForm(EMPTY_FORM); }} className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded-xl text-sm transition-colors">
+          <button onClick={() => { setShowAdd(true); setError(""); setForm(emptyForm()); }}
+            className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded-xl text-sm transition-colors">
             + Add Expense
           </button>
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* ── Summary cards ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "Today",      value: data?.todayTotal  ?? 0, icon: "📅", color: "from-blue-50 to-blue-100 border-blue-200" },
@@ -260,303 +317,396 @@ export default function ExpenseManager() {
         ))}
       </div>
 
-      {/* Monthly bar chart */}
-      {monthlyTotals.length > 1 && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <h3 className="font-bold text-slate-700 mb-4">Monthly Trend</h3>
-          <div className="flex items-end gap-3 h-28">
-            {monthlyTotals.map(([month, total]) => (
-              <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-xs text-slate-500 truncate w-full text-center">{fmt(total)}</span>
-                <div
-                  className="w-full bg-amber-400 rounded-t-lg transition-all"
-                  style={{ height: `${Math.max(8, (total / maxMonthly) * 72)}px` }}
-                />
-                <span className="text-xs text-slate-400">{month}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── Tab bar ────────────────────────────────────────────────────────────── */}
+      <div className="flex gap-2 bg-slate-100 rounded-xl p-1 w-fit">
+        {([["list", "📋 Expenses"], ["analytics", "📊 Analytics"]] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setActiveTab(id)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === id ? "bg-white text-slate-800 shadow" : "text-slate-500 hover:text-slate-700"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-      {/* Category breakdown */}
-      {data && Object.keys(data.byCategory).length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-          <h3 className="font-bold text-slate-700 mb-4">By Category</h3>
-          <div className="space-y-3">
-            {Object.entries(data.byCategory)
-              .sort(([, a], [, b]) => b - a)
-              .map(([cat, amt]) => {
-                const pct = data.totalAmount > 0 ? (amt / data.totalAmount) * 100 : 0;
-                return (
-                  <div key={cat} className="flex items-center gap-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-40 text-center truncate ${CAT_COLORS[cat] ?? "bg-slate-100 text-slate-600"}`}>
-                      {cat}
-                    </span>
-                    <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div className="bg-amber-400 h-full rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-sm font-semibold text-slate-700 w-24 text-right">{fmt(amt)}</span>
-                    <span className="text-xs text-slate-400 w-10 text-right">{pct.toFixed(0)}%</span>
+      {/* ══════════════════════ ANALYTICS TAB ══════════════════════════════════ */}
+      {activeTab === "analytics" && (
+        <div className="space-y-6">
+
+          {/* Monthly bar chart */}
+          {monthlyTotals.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 className="font-bold text-slate-700 mb-4">Monthly Spend Trend</h3>
+              <div className="flex items-end gap-3 h-32">
+                {monthlyTotals.map(([month, total]) => (
+                  <div key={month} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-slate-500 truncate w-full text-center">{fmt(total)}</span>
+                    <div className="w-full bg-amber-400 rounded-t-lg" style={{ height: `${Math.max(8, (total / maxMonthly) * 80)}px` }} />
+                    <span className="text-[10px] text-slate-400">{month}</span>
                   </div>
-                );
-              })}
-          </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Category breakdown */}
+          {data && Object.keys(data.byCategory).length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 className="font-bold text-slate-700 mb-4">Spend by Category</h3>
+              <div className="space-y-3">
+                {Object.entries(data.byCategory).sort(([, a], [, b]) => b - a).map(([cat, amt]) => {
+                  const pct = data.totalAmount > 0 ? (amt / data.totalAmount) * 100 : 0;
+                  return (
+                    <div key={cat} className="flex items-center gap-3">
+                      <span className="text-base">{getCatEmoji(cat)}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-36 text-center truncate ${getCatColor(cat)}`}>{cat}</span>
+                      <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div className="bg-amber-400 h-full rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-sm font-semibold text-slate-700 w-24 text-right">{fmt(amt)}</span>
+                      <span className="text-xs text-slate-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Top 10 by Spend */}
+          {top10Spend.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 className="font-bold text-slate-700 mb-1">🔥 Top Items by Total Spend</h3>
+              <p className="text-xs text-slate-400 mb-4">Most money spent on these items</p>
+              <div className="space-y-2.5">
+                {top10Spend.map((p, i) => (
+                  <div key={p.name} className="flex items-center gap-3">
+                    <span className="text-sm font-black text-slate-400 w-5">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
+                      <p className="text-xs text-slate-400">{getCatEmoji(p.category)} {p.category} · {p.count}×</p>
+                    </div>
+                    <div className="w-32 bg-slate-100 rounded-full h-2">
+                      <div className="bg-rose-400 h-full rounded-full" style={{ width: `${(p.total / maxSpend) * 100}%` }} />
+                    </div>
+                    <span className="text-sm font-bold text-rose-600 w-20 text-right">{fmt(p.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top 10 by Frequency */}
+          {top10Count.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 className="font-bold text-slate-700 mb-1">📦 Most Frequently Purchased</h3>
+              <p className="text-xs text-slate-400 mb-4">Bought the most number of times</p>
+              <div className="space-y-2.5">
+                {top10Count.map((p, i) => (
+                  <div key={p.name} className="flex items-center gap-3">
+                    <span className="text-sm font-black text-slate-400 w-5">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
+                      <p className="text-xs text-slate-400">{getCatEmoji(p.category)} {p.category}</p>
+                    </div>
+                    <div className="w-32 bg-slate-100 rounded-full h-2">
+                      <div className="bg-indigo-400 h-full rounded-full" style={{ width: `${(p.count / maxCount) * 100}%` }} />
+                    </div>
+                    <span className="text-sm font-bold text-indigo-600 w-16 text-right">{p.count}× </span>
+                    <span className="text-xs text-slate-500 w-20 text-right">{fmt(p.total)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Least used */}
+          {least10.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 className="font-bold text-slate-700 mb-1">🧊 Least Purchased Items</h3>
+              <p className="text-xs text-slate-400 mb-4">Items bought least often (possibly one-offs)</p>
+              <div className="flex flex-wrap gap-2">
+                {least10.map((p) => (
+                  <div key={p.name} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-600">
+                    {p.name} <span className="font-bold text-slate-400">·</span> {p.count}× <span className="font-bold text-slate-400">·</span> {fmt(p.total)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Scan Bill Modal */}
-      {showScan && <ScanBillModal onScanned={handleScanned} onClose={() => setShowScan(false)} />}
+      {/* ══════════════════════ LIST TAB ════════════════════════════════════════ */}
+      {activeTab === "list" && (
+        <div className="space-y-5">
 
-      {/* Scan success flash */}
-      {scanFlash && (
-        <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl px-5 py-3 flex items-center gap-3 animate-pulse">
-          <span className="text-xl">✅</span>
-          <p className="font-semibold text-sm">Bill scanned! Review the details below and save.</p>
-        </div>
-      )}
+          {/* Scan Bill Modal */}
+          {showScan && <ScanBillModal onScanned={handleScanned} onClose={() => setShowScan(false)} />}
 
-      {/* Add Expense Form */}
-      {showAdd && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <h2 className="font-bold text-slate-800">New Expense</h2>
-            {scanFlash && (
-              <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-200">
-                ✨ Pre-filled from scan
-              </span>
-            )}
-          </div>
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2 mb-4">{error}</div>}
-          <form onSubmit={handleAdd} className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Amount (₹) *</label>
-              <input type="number" min="0.01" step="0.01" required value={form.amount}
-                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                placeholder="0.00" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+          {scanFlash && (
+            <div className="bg-green-50 border border-green-200 text-green-800 rounded-xl px-5 py-3 flex items-center gap-3 animate-pulse">
+              <span className="text-xl">✅</span>
+              <p className="font-semibold text-sm">Bill scanned! Review details below and save.</p>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Category *</label>
-              <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Date</label>
-              <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Payment Mode</label>
-              <select value={form.paymentMode} onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-                {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Description (optional)</label>
-              <input type="text" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="e.g. Vegetables for weekend, Electricity bill July…"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            </div>
-            <div className="sm:col-span-2 flex gap-3">
-              <button type="submit" disabled={saving}
-                className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">
-                {saving ? "Saving…" : "Add Expense"}
-              </button>
-              <button type="button" onClick={() => { setShowAdd(false); setError(""); }}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl text-sm">
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          )}
 
-      {/* Edit Expense Modal */}
-      {editId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setEditId(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h2 className="font-bold text-slate-800 text-lg mb-5">Edit Expense</h2>
-            <form onSubmit={handleEdit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          {/* ── Add Expense Panel ───────────────────────────────────────────────── */}
+          {showAdd && (
+            <div className="bg-white rounded-2xl border-2 border-amber-200 shadow-sm p-6">
+              <h2 className="font-bold text-slate-800 text-base mb-4">➕ Add Expense</h2>
+              {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2 mb-4">{error}</div>}
+
+              <form onSubmit={handleAdd} className="space-y-4">
+
+                {/* Row 1: Parent category */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Amount (₹)</label>
-                  <input type="number" min="0.01" step="0.01" required value={editForm.amount}
-                    onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                    Category (Parent) *
+                  </label>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {EXPENSE_CATALOG.map((cat) => (
+                      <button key={cat.id} type="button"
+                        onClick={() => selectCategory(cat.id)}
+                        className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+                          form.catalogCatId === cat.id
+                            ? `${cat.color} ${cat.borderColor} shadow-sm`
+                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-400"
+                        }`}
+                      >
+                        <span className="text-lg">{cat.emoji}</span>
+                        <span className="text-center leading-tight">{cat.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Row 2: Child item search */}
+                {form.catalogCatId && (
+                  <div className="relative">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                      Item / Product *
+                    </label>
+                    <input
+                      ref={itemInputRef}
+                      type="text"
+                      value={form.itemSearch}
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, itemSearch: e.target.value, catalogItem: "" }));
+                        setShowItemDropdown(true);
+                      }}
+                      onFocus={() => setShowItemDropdown(true)}
+                      placeholder={`Search ${activeCat?.label ?? ""} items…`}
+                      className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                      autoComplete="off"
+                    />
+                    {form.catalogItem && (
+                      <span className="absolute right-3 top-9 text-green-500 font-bold text-sm">✓</span>
+                    )}
+                    {showItemDropdown && filteredItems.length > 0 && (
+                      <div className="absolute z-30 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl mt-1 max-h-64 overflow-y-auto">
+                        {filteredItems.map((item) => {
+                          const hasCat = !activeCat;
+                          const fullItem = hasCat ? (item as typeof ALL_CATALOG_ITEMS[0]) : null;
+                          return (
+                            <button
+                              key={item.name}
+                              type="button"
+                              onClick={() => selectItem(item.name)}
+                              className="w-full text-left px-4 py-2.5 hover:bg-amber-50 flex items-center justify-between gap-2 border-b border-slate-50 last:border-none"
+                            >
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">{item.name}</p>
+                                {hasCat && fullItem && (
+                                  <p className="text-xs text-slate-400">{fullItem.categoryEmoji} {fullItem.categoryLabel}</p>
+                                )}
+                              </div>
+                              <span className="text-xs text-slate-400 shrink-0">{item.unit}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Row 3: Qty + Unit + Amount side by side */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Quantity</label>
+                    <input type="number" min="0" step="any" value={form.quantity}
+                      onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                      placeholder="e.g. 2.5"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Unit</label>
+                    <select value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                      <option value="">—</option>
+                      {ALL_UNITS.map((u) => <option key={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Amount (₹) *</label>
+                    <input type="number" min="0.01" step="0.01" required value={form.amount}
+                      onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                      placeholder="0.00"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold" />
+                  </div>
+                </div>
+
+                {/* Row 4: Date + Payment mode */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Date</label>
+                    <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode</label>
+                    <select value={form.paymentMode} onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                      {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 5: Notes (optional) */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Date</label>
-                  <input type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Notes (optional)</label>
+                  <input type="text" value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="e.g. Bought from local market"
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button type="submit" disabled={saving}
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+                    {saving ? "Saving…" : "✅ Save Expense"}
+                  </button>
+                  <button type="button" onClick={() => { setShowAdd(false); setError(""); }}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 rounded-xl text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* ── Filters ─────────────────────────────────────────────────────────── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <div className="flex gap-3 flex-wrap items-end">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">From</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Category</label>
-                <select value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                <label className="block text-xs font-semibold text-slate-500 mb-1">To</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Category</label>
+                <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                  <option value="All">All</option>
+                  {allCatLabels.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Payment Mode</label>
-                <select value={editForm.paymentMode} onChange={(e) => setEditForm((f) => ({ ...f, paymentMode: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Payment</label>
+                <select value={filterMode} onChange={(e) => setFilterMode(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                  <option value="All">All</option>
                   {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Description</label>
-                <input type="text" value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              <div className="flex-1 min-w-36">
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Search item</label>
+                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Potato, Mustard Oil…"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
               </div>
-              <div className="flex gap-3 pt-1">
-                <button type="submit" disabled={saving}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-400 text-white font-bold py-3 rounded-xl transition-colors">
-                  {saving ? "Saving…" : "Update"}
+              {(dateFrom || dateTo || filterCat !== "All" || filterMode !== "All" || search) && (
+                <button onClick={() => { setDateFrom(""); setDateTo(""); setFilterCat("All"); setFilterMode("All"); setSearch(""); }}
+                  className="text-sm text-amber-600 hover:text-amber-800 font-medium underline self-end pb-1.5">
+                  Clear
                 </button>
-                <button type="button" onClick={() => setEditId(null)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 rounded-xl">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <div className="flex gap-3 flex-wrap items-end">
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">From</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">To</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Category</label>
-            <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-              <option value="All">All Categories</option>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Payment</label>
-            <select value={filterMode} onChange={(e) => setFilterMode(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
-              <option value="All">All Modes</option>
-              {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
-            </select>
-          </div>
-          <div className="flex-1 min-w-40">
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Search</label>
-            <div className="relative">
-              <input
-                ref={expSearchRef}
-                type="text"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setExpSugIdx(-1); }}
-                onKeyDown={(e) => handleSuggestionKey(e, expenseSuggestions.length, expSugIdx, setExpSugIdx,
-                  (idx) => { setSearch(expenseSuggestions[idx].primary); setExpSugIdx(-1); expSearchRef.current?.focus(); },
-                  () => { setSearch(""); setExpSugIdx(-1); }
-                )}
-                placeholder="Search…"
-                autoComplete="off"
-                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-              <SuggestionDropdown suggestions={expenseSuggestions} activeIdx={expSugIdx}
-                onSelect={(s) => { setSearch(s.primary); setExpSugIdx(-1); }} />
+              )}
             </div>
           </div>
-          {(dateFrom || dateTo || filterCat !== "All" || filterMode !== "All" || search) && (
-            <button onClick={() => { setDateFrom(""); setDateTo(""); setFilterCat("All"); setFilterMode("All"); setSearch(""); }}
-              className="text-sm text-amber-600 hover:text-amber-800 font-medium underline self-end pb-1.5">
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Expense list */}
-      {displayed.length === 0 ? (
-        <div className="text-center py-20 text-slate-400">
-          <div className="text-5xl mb-3">💸</div>
-          <p className="text-lg">No expenses found</p>
-          <button onClick={() => { setShowAdd(true); }}
-            className="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
-            Add first expense
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 text-left">
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Category</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Description</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Mode</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Amount</th>
-                <th className="px-3 py-3 w-20" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {displayed.map((e) => (
-                <tr key={e.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-5 py-3 text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${CAT_COLORS[e.category] ?? "bg-slate-100 text-slate-600"}`}>
-                      {e.category}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600 max-w-xs truncate">{e.description ?? <span className="text-slate-300">—</span>}</td>
-                  <td className="px-5 py-3 text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <span>{PAYMENT_ICONS[e.paymentMode] ?? "💰"}</span>
-                      <span className="text-xs">{e.paymentMode}</span>
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 font-bold text-slate-800 text-right whitespace-nowrap">{fmt(e.amount)}</td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => {
-                        setEditId(e.id);
-                        setEditForm({
-                          amount: String(e.amount),
-                          category: e.category,
-                          description: e.description ?? "",
-                          date: new Date(e.date).toISOString().slice(0, 10),
-                          paymentMode: e.paymentMode,
-                        });
-                      }} className="text-slate-400 hover:text-amber-600 transition-colors px-1 text-base" title="Edit">✏️</button>
-                      <button onClick={() => handleDelete(e.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors text-lg px-1" title="Delete">×</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-50 border-t border-slate-200">
-                <td colSpan={4} className="px-5 py-3 text-sm font-semibold text-slate-700">
-                  {displayed.length} expense{displayed.length !== 1 ? "s" : ""}
-                </td>
-                <td className="px-5 py-3 font-bold text-slate-900 text-right text-base">
-                  {fmt(displayed.reduce((s, e) => s + e.amount, 0))}
-                </td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
+          {/* ── Expense list ─────────────────────────────────────────────────────── */}
+          {displayed.length === 0 ? (
+            <div className="text-center py-20 text-slate-400">
+              <div className="text-5xl mb-3">💸</div>
+              <p className="text-lg">No expenses found</p>
+              <button onClick={() => setShowAdd(true)}
+                className="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">
+                Add first expense
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-left">
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Category</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Item</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Qty</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Mode</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Amount</th>
+                    {canDelete && <th className="px-3 py-3 w-12" />}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {displayed.map((e) => (
+                    <tr key={e.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{fmtDate(e.date)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getCatColor(e.category)}`}>
+                          {getCatEmoji(e.category)} {e.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800 text-sm">{e.subCategory ?? e.description ?? "—"}</p>
+                        {e.description && e.subCategory && (
+                          <p className="text-xs text-slate-400 truncate max-w-[160px]">{e.description}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                        {e.quantity != null ? `${e.quantity} ${e.unit ?? ""}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        <span className="flex items-center gap-1 text-xs">
+                          {PAYMENT_ICONS[e.paymentMode] ?? "💰"} {e.paymentMode}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-slate-800 text-right whitespace-nowrap">{fmt(e.amount)}</td>
+                      {canDelete && (
+                        <td className="px-3 py-3">
+                          <button onClick={() => handleDelete(e.id)}
+                            className="text-slate-300 hover:text-red-500 transition-colors text-xl px-1" title="Delete">×</button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t border-slate-200">
+                    <td colSpan={canDelete ? 5 : 4} className="px-4 py-3 text-xs font-semibold text-slate-500">
+                      {displayed.length} entries
+                    </td>
+                    <td className="px-4 py-3 font-bold text-slate-800 text-right">
+                      {fmt(displayed.reduce((s, e) => s + e.amount, 0))}
+                    </td>
+                    {canDelete && <td />}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

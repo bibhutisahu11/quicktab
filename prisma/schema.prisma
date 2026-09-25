@@ -230,6 +230,9 @@ model Expense {
   amount      Float
   category    String
   description String?
+  subCategory String?       // child item name (e.g. "Mustard Oil")
+  quantity    Float?        // weight / count
+  unit        String?       // kg, litre, pcs, etc.
   date        DateTime      @default(now())
   paymentMode String        @default("Cash")
   orgId       String?
