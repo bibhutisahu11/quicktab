@@ -916,11 +916,11 @@ export default function CreditBook() {
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Date</label>
-                  <input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                  <input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} style={{ colorScheme: "light" }} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-red-400" />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Notes</label>
-                  <input type="text" value={billNotes} onChange={(e) => setBillNotes(e.target.value)} placeholder="Optional" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+                  <input type="text" value={billNotes} onChange={(e) => setBillNotes(e.target.value)} placeholder="Optional" className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-red-400" />
                 </div>
               </div>
               {billError && (
