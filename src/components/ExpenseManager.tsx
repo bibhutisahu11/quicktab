@@ -540,7 +540,7 @@ export default function ExpenseManager() {
                       }}
                       onFocus={() => setShowItemDropdown(true)}
                       placeholder={`Search ${activeCat?.label ?? ""} items…`}
-                      className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
+                      className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium"
                       autoComplete="off"
                     />
                     {form.catalogItem && (
@@ -580,12 +580,12 @@ export default function ExpenseManager() {
                     <input type="number" min="0" step="any" value={form.quantity}
                       onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
                       placeholder="e.g. 2.5"
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Unit</label>
                     <select value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
                       <option value="">—</option>
                       {ALL_UNITS.map((u) => <option key={u}>{u}</option>)}
                     </select>
@@ -595,7 +595,7 @@ export default function ExpenseManager() {
                     <input type="number" min="0.01" step="0.01" required value={form.amount}
                       onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                       placeholder="0.00"
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold" />
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold" />
                   </div>
                 </div>
 
@@ -604,12 +604,13 @@ export default function ExpenseManager() {
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Date</label>
                     <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                      style={{ colorScheme: "light" }}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Payment Mode</label>
                     <select value={form.paymentMode} onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
                       {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
                     </select>
                   </div>
@@ -621,7 +622,7 @@ export default function ExpenseManager() {
                   <input type="text" value={form.description}
                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                     placeholder="e.g. Bought from local market"
-                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
                 </div>
 
                 <div className="flex gap-3 pt-1">
@@ -644,17 +645,19 @@ export default function ExpenseManager() {
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">From</label>
                 <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  style={{ colorScheme: "light" }}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">To</label>
                 <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  style={{ colorScheme: "light" }}
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Category</label>
                 <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
                   <option value="All">All</option>
                   {allCatLabels.map((c) => <option key={c}>{c}</option>)}
                 </select>
@@ -662,7 +665,7 @@ export default function ExpenseManager() {
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Payment</label>
                 <select value={filterMode} onChange={(e) => setFilterMode(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
                   <option value="All">All</option>
                   {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
                 </select>
@@ -671,7 +674,7 @@ export default function ExpenseManager() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Search item</label>
                 <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
                   placeholder="Potato, Mustard Oil…"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
               </div>
               {(dateFrom || dateTo || filterCat !== "All" || filterMode !== "All" || search) && (
                 <button onClick={() => { setDateFrom(""); setDateTo(""); setFilterCat("All"); setFilterMode("All"); setSearch(""); }}
@@ -694,7 +697,7 @@ export default function ExpenseManager() {
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm text-slate-800">
                 <thead>
                   <tr className="bg-slate-50 text-left">
                     <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
