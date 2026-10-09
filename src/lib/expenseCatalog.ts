@@ -82,6 +82,29 @@ export const EXPENSE_CATALOG: CatalogCategory[] = [
       { name: "Cucumber (Khira)", unit: "kg" },
       { name: "Pea Shoots", unit: "bundle" },
       { name: "Neem Leaves (Neem Patta)", unit: "bundle" },
+      // Citrus & Fruits used as vegetables
+      { name: "Lemon (Nimbu)", unit: "kg", altUnits: ["pcs"] },
+      { name: "Raw Lemon (Green Nimbu)", unit: "kg" },
+      { name: "Amla (Indian Gooseberry)", unit: "kg" },
+      // Mushrooms & Exotic
+      { name: "Mushroom (Button)", unit: "kg" },
+      { name: "Oyster Mushroom", unit: "kg" },
+      { name: "Baby Corn", unit: "kg", altUnits: ["pcs"] },
+      { name: "Zucchini / Courgette", unit: "kg" },
+      { name: "Celery", unit: "bundle", altUnits: ["kg"] },
+      { name: "Asparagus", unit: "kg" },
+      { name: "Cherry Tomato", unit: "kg" },
+      { name: "Water Chestnut (Singhara)", unit: "kg" },
+      // Odisha special
+      { name: "Bamboo Shoot (Bans Korali)", unit: "kg" },
+      { name: "Jackfruit Seeds (Katha Bichi)", unit: "kg" },
+      { name: "Papaya Flower (Papita Phool)", unit: "pcs", altUnits: ["kg"] },
+      { name: "Taro Stem (Saru Dandi)", unit: "bundle" },
+      { name: "Fiddlehead Fern (Dheki Saag)", unit: "bundle", altUnits: ["kg"] },
+      { name: "Kokum (Gamboge)", unit: "kg" },
+      { name: "Elephant Apple (Ou / Chalta)", unit: "kg" },
+      { name: "Raw Tomato (Green)", unit: "kg" },
+      { name: "Field Beans (Chawli Phali)", unit: "kg" },
     ],
   },
 
@@ -384,6 +407,86 @@ export const EXPENSE_CATALOG: CatalogCategory[] = [
   },
 
   {
+    id: "procured",
+    label: "Procured Items",
+    emoji: "🥡",
+    color: "bg-pink-100 text-pink-800",
+    borderColor: "border-pink-300",
+    items: [
+      // Momos & Dumplings
+      { name: "Momos (Veg)", unit: "kg", altUnits: ["pcs", "dozen"] },
+      { name: "Momos (Chicken)", unit: "kg", altUnits: ["pcs", "dozen"] },
+      { name: "Momos (Pork)", unit: "kg", altUnits: ["pcs", "dozen"] },
+      { name: "Fried Momos", unit: "kg", altUnits: ["pcs", "dozen"] },
+      // Breads & Bakery
+      { name: "Bread (Sandwich Loaf)", unit: "loaf", altUnits: ["pcs"] },
+      { name: "Brown Bread", unit: "loaf" },
+      { name: "Burger Buns", unit: "pcs", altUnits: ["dozen", "pack"] },
+      { name: "Dinner Rolls / Pav", unit: "pcs", altUnits: ["dozen"] },
+      { name: "Naan / Kulcha (from supplier)", unit: "pcs", altUnits: ["dozen"] },
+      { name: "Roti / Chapati (from supplier)", unit: "pcs", altUnits: ["dozen"] },
+      { name: "Paratha (from supplier)", unit: "pcs", altUnits: ["dozen"] },
+      { name: "Rusks / Toast", unit: "pack" },
+      { name: "Pita Bread", unit: "pcs" },
+      // Batters
+      { name: "Idli / Dosa Batter", unit: "kg", altUnits: ["litre"] },
+      // Frozen / Ready snacks
+      { name: "Frozen Samosa", unit: "pcs", altUnits: ["kg"] },
+      { name: "Frozen Cutlet / Patty", unit: "pcs", altUnits: ["kg"] },
+      { name: "Frozen Spring Roll", unit: "pcs", altUnits: ["kg"] },
+      { name: "Frozen French Fries", unit: "kg" },
+      { name: "Paneer (Market / Supplier)", unit: "kg" },
+      { name: "Tofu", unit: "kg" },
+      // Sweets & Desserts (procured)
+      { name: "Ice Cream (Bulk)", unit: "litre", altUnits: ["kg"] },
+      { name: "Sweets / Mithai (Bulk)", unit: "kg" },
+      { name: "Gulab Jamun Mix", unit: "kg" },
+      { name: "Rasgulla (from supplier)", unit: "kg", altUnits: ["pcs"] },
+      { name: "Cake / Pastry (from bakery)", unit: "pcs", altUnits: ["kg"] },
+      // Pickles & Condiments (procured)
+      { name: "Pickle (Achar) — Bulk", unit: "kg" },
+      { name: "Papad (Bulk)", unit: "pack", altUnits: ["kg"] },
+      { name: "Chutney (Packaged)", unit: "kg" },
+      // Noodles & Pasta
+      { name: "Pasta / Macaroni", unit: "kg" },
+      { name: "Ramen / Instant Noodles", unit: "pack" },
+    ],
+  },
+
+  {
+    id: "beverages",
+    label: "Beverages",
+    emoji: "🥤",
+    color: "bg-sky-100 text-sky-800",
+    borderColor: "border-sky-300",
+    items: [
+      // Packaged drinks
+      { name: "Mineral Water (Small 500ml)", unit: "bottle", altUnits: ["pcs"] },
+      { name: "Mineral Water (1 Litre)", unit: "bottle", altUnits: ["pcs"] },
+      { name: "Water Can (20 Litre)", unit: "can" },
+      { name: "Soda Water", unit: "bottle", altUnits: ["litre"] },
+      { name: "Cola (Pepsi / Coke)", unit: "bottle", altUnits: ["can", "litre"] },
+      { name: "Lemon Soda (Limca / Sprite)", unit: "bottle", altUnits: ["can"] },
+      { name: "Orange Soda (Fanta / Mirinda)", unit: "bottle", altUnits: ["can"] },
+      { name: "Mango Drink (Maaza / Slice / Frooti)", unit: "bottle", altUnits: ["can", "litre"] },
+      { name: "Packaged Juice (Mixed Fruit)", unit: "litre", altUnits: ["ml", "pack"] },
+      { name: "Packaged Juice (Orange)", unit: "litre", altUnits: ["ml"] },
+      { name: "Packaged Juice (Mango)", unit: "litre", altUnits: ["ml"] },
+      { name: "Coconut Water (Packaged)", unit: "can", altUnits: ["pcs"] },
+      { name: "Energy Drink (Red Bull / Monster)", unit: "can" },
+      { name: "Iced Tea (Packaged)", unit: "bottle", altUnits: ["litre"] },
+      // Syrups / Concentrates
+      { name: "Rooh Afza / Rose Syrup", unit: "litre", altUnits: ["ml"] },
+      { name: "Lemon Squash / Concentrate", unit: "litre", altUnits: ["ml"] },
+      { name: "Sharbat Syrup", unit: "litre" },
+      // Hot beverages
+      { name: "Tea Bags (Lipton etc)", unit: "box", altUnits: ["pcs"] },
+      { name: "Instant Coffee (Nescafe etc)", unit: "kg", altUnits: ["g"] },
+      { name: "Horlicks / Bournvita", unit: "kg" },
+    ],
+  },
+
+  {
     id: "miscellaneous",
     label: "Miscellaneous",
     emoji: "📋",
@@ -410,7 +513,8 @@ export const ALL_UNITS = [
   "kg", "g", "litre", "ml", "pcs", "dozen", "tray",
   "bundle", "box", "bag", "roll", "pack", "cylinder",
   "service", "month", "day", "week", "year", "unit",
-  "tanker", "campaign", "quintal",
+  "tanker", "campaign", "quintal", "loaf", "bottle",
+  "can", "carton",
 ];
 
 export const CATALOG_MAP = Object.fromEntries(EXPENSE_CATALOG.map((c) => [c.id, c]));
