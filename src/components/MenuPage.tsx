@@ -455,7 +455,15 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       },
       {
         key: "sweets", label: "🍮 Sweets",
-        cats: pick("Sweets", "Odisha Packed Snacks", "Packed Pickles"),
+        cats: pick("Sweets"),
+      },
+      {
+        key: "packed-snacks", label: "🛍️ Packed Snacks",
+        cats: pick("Odisha Packed Snacks"),
+      },
+      {
+        key: "pickles", label: "🫙 Pickles",
+        cats: pick("Packed Pickles"),
       },
     ].filter((g) => g.cats.size > 0); // hide groups whose categories don't exist
   }, [categories]);
