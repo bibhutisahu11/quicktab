@@ -399,11 +399,8 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     return cats;
   }, [menuItems]);
 
-  // Pick a suggested category based on time-of-day
-  const defaultCategory = useMemo(() => {
-    const suggested = suggestedCategory(categories, timeCtx.keywords);
-    return suggested ?? "All";
-  }, [categories, timeCtx]);
+  // No time-based default — always show everything
+  const defaultCategory = "All";
 
   const [activeCategory, setActiveCategory] = useState<string>("All");
   // Zomato-style: two independent toggles — both off = show all
@@ -413,35 +410,10 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const vegFilter: "all" | "veg" | "nonveg" =
     vegOn && !nonVegOn ? "veg" : !vegOn && nonVegOn ? "nonveg" : "all";
 
-  // Apply time-based default once categories are known
-  useEffect(() => {
-    if (defaultCategory !== "All") setActiveCategory(defaultCategory);
-  }, [defaultCategory]);
-
   const allCategories = useMemo(() => ["All", ...categories], [categories]);
 
-  // ── Time-based availability ──────────────────────────────────────────────
-  // Before 12:00 PM only breakfast, snack & beverage categories are served.
-  // Admin's explicit available=false always takes priority.
-  // After noon everything follows the admin's available flag normally.
-  const MORNING_CATEGORIES = new Set([
-    // legacy name kept for safety
-    "Breakfast Delights",
-    // current menu category names
-    "Odia Breakfast",
-    "North Indian Breakfast",
-    "Dosa & Idli",
-    "Savoury Bites",
-    "Paratha Corner",
-    "Sweets",
-    "Beverages",
-  ]);
-  const isBeforeNoon = new Date().getHours() < 12;
-
   function isItemAvailableNow(item: MenuItemData): boolean {
-    if (!item.available) return false;                      // admin disabled
-    if (isBeforeNoon && !MORNING_CATEGORIES.has(item.category)) return false; // time gate
-    return true;
+    return item.available; // only admin's flag matters — no time-of-day gate
   }
 
   // Show available items first, unavailable at bottom with a "Sold Out" indicator
@@ -904,9 +876,6 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
             >
               <span className="text-base leading-none">{cat === "All" ? "🍽️" : getCategoryEmoji(cat)}</span>
               <span>{cat}</span>
-              {cat === defaultCategory && cat !== "All" && (
-                <span className="text-xs leading-none">✨</span>
-              )}
             </button>
           ))}
         </div>
@@ -915,39 +884,57 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
       {/* Main scroll area — extra bottom padding when floating cart bar is visible so it never covers the last item's Add button */}
       <div style={cartCount > 0 ? { paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" } : undefined}>
 
-      {/* Morning hours notice */}
-      {isBeforeNoon && (
-        <div className="max-w-2xl mx-auto px-4 pt-3">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
-            <span className="text-2xl">☀️</span>
-            <div>
-              <p className="text-sm font-bold text-amber-800">Good Morning! Breakfast menu is live</p>
-              <p className="text-xs text-amber-600">Full menu (Biryani, Chinese, Starters etc.) opens at 12:00 PM</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Time-of-day greeting banner */}
+      {/* Welcome + "What are you looking for?" banner */}
       {showGreeting && (
         <div className="max-w-2xl mx-auto px-4 pt-4">
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-3">
-              {orgLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={orgLogo} alt={orgName ?? "logo"} className="w-12 h-12 rounded-xl object-contain bg-white p-0.5 shadow-sm flex-shrink-0" />
-              ) : (
-                <span className="text-3xl flex-shrink-0">{timeCtx.emoji}</span>
-              )}
-              <div>
-                <p className="font-bold text-slate-800">{timeCtx.greeting}! 👋</p>
-                <p className="text-sm text-slate-500">
-                  {orgName ? `Welcome to ${orgName}` : "Welcome!"}
-                  {defaultCategory !== "All" && <> · We suggest <span className="font-semibold text-amber-600">{defaultCategory}</span> right now</>}
-                </p>
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl px-5 py-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {orgLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={orgLogo} alt={orgName ?? "logo"} className="w-12 h-12 rounded-xl object-contain bg-white p-0.5 shadow-sm flex-shrink-0" />
+                ) : (
+                  <span className="text-3xl flex-shrink-0">{timeCtx.emoji}</span>
+                )}
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800">{timeCtx.greeting}! 👋</p>
+                  <p className="text-sm text-slate-500">{orgName ? `Welcome to ${orgName}` : "Welcome!"}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowGreeting(false)} className="text-slate-300 hover:text-slate-500 text-xl leading-none flex-shrink-0 mt-0.5">×</button>
+            </div>
+            {/* Quick-pick mood chips */}
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-slate-500 mb-2">What are you looking for? 🤔</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "🌅 Breakfast", cat: categories.find((c) => /breakfast|odia breakfast|north indian breakfast|dosa/i.test(c)) },
+                  { label: "🍛 Rice & Meals", cat: categories.find((c) => /rice|thali|odisha|odia special/i.test(c)) },
+                  { label: "🥡 Chinese", cat: categories.find((c) => /chinese/i.test(c)) },
+                  { label: "🍟 Snacks", cat: categories.find((c) => /snack|starter|evening/i.test(c)) },
+                  { label: "🍚 Biryani", cat: categories.find((c) => /biryani/i.test(c)) },
+                  { label: "🥟 Momos", cat: categories.find((c) => /momo|roll/i.test(c)) },
+                  { label: "☕ Beverages", cat: categories.find((c) => /beverage|tea|coffee/i.test(c)) },
+                  { label: "🍮 Sweets", cat: categories.find((c) => /sweet/i.test(c)) },
+                ]
+                  .filter(({ cat }) => !!cat)
+                  .map(({ label, cat }) => (
+                    <button
+                      key={cat}
+                      onClick={() => { setActiveCategory(cat!); setShowGreeting(false); }}
+                      className="text-xs bg-white hover:bg-amber-100 text-slate-700 border border-amber-200 font-semibold px-3 py-1.5 rounded-full transition-colors shadow-sm"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                <button
+                  onClick={() => { setActiveCategory("All"); setShowGreeting(false); }}
+                  className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors shadow-sm"
+                >
+                  🍽️ Show Everything
+                </button>
               </div>
             </div>
-            <button onClick={() => setShowGreeting(false)} className="text-slate-300 hover:text-slate-500 text-xl leading-none flex-shrink-0 ml-3">×</button>
           </div>
         </div>
       )}
