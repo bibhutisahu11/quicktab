@@ -10,6 +10,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "db:studio": "prisma studio",
+    "images:bulk": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bulk-add-images.ts",
+    "images:dry":  "DRY_RUN=true ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/bulk-add-images.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
