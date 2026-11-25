@@ -48,29 +48,54 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
       .catch(() => {});
   }, []);
 
+  // ── Scored search ────────────────────────────────────────────────────────────
+  // Returns items sorted by relevance. When no query, returns menuItems as-is.
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return menuItems;
-    const haystack = (m: MenuItemData) =>
-      `${m.name} ${m.category} ${(m as MenuItemData & { description?: string }).description ?? ""}`.toLowerCase();
-    const t1 = menuItems.filter((m) => haystack(m).includes(q));
-    if (t1.length) return t1;
     const words = q.split(/\s+/).filter(Boolean);
-    const t2 = menuItems.filter((m) => words.every((w) => haystack(m).includes(w)));
-    if (t2.length) return t2;
-    return menuItems.filter((m) => words.some((w) => haystack(m).includes(w)));
+
+    function scoreItem(m: MenuItemData): number {
+      const name = m.name.toLowerCase();
+      const cat  = m.category.toLowerCase();
+      const desc = ((m as MenuItemData & { description?: string }).description ?? "").toLowerCase();
+      // Exact phrase in name — highest priority
+      if (name.includes(q)) return 100;
+      // Exact phrase in category or description
+      if (cat.includes(q) || desc.includes(q)) return 90;
+      // All words in name
+      if (words.every((w) => name.includes(w))) return 80;
+      // All words anywhere (name + category + description)
+      if (words.every((w) => name.includes(w) || cat.includes(w) || desc.includes(w))) return 70;
+      // Count word matches in name
+      const nameHits = words.filter((w) => name.includes(w)).length;
+      if (nameHits > 0) return 40 + nameHits * 10;
+      // Any word anywhere
+      const anyHits = words.filter((w) => cat.includes(w) || desc.includes(w)).length;
+      return anyHits * 5;
+    }
+
+    return menuItems
+      .map((m) => ({ m, s: scoreItem(m) }))
+      .filter(({ s }) => s > 0)
+      .sort((a, b) => b.s - a.s)
+      .map(({ m }) => m);
   }, [menuItems, search]);
 
+  // When searching: flat ranked list; when browsing: group by category
+  const isSearching = search.trim().length > 0;
+
   const grouped = useMemo(() => {
+    if (isSearching) return {}; // flat list used instead
     const map: Record<string, MenuItemData[]> = {};
     filteredItems.forEach((m) => { (map[m.category] ??= []).push(m); });
     return map;
-  }, [filteredItems]);
+  }, [filteredItems, isSearching]);
 
-  // Auto-suggestions: top 8 matches when search is active
+  // Top 15 suggestions (up from 8)
   const suggestions: Suggestion[] = useMemo(
     () => search.trim()
-      ? filteredItems.slice(0, 8).map((m) => ({
+      ? filteredItems.slice(0, 15).map((m) => ({
           id: m.id,
           primary: m.name,
           secondary: m.category,
@@ -372,7 +397,66 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
               <SuggestionDropdown suggestions={suggestions} activeIdx={suggestionIdx} onSelect={acceptSuggestion} />
             </div>
 
-            {Object.entries(grouped).map(([cat, itemsInCat]) => (
+            {/* When searching: flat ranked list. When browsing: grouped by category */}
+            {isSearching ? (
+              <div className="space-y-1">
+                {filteredItems.length === 0 && (
+                  <p className="text-center text-slate-400 text-sm py-6">No items found for &ldquo;{search}&rdquo;</p>
+                )}
+                {filteredItems.map((item) => {
+                  const qty = getQty(item.id);
+                  const isWeight = item.unit === "100g";
+                  const cartRow = cart.find((r) => r.item.id === item.id);
+                  const gramVal = gramInputs[item.id] ?? "";
+                  const gramNum = parseFloat(gramVal);
+                  const previewPrice = gramNum > 0 ? Math.ceil((gramNum / 1000) * (item.price * 10)) : 0;
+                  if (isWeight) return (
+                    <div key={item.id} className={`rounded-xl border px-3 py-2.5 ${cartRow ? "bg-amber-50 border-amber-300" : "bg-white border-slate-100"}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{item.name}</p>
+                          <p className="text-xs text-slate-500">{item.category} · ₹{item.price * 10}/kg</p>
+                        </div>
+                        {cartRow && (
+                          <div className="text-right">
+                            <p className="text-xs font-bold text-amber-600">⚖️ {cartRow.customGrams}g = ₹{cartRow.customPrice}</p>
+                            <button type="button" onClick={() => setCart((p) => p.filter((r) => r.item.id !== item.id))} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="number" min="10" max="10000" value={gramVal}
+                          onChange={(e) => setGramInputs((p) => ({ ...p, [item.id]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addWeightItem(item); } }}
+                          placeholder="Enter grams e.g. 210"
+                          className="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder-slate-400" />
+                        <button type="button" onClick={() => addWeightItem(item)} disabled={!gramNum || gramNum <= 0}
+                          className="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                          {gramNum > 0 ? `Add ${gramVal}g = ₹${previewPrice}` : "⚖️ Add"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                  return (
+                    <div key={item.id} className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-colors ${qty > 0 ? "bg-amber-50 border-amber-300" : "bg-white border-slate-100 hover:border-slate-200"}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                        <p className="text-xs text-slate-500">{item.category} · ₹{item.price}</p>
+                      </div>
+                      {qty === 0 ? (
+                        <button type="button" onClick={() => setQty(item, 1)} className="w-8 h-8 bg-amber-500 hover:bg-amber-600 text-white rounded-full flex items-center justify-center font-bold text-lg leading-none flex-shrink-0">+</button>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button type="button" onClick={() => setQty(item, qty - 1)} className="w-7 h-7 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center font-bold text-slate-700 leading-none">−</button>
+                          <span className="w-5 text-center font-bold text-slate-800 text-sm">{qty}</span>
+                          <button type="button" onClick={() => setQty(item, qty + 1)} className="w-7 h-7 bg-amber-500 hover:bg-amber-600 text-white rounded-full flex items-center justify-center font-bold leading-none">+</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : Object.entries(grouped).map(([cat, itemsInCat]) => (
               <div key={cat} className="mb-4">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">{cat}</p>
                 <div className="space-y-1">
@@ -442,6 +526,7 @@ export default function NewOrderPage({ orgSlug }: { orgSlug: string }) {
       </div>
 
       {/* Sticky footer */}
+
       <div className="fixed bottom-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 space-y-2 w-full max-w-2xl" style={{ left: "50%", transform: "translateX(-50%)" }}>
         {error && <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
 

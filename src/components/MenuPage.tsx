@@ -460,16 +460,20 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         const name = i.name.toLowerCase();
         const cat  = i.category.toLowerCase();
         const desc = (i.description ?? "").toLowerCase();
-        const haystack = `${name} ${cat} ${desc}`;
-        // Tier 1: exact phrase
-        if (haystack.includes(q)) return 100;
-        const matchCount = words.filter(
-          (w) => name.includes(w) || cat.includes(w) || desc.includes(w)
-        ).length;
-        // Tier 2: all words present
-        if (matchCount === words.length) return 50 + matchCount;
-        // Tier 3: at least one word present
-        return matchCount;
+        // Exact phrase in name — highest
+        if (name.includes(q)) return 100;
+        // Exact phrase in category or description
+        if (cat.includes(q) || desc.includes(q)) return 90;
+        // All words in name
+        if (words.every((w) => name.includes(w))) return 80;
+        // All words anywhere
+        if (words.every((w) => name.includes(w) || cat.includes(w) || desc.includes(w))) return 70;
+        // Partial word matches in name (more = higher score)
+        const nameHits = words.filter((w) => name.includes(w)).length;
+        if (nameHits > 0) return 40 + nameHits * 10;
+        // Any word in category or description
+        const anyHits = words.filter((w) => cat.includes(w) || desc.includes(w)).length;
+        return anyHits * 5;
       };
 
       const scored = menuItems
@@ -477,10 +481,8 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         .filter(({ score }) => score > 0)
         .sort((a, b) => b.score - a.score);
 
-      // Suppress tier-3 noise when tier-1 or tier-2 results exist
-      const hasHighScore = scored.some(({ score }) => score >= 50);
-      const threshold = hasHighScore ? 50 : 1;
-      pool = scored.filter(({ score }) => score >= threshold).map(({ item }) => item);
+      // Show all matches — no hard threshold (previously suppressed relevant results)
+      pool = scored.map(({ item }) => item);
     }
 
     // Apply veg/non-veg filter
