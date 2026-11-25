@@ -403,6 +403,9 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
   const defaultCategory = "All";
 
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  // activeGroup = null means category-pill mode; non-null = mood-chip group mode
+  const [activeGroup, setActiveGroup] = useState<{ label: string; cats: Set<string> } | null>(null);
+
   // Zomato-style: two independent toggles — both off = show all
   const [vegOn, setVegOn]       = useState(false);
   const [nonVegOn, setNonVegOn] = useState(false);
@@ -411,6 +414,51 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     vegOn && !nonVegOn ? "veg" : !vegOn && nonVegOn ? "nonveg" : "all";
 
   const allCategories = useMemo(() => ["All", ...categories], [categories]);
+
+  // Mood groups — map a friendly label to the real DB category names
+  // Built dynamically against the live category list so missing categories are ignored
+  const MOOD_GROUPS = useMemo(() => {
+    const has = (name: string) => categories.includes(name);
+    const pick = (...names: string[]) => new Set(names.filter(has));
+    return [
+      {
+        key: "breakfast", label: "🌅 Breakfast",
+        cats: pick("Odia Breakfast", "North Indian Breakfast", "Dosa & Idli", "Paratha Corner", "Savoury Bites", "South Delights"),
+      },
+      {
+        key: "odia", label: "🍛 Odia Food",
+        cats: pick("Odia Chicken", "Odia Fish", "Odia Mutton", "Odia Seafood", "Odia Veg Curries", "Odia Veg Specials", "Odia Non-veg Specials", "Odia Sides", "Odia Snacks", "Patra Poda", "Thali Corner"),
+      },
+      {
+        key: "north-indian", label: "🧅 North Indian",
+        cats: pick("North Indian Veg", "North Indian Non-veg Main Course", "Paneer Specials", "Dal Corner", "Roti & Naan", "Main Course", "Chicken Specials", "Mutton Specials", "Aloo Specials", "Kaju Specials", "Light & Healthy"),
+      },
+      {
+        key: "chinese", label: "🥡 Chinese",
+        cats: pick("Chicken Manchurian", "Fried Rice", "Noodles", "Soups", "Rolls & Momos"),
+      },
+      {
+        key: "starters", label: "🍗 Starters",
+        cats: pick("Veg Starters", "Fish Starters", "Prawn Starters", "Chicken Grills", "Egg Corner", "Odia Snacks", "Savoury Bites", "Snacks"),
+      },
+      {
+        key: "biryani", label: "🍚 Biryani",
+        cats: pick("Biryani"),
+      },
+      {
+        key: "momos", label: "🥟 Momos & Rolls",
+        cats: pick("Rolls & Momos"),
+      },
+      {
+        key: "beverages", label: "☕ Beverages",
+        cats: pick("Beverages"),
+      },
+      {
+        key: "sweets", label: "🍮 Sweets",
+        cats: pick("Sweets", "Odisha Packed Snacks", "Packed Pickles"),
+      },
+    ].filter((g) => g.cats.size > 0); // hide groups whose categories don't exist
+  }, [categories]);
 
   function isItemAvailableNow(item: MenuItemData): boolean {
     return item.available; // only admin's flag matters — no time-of-day gate
@@ -424,9 +472,13 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
     let pool: MenuItemData[];
     if (words.length === 0) {
-      pool = activeCategory === "All"
-        ? menuItems
-        : menuItems.filter((i) => i.category === activeCategory);
+      if (activeGroup) {
+        pool = menuItems.filter((i) => activeGroup.cats.has(i.category));
+      } else {
+        pool = activeCategory === "All"
+          ? menuItems
+          : menuItems.filter((i) => i.category === activeCategory);
+      }
     } else {
       const scoreItem = (i: MenuItemData): number => {
         const name = i.name.toLowerCase();
@@ -475,7 +527,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
     const unavail = pool.filter((i) => !isItemAvailableNow(i)).sort(thaliFirst);
     return [...avail, ...unavail];
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuItems, activeCategory, customerSearch, vegFilter]);
+  }, [menuItems, activeCategory, activeGroup, customerSearch, vegFilter]);
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -821,7 +873,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
         {!isAdmin && <div className="max-w-2xl mx-auto px-4 pb-3 flex items-center gap-3">
           {/* Pure Veg toggle */}
           <button
-            onClick={() => { setVegOn((v) => { if (!v) setActiveCategory("All"); return !v; }); }}
+            onClick={() => { setVegOn((v) => { if (!v) { setActiveCategory("All"); setActiveGroup(null); } return !v; }); }}
             className={`relative flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 select-none ${
               vegOn
                 ? "bg-green-600 text-white shadow-lg shadow-green-900/30"
@@ -837,7 +889,7 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
           {/* Non-Veg toggle */}
           <button
-            onClick={() => { setNonVegOn((v) => { if (!v) setActiveCategory("All"); return !v; }); }}
+            onClick={() => { setNonVegOn((v) => { if (!v) { setActiveCategory("All"); setActiveGroup(null); } return !v; }); }}
             className={`relative flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 select-none ${
               nonVegOn
                 ? "bg-red-600 text-white shadow-lg shadow-red-900/30"
@@ -864,12 +916,21 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
 
         {/* Category quick-nav pills */}
         <div className="max-w-2xl mx-auto px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
+          {/* When a mood group is active, show a dismissible badge first */}
+          {activeGroup && (
+            <button
+              onClick={() => { setActiveGroup(null); setActiveCategory("All"); }}
+              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold bg-amber-500 text-white shadow-md whitespace-nowrap"
+            >
+              {activeGroup.label} <span className="ml-0.5 opacity-70">✕</span>
+            </button>
+          )}
           {allCategories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => { setActiveCategory(cat); setActiveGroup(null); }}
               className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 whitespace-nowrap ${
-                activeCategory === cat
+                !activeGroup && activeCategory === cat
                   ? "bg-amber-500 text-white shadow-md font-bold"
                   : "bg-white/90 text-slate-700 border border-white/50 hover:bg-white hover:shadow-sm"
               }`}
@@ -903,32 +964,21 @@ export default function MenuPage({ menuItems, tableToken, tableName, orgSlug, or
               </div>
               <button onClick={() => setShowGreeting(false)} className="text-slate-300 hover:text-slate-500 text-xl leading-none flex-shrink-0 mt-0.5">×</button>
             </div>
-            {/* Quick-pick mood chips */}
+            {/* Quick-pick mood chips — driven by MOOD_GROUPS (multi-category groups) */}
             <div className="mt-3">
               <p className="text-xs font-semibold text-slate-500 mb-2">What are you looking for? 🤔</p>
               <div className="flex flex-wrap gap-2">
-                {[
-                  { label: "🌅 Breakfast", cat: categories.find((c) => /breakfast|odia breakfast|north indian breakfast|dosa/i.test(c)) },
-                  { label: "🍛 Rice & Meals", cat: categories.find((c) => /rice|thali|odisha|odia special/i.test(c)) },
-                  { label: "🥡 Chinese", cat: categories.find((c) => /chinese/i.test(c)) },
-                  { label: "🍟 Snacks", cat: categories.find((c) => /snack|starter|evening/i.test(c)) },
-                  { label: "🍚 Biryani", cat: categories.find((c) => /biryani/i.test(c)) },
-                  { label: "🥟 Momos", cat: categories.find((c) => /momo|roll/i.test(c)) },
-                  { label: "☕ Beverages", cat: categories.find((c) => /beverage|tea|coffee/i.test(c)) },
-                  { label: "🍮 Sweets", cat: categories.find((c) => /sweet/i.test(c)) },
-                ]
-                  .filter(({ cat }) => !!cat)
-                  .map(({ label, cat }) => (
-                    <button
-                      key={cat}
-                      onClick={() => { setActiveCategory(cat!); setShowGreeting(false); }}
-                      className="text-xs bg-white hover:bg-amber-100 text-slate-700 border border-amber-200 font-semibold px-3 py-1.5 rounded-full transition-colors shadow-sm"
-                    >
-                      {label}
-                    </button>
-                  ))}
+                {MOOD_GROUPS.map((group) => (
+                  <button
+                    key={group.key}
+                    onClick={() => { setActiveGroup({ label: group.label, cats: group.cats }); setActiveCategory("All"); setShowGreeting(false); }}
+                    className="text-xs bg-white hover:bg-amber-100 text-slate-700 border border-amber-200 font-semibold px-3 py-1.5 rounded-full transition-colors shadow-sm"
+                  >
+                    {group.label}
+                  </button>
+                ))}
                 <button
-                  onClick={() => { setActiveCategory("All"); setShowGreeting(false); }}
+                  onClick={() => { setActiveGroup(null); setActiveCategory("All"); setShowGreeting(false); }}
                   className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors shadow-sm"
                 >
                   🍽️ Show Everything
