@@ -57,10 +57,34 @@ export default function MenuManager() {
   const [moveSaving, setMoveSaving] = useState(false);
   const [moveResult, setMoveResult] = useState<string | null>(null);
 
+  // Unsplash photo picker
+  interface UnsplashPhoto { id: string; small: string; regular: string; photographer: string; photographerUrl: string; unsplashUrl: string; }
+  const [photoResults, setPhotoResults]     = useState<UnsplashPhoto[]>([]);
+  const [photoLoading, setPhotoLoading]     = useState(false);
+  const [photoError, setPhotoError]         = useState<string | null>(null);
+  const [photoQuery, setPhotoQuery]         = useState("");
+
   // Force BILLER to availability tab
   useEffect(() => {
     if (isBiller) setTab("availability");
   }, [isBiller]);
+
+  async function searchPhotos(q: string) {
+    if (!q.trim()) return;
+    setPhotoLoading(true);
+    setPhotoError(null);
+    setPhotoResults([]);
+    try {
+      const res = await fetch(`/api/admin/image-search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (!res.ok) setPhotoError(data.error ?? "Search failed");
+      else setPhotoResults(data.photos ?? []);
+    } catch {
+      setPhotoError("Network error — check your connection");
+    } finally {
+      setPhotoLoading(false);
+    }
+  }
 
   async function fetchItems() {
     const res = await fetch("/api/menu");
@@ -73,6 +97,9 @@ export default function MenuManager() {
   function openCreate() {
     setEditItem(null);
     setForm(EMPTY_FORM);
+    setPhotoResults([]);
+    setPhotoError(null);
+    setPhotoQuery("");
     setFormOpen(true);
   }
 
@@ -89,6 +116,9 @@ export default function MenuManager() {
       sortOrder: String(item.sortOrder),
       unit: item.unit ?? "",
     });
+    setPhotoResults([]);
+    setPhotoError(null);
+    setPhotoQuery(item.name);
     setFormOpen(true);
   }
 
@@ -1277,16 +1307,83 @@ export default function MenuManager() {
                 />
               </div>
 
-              {/* Image URL */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Image URL (optional)</label>
+              {/* Image — URL input + Unsplash photo picker */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Image (optional)</label>
+
+                {/* Current preview */}
+                {form.imageUrl && (
+                  <div className="relative w-full h-32 rounded-xl overflow-hidden border border-slate-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={form.imageUrl} alt="preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                      className="absolute top-1.5 right-1.5 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow"
+                    >✕</button>
+                  </div>
+                )}
+
+                {/* Paste URL manually */}
                 <input
                   type="url"
                   value={form.imageUrl}
                   onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                  placeholder="https://..."
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  placeholder="Paste image URL or search Unsplash below…"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
+
+                {/* Unsplash search */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-slate-500">🔍 Search Unsplash for a photo</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={photoQuery}
+                      onChange={(e) => setPhotoQuery(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchPhotos(photoQuery); } }}
+                      placeholder={form.name || "e.g. Chicken Biryani"}
+                      className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => searchPhotos(photoQuery || form.name)}
+                      disabled={photoLoading}
+                      className="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      {photoLoading ? "…" : "Search"}
+                    </button>
+                  </div>
+
+                  {photoError && (
+                    <p className="text-xs text-red-500">{photoError === "UNSPLASH_ACCESS_KEY not configured"
+                      ? "⚠️ Add your free Unsplash key to .env → UNSPLASH_ACCESS_KEY (get it at unsplash.com/developers)"
+                      : photoError}
+                    </p>
+                  )}
+
+                  {photoResults.length > 0 && (
+                    <>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {photoResults.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => { setForm((f) => ({ ...f, imageUrl: p.regular })); setPhotoResults([]); }}
+                            className={`relative rounded-lg overflow-hidden border-2 transition-all ${form.imageUrl === p.regular ? "border-amber-500" : "border-transparent hover:border-amber-300"}`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={p.small} alt={p.photographer} className="w-full h-20 object-cover" />
+                            <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[9px] truncate px-1 py-0.5">
+                              📷 {p.photographer}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-400">Photos from <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" className="underline">Unsplash</a> — tap to use</p>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Sort Order */}
