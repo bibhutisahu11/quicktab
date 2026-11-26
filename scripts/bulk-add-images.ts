@@ -1,5 +1,11 @@
 /**
- * Bulk Unsplash image assignment for all menu items
+ * Bulk Pexels image assignment for all menu items
+ * Pexels free tier: 200 req/hour — covers all 453 items in ~3 mins
+ *
+ * Setup (2 mins, free):
+ *   1. Go to https://www.pexels.com/api/
+ *   2. Sign up → copy your API key
+ *   3. Add to .env: PEXELS_API_KEY="your_key"
  *
  * Usage:
  *   npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/bulk-add-images.ts
@@ -18,11 +24,12 @@ import { Client } from "pg";
 const DRY_RUN   = process.env.DRY_RUN   === "true";
 const OVERWRITE = process.env.OVERWRITE  === "true";
 const ONLY_ID   = process.env.ITEM_ID   ?? null;
-const KEY       = process.env.UNSPLASH_ACCESS_KEY ?? "";
-const DELAY_MS  = parseInt(process.env.DELAY_MS ?? "1200", 10);
+const KEY       = process.env.PEXELS_API_KEY ?? "";
+const DELAY_MS  = parseInt(process.env.DELAY_MS ?? "300", 10); // 300ms = ~200 req/min, well within 200/hr
 
 if (!KEY) {
-  console.error("\n❌  UNSPLASH_ACCESS_KEY not set in .env\n");
+  console.error("\n❌  PEXELS_API_KEY not set in .env");
+  console.error("    Get a free key at https://www.pexels.com/api/ (instant, no approval)\n");
   process.exit(1);
 }
 
@@ -30,7 +37,6 @@ function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-/** Strip noise so searches are focused on the actual dish */
 function buildQuery(name: string, category: string): string {
   const clean = name
     .replace(/\(.*?\)/g, "")
@@ -40,43 +46,42 @@ function buildQuery(name: string, category: string): string {
     .replace(/\s+/g, " ")
     .trim();
 
-  // Add cuisine context for better results
   const cuisine =
-    category.toLowerCase().includes("odia") || category.toLowerCase().includes("odisha") ? "Odia Indian food" :
+    category.toLowerCase().includes("odia") || category.toLowerCase().includes("odisha") ? "Indian food" :
     category.toLowerCase().includes("north indian") ? "North Indian food" :
-    category.toLowerCase().includes("chinese") || category.toLowerCase().includes("manchurian") || category.toLowerCase().includes("noodle") || category.toLowerCase().includes("fried rice") ? "Chinese Indian food" :
+    category.toLowerCase().includes("chinese") || category.toLowerCase().includes("manchurian") || category.toLowerCase().includes("noodle") || category.toLowerCase().includes("fried rice") ? "Chinese food" :
     category.toLowerCase().includes("south") || category.toLowerCase().includes("dosa") || category.toLowerCase().includes("idli") ? "South Indian food" :
-    "Indian food dish";
+    "Indian food";
 
   return `${clean} ${cuisine}`;
 }
 
-async function searchUnsplash(query: string): Promise<string | null> {
-  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=squarish&content_filter=high`;
+async function searchPexels(query: string): Promise<string | null> {
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=square`;
   try {
     const res = await fetch(url, {
-      headers: { Authorization: `Client-ID ${KEY}` },
+      headers: { Authorization: KEY },
     });
 
-    if (res.status === 403 || res.status === 429) {
-      console.warn("\n⏳  Rate limited — waiting 65 minutes for quota reset…\n");
+    if (res.status === 429) {
+      console.warn("\n⏳  Rate limited — waiting 65 minutes…");
       await sleep(65 * 60 * 1000);
-      return searchUnsplash(query); // retry after wait
+      return searchPexels(query);
     }
     if (!res.ok) {
-      console.warn(`  ⚠️  Unsplash ${res.status}`);
+      console.warn(`  ⚠️  Pexels ${res.status}`);
       return null;
     }
 
-    const data = await res.json() as { results: { urls: { regular: string } }[] };
-    return data.results?.[0]?.urls?.regular ?? null;
+    const data = await res.json() as { photos: { src: { large: string } }[] };
+    return data.photos?.[0]?.src?.large ?? null;
   } catch {
     return null;
   }
 }
 
 async function main() {
-  console.log("\n🖼️  Bulk Unsplash image assignment");
+  console.log("\n🖼️  Bulk Pexels image assignment");
   console.log(`   DRY_RUN=${DRY_RUN}  OVERWRITE=${OVERWRITE}  DELAY=${DELAY_MS}ms\n`);
 
   const db = new Client({ connectionString: process.env.DATABASE_URL });
@@ -103,10 +108,10 @@ async function main() {
     const query = buildQuery(item.name, item.category);
     process.stdout.write(`${num} ${item.name.padEnd(44)}`);
 
-    const url = await searchUnsplash(query);
+    const url = await searchPexels(query);
 
     if (!url) {
-      console.log("❌  not found");
+      console.log("❌");
       failed++;
     } else if (DRY_RUN) {
       console.log(`✅ ${url.slice(0, 60)}…`);
