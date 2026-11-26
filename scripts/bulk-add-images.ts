@@ -1,11 +1,11 @@
 /**
- * Bulk Pexels image assignment for all menu items
- * Pexels free tier: 200 req/hour — covers all 453 items in ~3 mins
+ * Bulk Pixabay image assignment for all menu items
+ * Pixabay free tier: 5000 req/hour — covers all 453 items in ~2 mins
  *
  * Setup (2 mins, free):
- *   1. Go to https://www.pexels.com/api/
- *   2. Sign up → copy your API key
- *   3. Add to .env: PEXELS_API_KEY="your_key"
+ *   1. Go to https://pixabay.com/api/docs/
+ *   2. Click "Get API key" → sign up → key shown instantly
+ *   3. Add to .env: PIXABAY_API_KEY="your_key"
  *
  * Usage:
  *   npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/bulk-add-images.ts
@@ -24,12 +24,12 @@ import { Client } from "pg";
 const DRY_RUN   = process.env.DRY_RUN   === "true";
 const OVERWRITE = process.env.OVERWRITE  === "true";
 const ONLY_ID   = process.env.ITEM_ID   ?? null;
-const KEY       = process.env.PEXELS_API_KEY ?? "";
-const DELAY_MS  = parseInt(process.env.DELAY_MS ?? "300", 10); // 300ms = ~200 req/min, well within 200/hr
+const KEY       = process.env.PIXABAY_API_KEY ?? "";
+const DELAY_MS  = parseInt(process.env.DELAY_MS ?? "300", 10);
 
 if (!KEY) {
-  console.error("\n❌  PEXELS_API_KEY not set in .env");
-  console.error("    Get a free key at https://www.pexels.com/api/ (instant, no approval)\n");
+  console.error("\n❌  PIXABAY_API_KEY not set in .env");
+  console.error("    Get a free key at https://pixabay.com/api/docs/ (instant)\n");
   process.exit(1);
 }
 
@@ -56,25 +56,23 @@ function buildQuery(name: string, category: string): string {
   return `${clean} ${cuisine}`;
 }
 
-async function searchPexels(query: string): Promise<string | null> {
-  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=square`;
+async function searchPixabay(query: string): Promise<string | null> {
+  const url = `https://pixabay.com/api/?key=${KEY}&q=${encodeURIComponent(query)}&image_type=photo&orientation=horizontal&per_page=3&safesearch=true&category=food`;
   try {
-    const res = await fetch(url, {
-      headers: { Authorization: KEY },
-    });
+    const res = await fetch(url);
 
     if (res.status === 429) {
       console.warn("\n⏳  Rate limited — waiting 65 minutes…");
       await sleep(65 * 60 * 1000);
-      return searchPexels(query);
+      return searchPixabay(query);
     }
     if (!res.ok) {
-      console.warn(`  ⚠️  Pexels ${res.status}`);
+      console.warn(`  ⚠️  Pixabay ${res.status}`);
       return null;
     }
 
-    const data = await res.json() as { photos: { src: { large: string } }[] };
-    return data.photos?.[0]?.src?.large ?? null;
+    const data = await res.json() as { hits: { webformatURL: string; largeImageURL: string }[] };
+    return data.hits?.[0]?.largeImageURL ?? null;
   } catch {
     return null;
   }
@@ -108,7 +106,7 @@ async function main() {
     const query = buildQuery(item.name, item.category);
     process.stdout.write(`${num} ${item.name.padEnd(44)}`);
 
-    const url = await searchPexels(query);
+    const url = await searchPixabay(query);
 
     if (!url) {
       console.log("❌");
