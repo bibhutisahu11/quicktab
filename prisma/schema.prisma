@@ -77,7 +77,8 @@ model Organization {
   attendance      Attendance[]
   advances         AdvancePayment[]
   preOrderSweets   PreOrderSweet[]
-  preOrders        PreOrder[]
+  preOrders            PreOrder[]
+  chhadakhaiBookings   ChhadakhaiBooking[]
   cashDrawers      CashDrawer[]
   regularCustomers RegularCustomer[]
   mealPayments     MealPayment[]
@@ -456,6 +457,25 @@ model CreditCustomer {
 
   @@index([orgId])
   @@map("credit_customers")
+}
+
+model ChhadakhaiBooking {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String
+  persons   Int
+  visitDate String       // "2024-11-28" or "2024-11-29"
+  visitTime String       // e.g. "01:00 PM"
+  status    String       @default("CONFIRMED")
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([orgId])
+  @@index([orgId, visitDate])
+  @@map("chhadakhai_bookings")
 }
 
 model CreditEntry {
