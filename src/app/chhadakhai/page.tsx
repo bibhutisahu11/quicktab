@@ -112,8 +112,8 @@ export default function ChhadakhaiPage() {
       {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white px-4 py-8 text-center shadow-lg">
         <p className="text-4xl mb-2">🎊</p>
-        <h1 className="text-3xl font-black tracking-tight">ଛଇଁଇ ଉତ୍ସବ</h1>
-        <p className="text-xl font-bold opacity-90 mt-1">Chhadakhai Festival</p>
+        <h1 className="text-3xl font-black tracking-tight">ଛଇଁଇ</h1>
+        <p className="text-xl font-bold opacity-90 mt-1">Chhadakhai Special Thali</p>
         <p className="text-amber-100 text-sm mt-2 font-medium">28th & 29th November 2024 · Kalinga Bites</p>
         <p className="text-amber-100 text-xs mt-1 opacity-80">Book your table and celebrate with us!</p>
       </div>
