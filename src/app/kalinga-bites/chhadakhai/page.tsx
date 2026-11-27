@@ -118,6 +118,52 @@ export default function ChhadakhaiPage() {
         <p className="text-amber-100 text-xs mt-1 opacity-80">Book your table and celebrate with us!</p>
       </div>
 
+      {/* Thali Menu */}
+      <div className="max-w-md mx-auto px-4 pt-6 pb-2">
+        <div className="bg-white rounded-3xl shadow-lg overflow-hidden border border-amber-100">
+          {/* Card Header */}
+          <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400 px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-orange-100 uppercase tracking-widest mb-0.5">What&apos;s Included</p>
+              <h3 className="text-white text-lg font-black leading-tight">Chhadakhai Special Thali</h3>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm border border-white/40 rounded-2xl px-4 py-2 text-center shrink-0 ml-3">
+              <p className="text-white text-xl font-black leading-none">₹599</p>
+              <p className="text-orange-100 text-xs font-semibold mt-0.5">per person</p>
+            </div>
+          </div>
+
+          {/* Items Grid */}
+          <div className="px-4 py-4">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { icon: "🍚", name: "Rice" },
+                { icon: "🫕", name: "Dal" },
+                { icon: "🍍", name: "Pineapple Khatta" },
+                { icon: "🥘", name: "Bhaja" },
+                { icon: "🍖", name: "Mutton Curry (2 pcs)" },
+                { icon: "🍗", name: "Chicken Kassa (2 pcs)" },
+                { icon: "🐟", name: "Fish Tawa Fry (1 pc)" },
+                { icon: "🦐", name: "Prawn Rai (2 pcs)" },
+                { icon: "🍗", name: "Chicken Pakoda (2 pcs)" },
+                { icon: "🍛", name: "Biryani Rice" },
+                { icon: "🍮", name: "Gulab Jamun" },
+                { icon: "🫓", name: "Papad" },
+              ].map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-3 py-2"
+                >
+                  <span className="text-base leading-none shrink-0">{item.icon}</span>
+                  <span className="text-xs font-semibold text-amber-900 leading-tight">{item.name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs text-slate-400 mt-3 font-medium">🌟 Fresh · Authentic · Festive</p>
+          </div>
+        </div>
+      </div>
+
       {/* Form */}
       <div className="max-w-md mx-auto px-4 py-8">
         <form onSubmit={handleSubmit} noValidate className="bg-white rounded-3xl shadow-xl p-6 space-y-5">
