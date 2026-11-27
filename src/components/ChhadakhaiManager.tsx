@@ -14,8 +14,8 @@ interface Booking {
 }
 
 const DATE_LABELS: Record<string, string> = {
-  "2024-11-28": "28 Nov (Thu)",
-  "2024-11-29": "29 Nov (Fri)",
+  "2026-11-28": "28 Nov (Sat)",
+  "2026-11-29": "29 Nov (Sun)",
 };
 
 export default function ChhadakhaiManager() {
@@ -51,7 +51,7 @@ export default function ChhadakhaiManager() {
       {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl px-6 py-5 text-white">
         <h1 className="text-2xl font-black">🎊 Chhadakhai Bookings</h1>
-        <p className="text-amber-100 text-sm mt-1">28th & 29th November 2024 · Kalinga Bites</p>
+        <p className="text-amber-100 text-sm mt-1">28th & 29th November 2026 · Kalinga Bites</p>
         <div className="flex gap-4 mt-3 text-sm font-semibold">
           <span className="bg-white/20 rounded-lg px-3 py-1">Total: {filtered.length} bookings</span>
           <span className="bg-white/20 rounded-lg px-3 py-1">👥 {totalPersons} persons</span>
@@ -76,7 +76,7 @@ export default function ChhadakhaiManager() {
 
       {/* Date filter */}
       <div className="flex gap-2">
-        {["all", "2024-11-28", "2024-11-29"].map((d) => (
+        {["all", "2026-11-28", "2026-11-29"].map((d) => (
           <button
             key={d}
             onClick={() => setFilterDate(d)}

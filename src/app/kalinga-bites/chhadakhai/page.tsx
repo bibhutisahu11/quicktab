@@ -17,8 +17,8 @@ const TIME_SLOTS = [
 ];
 
 const DATE_OPTIONS = [
-  { value: "2024-11-28", label: "Thursday, 28th November 2024" },
-  { value: "2024-11-29", label: "Friday, 29th November 2024" },
+  { value: "2026-11-28", label: "Saturday, 28th November 2026" },
+  { value: "2026-11-29", label: "Sunday, 29th November 2026" },
 ];
 
 interface FormState {
@@ -114,7 +114,7 @@ export default function ChhadakhaiPage() {
         <p className="text-4xl mb-2">🎊</p>
         <h1 className="text-3xl font-black tracking-tight">ଛାଡ଼ଖାଇ</h1>
         <p className="text-xl font-bold opacity-90 mt-1">Chhadakhai Special Thali</p>
-        <p className="text-amber-100 text-sm mt-2 font-medium">28th & 29th November 2024 · Kalinga Bites</p>
+        <p className="text-amber-100 text-sm mt-2 font-medium">28th & 29th November 2026 · Kalinga Bites</p>
         <p className="text-amber-100 text-xs mt-1 opacity-80">Book your table and celebrate with us!</p>
       </div>
 
@@ -236,7 +236,7 @@ export default function ChhadakhaiPage() {
                 >
                   <p className="text-lg">📅</p>
                   <p>{opt.value.endsWith("28") ? "28th Nov" : "29th Nov"}</p>
-                  <p className="text-xs opacity-70">{opt.value.endsWith("28") ? "Thursday" : "Friday"}</p>
+                  <p className="text-xs opacity-70">{opt.value.endsWith("28") ? "Saturday" : "Sunday"}</p>
                 </button>
               ))}
             </div>

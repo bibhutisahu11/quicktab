@@ -6,7 +6,7 @@ import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_DATES = ["2024-11-28", "2024-11-29"];
+const ALLOWED_DATES = ["2026-11-28", "2026-11-29"];
 
 // ── POST — public booking submission ────────────────────────────────────────
 export async function POST(req: NextRequest) {
