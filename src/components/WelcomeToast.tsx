@@ -64,9 +64,11 @@ export default function WelcomeToast() {
     }), 500);
   }, [session]);
 
-  // ── Inactivity return toast ───────────────────────────────────────────────
+  // ── Inactivity return toast (BILLER and MANAGER only) ───────────────────
   useEffect(() => {
     if (!session?.user) return;
+    const role = session.user.role;
+    if (role !== "BILLER" && role !== "MANAGER") return;
 
     function handleVisibilityChange() {
       if (document.hidden) {
