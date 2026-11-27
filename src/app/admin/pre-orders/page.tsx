@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import PreOrderManager from "@/components/PreOrderManager";
 
-const ALLOWED_ROLES = new Set(["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN"]);
+const ALLOWED_ROLES = new Set(["HOTEL_ADMIN", "MANAGER", "SUPER_ADMIN", "BILLER"]);
 
 export default async function PreOrdersPage() {
   const session = await getServerSession(authOptions);

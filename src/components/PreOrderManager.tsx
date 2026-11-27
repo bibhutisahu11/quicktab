@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import QRCode from "qrcode";
+import ChhadakhaiManager from "./ChhadakhaiManager";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -531,7 +532,7 @@ function SweetCatalog() {
 /* ─── Main Component ─────────────────────────────────────── */
 
 export default function PreOrderManager({ orgSlug }: { orgSlug: string }) {
-  const [tab, setTab] = useState<"orders" | "catalog" | "qr">("orders");
+  const [tab, setTab] = useState<"orders" | "catalog" | "qr" | "chhadakhai">("orders");
   const [orders, setOrders] = useState<PreOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -593,8 +594,8 @@ export default function PreOrderManager({ orgSlug }: { orgSlug: string }) {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl shadow-sm p-1 mb-6 w-fit">
-          {(["orders", "catalog", "qr"] as const).map((t) => (
+        <div className="flex gap-1 bg-white rounded-xl shadow-sm p-1 mb-6 flex-wrap">
+          {(["orders", "catalog", "qr", "chhadakhai"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -604,13 +605,14 @@ export default function PreOrderManager({ orgSlug }: { orgSlug: string }) {
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              {t === "orders" ? `Pre-Orders${actionOrders.length > 0 ? ` (${actionOrders.length})` : ""}` : t === "catalog" ? "Sweet Catalog" : "QR Code"}
+              {t === "orders" ? `Pre-Orders${actionOrders.length > 0 ? ` (${actionOrders.length})` : ""}` : t === "catalog" ? "Sweet Catalog" : t === "qr" ? "QR Code" : "🎊 ଛାଡ଼ଖାଇ"}
             </button>
           ))}
         </div>
 
-        {tab === "catalog" && <SweetCatalog />}
-        {tab === "qr"      && <PreOrderQR orgSlug={orgSlug} />}
+        {tab === "catalog"     && <SweetCatalog />}
+        {tab === "qr"          && <PreOrderQR orgSlug={orgSlug} />}
+        {tab === "chhadakhai"  && <ChhadakhaiManager />}
 
         {tab === "orders" && (
           <div className="space-y-5">
