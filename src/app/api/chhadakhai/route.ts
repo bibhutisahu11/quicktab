@@ -17,8 +17,18 @@ export async function POST(req: NextRequest) {
     };
 
     // Validations
-    if (!name?.trim())                 return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    if (name.trim().length < 2)        return NextResponse.json({ error: "Name must be at least 2 characters" }, { status: 400 });
+    const FAKE_NAMES = ["test", "bot", "abc", "xyz", "asdf", "qwerty", "dummy", "fake", "user", "admin", "name", "na", "xx", "xxx", "aaa", "bbb", "ccc"];
+    const nameTrimmed = name?.trim() ?? "";
+    const nameLower = nameTrimmed.toLowerCase();
+    const isFakeName = (n: string) =>
+      FAKE_NAMES.includes(n) ||
+      (n.length > 0 && n.split("").every(c => c === n[0])) ||
+      /^\d+$/.test(n) ||
+      (n.length <= 6 && !/[aeiou]/.test(n));
+
+    if (!nameTrimmed)                  return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    if (nameTrimmed.length < 3)        return NextResponse.json({ error: "Name must be at least 3 characters" }, { status: 400 });
+    if (isFakeName(nameLower))         return NextResponse.json({ error: "Please enter your real name" }, { status: 400 });
     if (!/^\d{10}$/.test(phone?.trim())) return NextResponse.json({ error: "Phone must be exactly 10 digits" }, { status: 400 });
     if (!persons || persons < 1)       return NextResponse.json({ error: "At least 1 person required" }, { status: 400 });
     if (persons > 50)                  return NextResponse.json({ error: "Maximum 50 persons per booking" }, { status: 400 });

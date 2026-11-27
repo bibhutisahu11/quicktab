@@ -5,7 +5,6 @@ import { useState } from "react";
 const ORG_SLUG = "kalinga-bites";
 
 const TIME_SLOTS = [
-  "11:00 AM – 12:00 PM",
   "12:00 PM – 01:00 PM",
   "01:00 PM – 02:00 PM",
   "02:00 PM – 03:00 PM",
@@ -46,10 +45,24 @@ export default function ChhadakhaiPage() {
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState("");
 
+  function isFakeName(name: string): boolean {
+    const n = name.trim().toLowerCase();
+    const BLOCKLIST = ["test", "bot", "abc", "xyz", "asdf", "qwerty", "dummy", "fake", "user", "admin", "name", "na", "xx", "xxx", "aaa", "bbb", "ccc"];
+    if (BLOCKLIST.includes(n)) return true;
+    // All same character (e.g. "aaaa", "1111")
+    if (n.length > 0 && n.split("").every(c => c === n[0])) return true;
+    // Only digits
+    if (/^\d+$/.test(n)) return true;
+    // No vowels and length <= 6 (likely gibberish)
+    if (n.length <= 6 && !/[aeiou]/.test(n)) return true;
+    return false;
+  }
+
   function validate(): boolean {
     const e: FieldError = {};
     if (!form.name.trim())               e.name     = "Please enter your name";
-    else if (form.name.trim().length < 2) e.name    = "Name must be at least 2 characters";
+    else if (form.name.trim().length < 3) e.name    = "Name must be at least 3 characters";
+    else if (isFakeName(form.name))       e.name    = "Please enter your real name";
     if (!form.phone.trim())              e.phone    = "Please enter your mobile number";
     else if (!/^\d{10}$/.test(form.phone.trim())) e.phone = "Enter a valid 10-digit mobile number";
     if (!form.persons)                   e.persons  = "Please enter number of persons";
