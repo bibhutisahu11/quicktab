@@ -93,7 +93,7 @@ export default function ChhadakhaiPage() {
         <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
           <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-2xl font-black text-slate-800 mb-2">Booking Confirmed!</h2>
-          <p className="text-amber-600 font-bold text-lg mb-4">ଶୁଭ ଛଇଁଇ! 🙏</p>
+          <p className="text-amber-600 font-bold text-lg mb-4">ଶୁଭ ଛାଡ଼ଖାଇ! 🙏</p>
           <div className="bg-amber-50 rounded-2xl p-4 text-left space-y-2 mb-6">
             <p className="text-sm text-slate-600"><span className="font-semibold">Name:</span> {form.name}</p>
             <p className="text-sm text-slate-600"><span className="font-semibold">Date:</span> {DATE_OPTIONS.find(d => d.value === form.visitDate)?.label}</p>
@@ -112,7 +112,7 @@ export default function ChhadakhaiPage() {
       {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white px-4 py-8 text-center shadow-lg">
         <p className="text-4xl mb-2">🎊</p>
-        <h1 className="text-3xl font-black tracking-tight">ଛଇଁଇ</h1>
+        <h1 className="text-3xl font-black tracking-tight">ଛାଡ଼ଖାଇ</h1>
         <p className="text-xl font-bold opacity-90 mt-1">Chhadakhai Special Thali</p>
         <p className="text-amber-100 text-sm mt-2 font-medium">28th & 29th November 2024 · Kalinga Bites</p>
         <p className="text-amber-100 text-xs mt-1 opacity-80">Book your table and celebrate with us!</p>
