@@ -64,10 +64,10 @@ export default function ChhadakhaiManager() {
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-bold text-amber-800">📋 Public Booking Link</p>
-          <p className="text-xs text-amber-600 mt-0.5 font-mono">ordertab.vercel.app/chhadakhai</p>
+          <p className="text-xs text-amber-600 mt-0.5 font-mono">ordertab.vercel.app/kalinga-bites/chhadakhai</p>
         </div>
         <button
-          onClick={() => { navigator.clipboard.writeText("https://ordertab.vercel.app/chhadakhai"); }}
+          onClick={() => { navigator.clipboard.writeText("https://ordertab.vercel.app/kalinga-bites/chhadakhai"); }}
           className="bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors whitespace-nowrap"
         >
           Copy Link
